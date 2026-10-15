@@ -1,0 +1,22 @@
+{
+  "name": "pawn-promoter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pawn Promoter — browser chess trainer that turns your own games into puzzles (web port of King Coach)",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@sqlite.org/sqlite-wasm": "3.53.4-build1",
+    "chessops": "0.15.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.0",
+    "typescript": "5.9.3",
+    "vitest": "5.0.3"
+  }
+}

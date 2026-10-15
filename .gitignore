@@ -1,0 +1,18 @@
+# personal data (see ~/Chess README "Your data stays local"): games, analysis,
+# puzzles, repertoires, settings and the Lichess token — never commit, any copy
+chessprep.db
+chessprep.db-journal
+chessprep_*.db
+*.db
+*.db-journal
+*.sqlite3
+profiles.json
+spikes/public/tasks.json
+
+node_modules/
+results/
+dist/
+.vite/
+
+# golden fixtures are generated from your own games (personal data)
+tests/golden/

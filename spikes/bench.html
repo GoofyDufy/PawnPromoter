@@ -1,0 +1,84 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Stockfish WASM bench</title>
+<pre id="log"></pre>
+<script type="module">
+// Spike 0.2: run the desktop analyzer's searches (public/tasks.json) through
+// one stockfish.js flavor and POST timing + agreement with native to /report.
+const params = new URLSearchParams(location.search);
+const flavor = params.get("flavor") || "stockfish-19-lite-single";
+const threads = Number(params.get("threads") || 1);
+const workers = Number(params.get("workers") || 1);  // engines analyzing side by side
+const log = (s) => (document.getElementById("log").textContent += s + "\n");
+
+function report(data) {
+  return fetch("/report", { method: "POST", body: JSON.stringify({ spike: "stockfish", flavor, threads, workers, ...data }) });
+}
+
+function engine(url) {
+  const w = new Worker(url);
+  let waiter = null;
+  const lines = [];
+  w.onmessage = (e) => {
+    const line = typeof e.data === "string" ? e.data : String(e.data);
+    lines.push(line);
+    if (waiter && line.startsWith(waiter.prefix)) { const r = waiter.resolve; waiter = null; r(line); }
+  };
+  w.onerror = (e) => report({ error: "worker error: " + e.message });
+  return {
+    send: (cmd) => w.postMessage(cmd),
+    until(prefix) { return new Promise((resolve) => (waiter = { prefix, resolve })); },
+    lines,
+  };
+}
+
+try {
+  const { depth, my_color, tasks } = await (await fetch("public/tasks.json")).json();
+  async function runOne() {
+    const t0 = performance.now();
+    const sf = engine(`node_modules/stockfish/bin/${flavor}.js`);
+    sf.send("uci"); await sf.until("uciok");
+    if (threads > 1) sf.send(`setoption name Threads value ${threads}`);
+    sf.send("isready"); await sf.until("readyok");
+    const loadMs = performance.now() - t0;
+    log(`${flavor} loaded in ${loadMs.toFixed(0)} ms`);
+
+    let agree = 0, cpDiffs = [];
+    for (const t of tasks) {
+      sf.lines.length = 0;
+      sf.send(`setoption name MultiPV value ${t.multipv}`);
+      sf.send(`position fen ${t.fen}`);
+      sf.send(`go depth ${depth}`);
+      const best = (await sf.until("bestmove")).split(" ")[1];
+      // last "info depth N ... multipv 1 score cp X" line = final eval, side-to-move POV
+      const info = sf.lines.filter((l) => l.includes(` depth ${depth} `) && / multipv 1 /.test(l)).pop() || "";
+      const m = info.match(/score (cp|mate) (-?\d+)/);
+      let cp = m ? (m[1] === "cp" ? +m[2] : (+m[2] > 0 ? 10000 : -10000)) : null;
+      const stmIsMe = (t.fen.split(" ")[1] === "w") === (my_color === "white");
+      if (cp !== null && !stmIsMe) cp = -cp;
+      if (best === t.best) agree++;
+      if (cp !== null) cpDiffs.push(Math.abs(Math.max(-1000, Math.min(1000, cp)) - Math.max(-1000, Math.min(1000, t.cp))));
+    }
+    return { loadMs, agree, cpDiffs };
+  }
+  const t1 = performance.now();
+  const runs = await Promise.all(Array.from({ length: workers }, runOne));
+  const { loadMs, agree } = runs[0];
+  const cpDiffs = runs[0].cpDiffs;
+  const searchMs = performance.now() - t1;
+  cpDiffs.sort((a, b) => a - b);
+  const result = {
+    loadMs: Math.round(loadMs), searchMs: Math.round(searchMs), tasks: tasks.length,
+    secondsPerGame: +(searchMs / workers / 1000).toFixed(1),
+    bestMoveAgreement: `${agree}/${tasks.length}`,
+    medianCpDiff: cpDiffs[Math.floor(cpDiffs.length / 2)],
+    crossOriginIsolated: self.crossOriginIsolated,
+    userAgent: navigator.userAgent,
+  };
+  log(JSON.stringify(result, null, 1));
+  await report(result);
+} catch (e) {
+  await report({ error: String(e && e.stack || e) });
+}
+await report({ done: true });
+</script>
