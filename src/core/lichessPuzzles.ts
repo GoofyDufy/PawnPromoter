@@ -216,8 +216,13 @@ export interface PackManifest {
 
 type Fetch = typeof fetch;
 
+/** A pack's text. Some servers (Vite's dev server, some hosts) send .gz files
+ *  with Content-Encoding: gzip, so the browser has already unpacked them:
+ *  only unpack what still starts with gzip's magic bytes. */
 async function gunzipText(resp: Response): Promise<string> {
-  const stream = resp.body!.pipeThrough(new DecompressionStream('gzip'));
+  const bytes = new Uint8Array(await resp.arrayBuffer());
+  if (bytes[0] !== 0x1f || bytes[1] !== 0x8b) return new TextDecoder().decode(bytes);
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
   return new Response(stream).text();
 }
 

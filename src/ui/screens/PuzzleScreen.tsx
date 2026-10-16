@@ -20,6 +20,7 @@ import { type Filters, PuzzleController } from '../puzzleController';
 const SOURCE_OPTIONS = [MY_GAMES, LICHESS, BOTH_SOURCES];
 const KIND_OPTIONS = [ALL_KINDS, ...KINDS, MULTI_STEP];
 const POSITION_OPTIONS = [ALL_POSITIONS, SHARP_ONLY, QUIET_ONLY];
+const EMPTY_BOARD = '8/8/8/8/8/8/8/8 w - - 0 1';   // no puzzle: an empty board (not a position the chess rules accept)
 const DOT = { green: '#15781b', blue: '#003088', grey: '#8d8d8d' };
 
 function useController(c: PuzzleController): number {
@@ -103,72 +104,11 @@ export function PuzzleScreen({ c }: { c: PuzzleController }) {
   const evalWhite = c.evalWhite();
 
   return (
-    <section>
+    <section className="puzzle-screen">
       <h1>Puzzle Review</h1>
       <p className="lede">Your own mistakes as puzzles. Find the move you missed — ← and → go to the previous and next puzzle.</p>
+      {/* the queue on the left, the board in the centre, the commentary on the right */}
       <div className="puzzles">
-        <div className="card board-card">
-          <div className="row puzzle-head">
-            <span className="note game-label">{c.gameLabel()}</span>
-            <span style={{ flex: 1 }} />
-            {p && <button type="button" className="btn secondary small" onClick={review}
-              disabled={c.isLichess() ? !p.game_url : !c.details?.game?.url}
-              title={c.isLichess() ? undefined : 'Opens the game on chess.com (Game Review comes in Phase 5)'}>
-              {c.isLichess() ? 'Open on Lichess' : 'Review game'}</button>}
-            {p && <button type="button" className="btn secondary small" onClick={() => setPlaying(true)}>Play it out</button>}
-          </div>
-          {p && (
-            <div className="row tag-row">
-              <div className="tags">
-                {auto.slice(0, 1).map((t) => <span key={t} className="chip">{t}</span>)}
-                {mine.map((t) => (
-                  <button key={t} type="button" className="chip yours" title="Remove this tag" onClick={() => void c.setTag(t, false)}>{t}  ×</button>
-                ))}
-                {auto.slice(1).map((t) => <span key={t} className="chip">{t}</span>)}
-                <button type="button" className="chip add" onClick={() => setPicker(!picker)} aria-expanded={picker}>+ Tag</button>
-              </div>
-              <span className="note">{c.recordLabel()}</span>
-              {picker && <TagPicker c={c} onClose={() => setPicker(false)} />}
-            </div>
-          )}
-          <div className="board-row">
-            <EvalBar cpWhite={evalWhite} mate={analysing ? c.analysis.evalMate : null} orientation={c.orientation} />
-            <Board fen={c.board.fen()} orientation={c.orientation} lastMove={last} arrows={c.boardArrows()}
-              movable={analysing ? 'both' : p && c.state === 'solving' ? c.board.turn : null}
-              onMove={(uci) => void c.onMove(uci)} />
-          </div>
-          <div className="row puzzle-buttons">
-            <button type="button" className="btn secondary" onClick={() => void c.previous()} disabled={!c.queue.length}>← Prev</button>
-            {done && c.lineVisible && <>
-              <button type="button" className="btn secondary" aria-label="Back" onClick={() => c.stepLine(-1)} disabled={!c.canStepBack()}>◀</button>
-              <button type="button" className="btn secondary" aria-label="Forward" onClick={() => c.stepLine(1)} disabled={!c.canStepForward()}>▶</button>
-              <button type="button" className="btn secondary" onClick={() => c.toggleAnalysis()}>{analysing ? 'Stop analysis' : 'Analyze'}</button>
-            </>}
-            {c.retryVisible && <>
-              <button type="button" className="btn secondary" onClick={() => c.retry()}>Try again</button>
-              <button type="button" className="btn secondary" onClick={() => void c.reveal()}>Show answer</button>
-            </>}
-            <span style={{ flex: 1 }} />
-            <button type="button" className="btn secondary" onClick={() => void c.random()} disabled={!c.queue.length}>Random</button>
-            <button type="button" className="btn" onClick={() => void c.next()} disabled={!c.queue.length}>Next →</button>
-          </div>
-          <p className={`status ${c.status.tone}`} role="status">{c.status.text}</p>
-          {c.explanation && <p className="explanation">{c.explanation}</p>}
-          {analysing && (
-            <div className="ideas">
-              <div className="row"><strong>{c.analysis.panel.title}</strong><span className="note">{c.analysis.panel.header}</span></div>
-              <div className="lines">
-                {c.analysis.panel.rows.map((row, i) => (
-                  <button type="button" key={row + i} className="line" onClick={() => c.followIdea(i)} title="Play this line">
-                    <span className="dot" style={{ background: DOT[IDEA_BRUSHES[i] ?? 'grey'] }} />
-                    <span className="pv">{row}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
         <div className="card queue-card">
           <div className="row" style={{ marginBottom: 8 }}>
             <h2 style={{ margin: 0, flex: 1 }}>Puzzle queue</h2>
@@ -188,6 +128,72 @@ export function PuzzleScreen({ c }: { c: PuzzleController }) {
             ))}
           </ol>
           <p className="note">{c.loading ? 'Loading puzzles…' : c.queue.length ? c.countText() : c.emptyText}</p>
+        </div>
+
+        <div className="card board-card">
+          <div className="row puzzle-head">
+            <span className="note game-label">{c.gameLabel()}</span>
+            <span style={{ flex: 1 }} />
+            {p && <button type="button" className="btn secondary small" onClick={review}
+              disabled={c.isLichess() ? !p.game_url : !c.details?.game?.url}
+              title={c.isLichess() ? undefined : 'Opens the game on chess.com (Game Review comes in Phase 5)'}>
+              {c.isLichess() ? 'Open on Lichess' : 'Review game'}</button>}
+            {p && <button type="button" className="btn secondary small" onClick={() => setPlaying(true)}>Play it out</button>}
+          </div>
+          <div className="row tag-row">
+            {p && (<>
+              <div className="tags">
+                {auto.slice(0, 1).map((t) => <span key={t} className="chip">{t}</span>)}
+                {mine.map((t) => (
+                  <button key={t} type="button" className="chip yours" title="Remove this tag" onClick={() => void c.setTag(t, false)}>{t}  ×</button>
+                ))}
+                {auto.slice(1).map((t) => <span key={t} className="chip">{t}</span>)}
+                <button type="button" className="chip add" onClick={() => setPicker(!picker)} aria-expanded={picker}>+ Tag</button>
+              </div>
+              <span className="note">{c.recordLabel()}</span>
+              {picker && <TagPicker c={c} onClose={() => setPicker(false)} />}
+            </>)}
+          </div>
+          <div className="board-row">
+            <EvalBar cpWhite={evalWhite} mate={analysing ? c.analysis.evalMate : null} orientation={c.orientation} />
+            <Board fen={p ? c.board.fen() : EMPTY_BOARD} orientation={c.orientation} lastMove={last} arrows={c.boardArrows()}
+              movable={analysing ? 'both' : p && c.state === 'solving' ? c.board.turn : null}
+              onMove={(uci) => void c.onMove(uci)} />
+          </div>
+          <div className="row puzzle-buttons">
+            <button type="button" className="btn secondary" onClick={() => void c.previous()} disabled={!c.queue.length}>← Prev</button>
+            {done && c.lineVisible && <>
+              <button type="button" className="btn secondary" aria-label="Back" onClick={() => c.stepLine(-1)} disabled={!c.canStepBack()}>◀</button>
+              <button type="button" className="btn secondary" aria-label="Forward" onClick={() => c.stepLine(1)} disabled={!c.canStepForward()}>▶</button>
+              <button type="button" className="btn secondary" onClick={() => c.toggleAnalysis()}>{analysing ? 'Stop analysis' : 'Analyze'}</button>
+            </>}
+            {c.retryVisible && <>
+              <button type="button" className="btn secondary" onClick={() => c.retry()}>Try again</button>
+              <button type="button" className="btn secondary" onClick={() => void c.reveal()}>Show answer</button>
+            </>}
+            <span style={{ flex: 1 }} />
+            <button type="button" className="btn secondary" onClick={() => void c.random()} disabled={!c.queue.length}>Random</button>
+            <button type="button" className="btn" onClick={() => void c.next()} disabled={!c.queue.length}>Next →</button>
+          </div>
+        </div>
+
+        {/* what happened, why, and the analysis lines — beside the board */}
+        <div className="card commentary-card" aria-label="Commentary">
+          <p className={`status ${c.status.tone}`} role="status">{c.status.text}</p>
+          {c.explanation && <p className="explanation">{c.explanation}</p>}
+          {analysing && (
+            <div className="ideas">
+              <div className="row"><strong>{c.analysis.panel.title}</strong><span className="note">{c.analysis.panel.header}</span></div>
+              <div className="lines">
+                {c.analysis.panel.rows.map((row, i) => (
+                  <button type="button" key={row + i} className="line" onClick={() => c.followIdea(i)} title="Play this line">
+                    <span className="dot" style={{ background: DOT[IDEA_BRUSHES[i] ?? 'grey'] }} />
+                    <span className="pv">{row}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
       {playing && p && (

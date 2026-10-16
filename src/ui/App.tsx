@@ -89,6 +89,13 @@ export function App({ client }: { client: DbClient }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobsState.puzzlesVersion]);
 
+  // puzzles from an analysis still running: shown at once if the queue is empty
+  // (a queue you're working through is left alone until the run ends)
+  useEffect(() => {
+    if (puzzles && jobsState.puzzlesFound && !puzzles.queue.length) void puzzles.reloadQueue();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobsState.puzzlesFound]);
+
   const shown = SCREENS.find((s) => s.id === screen)!;
   const level = summary?.level;
   return (

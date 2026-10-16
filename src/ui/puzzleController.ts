@@ -181,7 +181,15 @@ export class PuzzleController {
 
   /** Rebuilds the queue from the database (randomly ordered, no due-date gating). */
   async reloadQueue(): Promise<void> {
-    const view = await this.client.service('puzzleQueue', this.filters);
+    let view;
+    try {
+      view = await this.client.service('puzzleQueue', this.filters);
+    } catch (e) {
+      this.loading = false;
+      this.setStatus(`Couldn't load the puzzles: ${e instanceof Error ? e.message : e}`, 'error');
+      this.changed();
+      return;
+    }
     this.queue = view.queue;
     this.typeOptions = view.typeOptions;
     this.filters = { ...this.filters, type: view.type };
@@ -193,7 +201,6 @@ export class PuzzleController {
       this.index = -1;
       this.puzzle = null;
       this.details = null;
-      this.board = Board.fromFen('8/8/8/8/8/8/8/8 w - - 0 1');
       this.arrows = [];
       this.setStatus(this.emptyText, 'muted');
       this.explanation = '';

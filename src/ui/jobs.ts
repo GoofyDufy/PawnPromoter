@@ -40,12 +40,14 @@ export interface JobsState {
   lichess: { busy: boolean; text: string };
   /** Bumped whenever puzzles were added or changed (screens reload their queue). */
   puzzlesVersion: number;
+  /** Bumped each time an analyzed game adds puzzles, while the run goes on. */
+  puzzlesFound: number;
 }
 
 type Listener = (s: JobsState) => void;
 
 export class Jobs {
-  state: JobsState = { busy: null, progress: null, notice: null, classify: '', lichess: { busy: false, text: '' }, puzzlesVersion: 0 };
+  state: JobsState = { busy: null, progress: null, notice: null, classify: '', lichess: { busy: false, text: '' }, puzzlesVersion: 0, puzzlesFound: 0 };
   private listeners = new Set<Listener>();
   private stopRequested = false;
   private classifyStop: { stopped: boolean } | null = null;
@@ -117,9 +119,11 @@ export class Jobs {
         }, () => this.stopRequested),
         async (game, evaluations) => {
           // saved the moment it finishes: stopping loses at most the game in progress
-          p.puzzles += await this.client.service('saveGameAnalysis', game.id, evaluations, thresholdCp);
+          const found = await this.client.service('saveGameAnalysis', game.id, evaluations, thresholdCp);
+          p.puzzles += found;
           p.games += 1;
-          this.set({ progress: { text: text(), value: p.moves, max: totalMoves, stoppable: !this.stopRequested } });
+          this.set({ progress: { text: text(), value: p.moves, max: totalMoves, stoppable: !this.stopRequested },
+            puzzlesFound: this.state.puzzlesFound + (found ? 1 : 0) });
         });
     } catch (e) {
       if (e instanceof AnalysisStopped) stopped = true;
@@ -232,7 +236,7 @@ export class Jobs {
       this.set({ lichess: { busy: false, text: `Added ${found.toLocaleString()} puzzles${stop.stopped ? ' (stopped).' : '.'}`
         + (found < count && !stop.stopped ? ' That is every puzzle in this range not added yet.' : '') } });
     } catch (e) {
-      this.set({ lichess: { busy: false, text: `Couldn't load the Lichess puzzles (${e instanceof Error ? e.message : e}). Check the internet connection and try again.` } });
+      this.set({ lichess: { busy: false, text: `Couldn't load the Lichess puzzles (${e instanceof Error ? e.message : e}). Reload the page and try again.` } });
     }
     this.lichessStop = null;
     if (found) this.puzzlesChanged();

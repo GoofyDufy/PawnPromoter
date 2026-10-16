@@ -12,7 +12,7 @@ mkdir -p "$DIR/results"; touch "$RESULTS"
 PROFILE="${SPIKE_PROFILE:-$(mktemp -d "$DIR/results/ff-profile.XXXX")}"
 before=$(grep -c '"done": true' "$RESULTS")
 
-firefox --headless --no-remote --profile "$PROFILE" "$URL" >/dev/null 2>&1 &
+firefox --headless --no-remote --profile "$PROFILE" ${FF_ARGS:-} "$URL" >/dev/null 2>&1 &
 FF=$!
 for ((i = 0; i < TIMEOUT; i++)); do
   sleep 1

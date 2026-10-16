@@ -72,10 +72,26 @@ export function Board({ fen, orientation = 'white', movable = null, onMove, last
       coordinates: true, animation: { duration: 150 },
       trustAllEvents: import.meta.env.MODE === 'e2e',      // tests/e2e clicks the board with scripted events
     });
-    return () => api.current?.destroy();
+    if (import.meta.env.MODE === 'e2e') (window as unknown as { cg: Api }).cg = api.current;   // tests/e2e looks inside
+    // chessground remembers where the board is on the page and re-measures only on
+    // resize / scroll; when something above it changes height the board moves and
+    // clicks land on the wrong square. Re-measure as each click or touch starts.
+    const wrap = el.current!;
+    const remeasure = () => api.current?.state.dom.bounds.clear();
+    wrap.addEventListener('mousedown', remeasure, { capture: true });
+    wrap.addEventListener('touchstart', remeasure, { capture: true, passive: true });
+    return () => {
+      wrap.removeEventListener('mousedown', remeasure, { capture: true });
+      wrap.removeEventListener('touchstart', remeasure, { capture: true });
+      api.current?.destroy();
+    };
   }, []);
 
   useEffect(() => {
+    if (!ChessBoard.isValidFen(fen)) {   // e.g. an empty board (no puzzle yet): pieces only, nothing to move
+      api.current?.set({ fen, lastMove: undefined, check: false, movable: { color: undefined, dests: new Map() }, drawable: { autoShapes: [] } });
+      return;
+    }
     const board = ChessBoard.fromFen(fen);
     const turn = board.turn;
     const canMove = movable === 'both' || movable === turn;
@@ -113,7 +129,7 @@ export function Board({ fen, orientation = 'white', movable = null, onMove, last
     else api.current?.set({ fen });              // cancelled: put the pawn back
   };
 
-  const turn = ChessBoard.fromFen(fen).turn;
+  const turn = fen.split(' ')[1] === 'b' ? 'black' : 'white';
   return (
     <div className="board-wrap">
       <div ref={el} className="board cg-wrap" />

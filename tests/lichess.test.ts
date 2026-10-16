@@ -136,4 +136,13 @@ describe('Lichess puzzle packs', () => {
     await lichess.packRows(1500, 1599, '/lichess/', fakeFetch);
     expect(requested).toEqual(['manifest.json', 'puzzles-1500.csv.gz']);         // only the packs it needs
   });
+
+  it('reads a pack the server already unpacked (Content-Encoding: gzip, as Vite serves .gz)', async () => {
+    const header = LICHESS_CSV.split('\n')[0];
+    const rD = LICHESS_CSV.trim().split('\n')[2];
+    const manifest = { built: '2026-10-15', band: 100, per_band: 3000, packs: [{ band: 1500, file: 'puzzles-1500.csv.gz', count: 1 }] };
+    const fakeFetch = (async (url: string) => (url.endsWith('manifest.json') ? Response.json(manifest)
+      : new Response(`${header}\n${rD}\n`))) as typeof fetch;
+    expect((await lichess.packRows(1500, 1599, '/lichess', fakeFetch)).map((r) => r[0])).toEqual(['0000D']);
+  });
 });
