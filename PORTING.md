@@ -74,6 +74,11 @@ etc. are UI — Phases 2-5.
 | `src/ui/myGamesController.ts`, `src/data/myGamesServices.ts` | `my_games_view.py` (5a380ca) | e2e (your deviations, commentary, works best at your level) |
 | `src/ui/LibraryDialog.tsx`, `src/data/libraryServices.ts` | `library_window.py` (5a380ca) | `tests/treeLibrary.test.ts`, e2e (load, search, preview) |
 | `src/ui/openingData.ts`, the Connect Lichess dialog | `lichess_ui.py` (5a380ca) | by hand (needs your token) |
+| `src/ui/trainer/*`, `screens/TrainerScreen.tsx`, `src/data/trainerServices.ts` | `trainer_page.py`, `spot_tab.py`, `threat_tab.py`, `sac_tab.py` (5a380ca) | e2e (a round of each drill on your games) |
+| `src/ui/reviewController.ts`, `screens/ReviewScreen.tsx`, `src/data/reviewServices.ts` | `game_review_tab.py` (67e3b53) | e2e (a game, next mistake, badges, Analyze, Review game from a drill) |
+| `screens/StatsScreen.tsx`, `DataTable.tsx`, `src/data/statsServices.ts` | `stats_tab.py` (a4339b3) | e2e (all three pages, the games behind a gap) |
+| `screens/ProgressScreen.tsx`, `Charts.tsx`, `src/data/progressServices.ts` | `progress_tab.py` (a4339b3), `progress_views.py` (2f4401d), `charts.py` (79cb567) | e2e (Overview, Themes, This week) |
+| `screens/ScoutScreen.tsx` | `scout_tab.py` (b7738c2) | e2e (scouts a real account) |
 | `src/data/services.ts` | the database calls the tabs make (`upgradePuzzles` = puzzle_tab's start-up rule upgrades) | golden core modules + the above |
 
 ## Deliberate differences
@@ -119,6 +124,10 @@ etc. are UI — Phases 2-5.
   a move, 2 engines side by side). It picks the desktop's best move about 70%
   of the time, so puzzles made in the browser differ a little from desktop
   ones; a desktop database imported into the app keeps its own.
+- **Engine strength** (Your data → Engine, a web-app addition): "Strong" uses
+  the full-network single-threaded build (95 MB, downloaded once and cached)
+  for the interactive engine and Play it out; analyzing games stays on the
+  lite build. The choice is per browser (localStorage), not per player.
 - "Review game" opens the game on chess.com until Game Review arrives
   (Phase 5). Import asks for the username on the page instead of a dialog;
   results show as a notice on the page instead of message boxes.
@@ -138,6 +147,12 @@ etc. are UI — Phases 2-5.
   first time it opens.
 - **"Review game(s)"** in My games and the library open the games on
   chess.com until Game Review (Phase 5).
+- **Not synced yet:** the prototype has uncommitted edits to `game_review_tab.py`,
+  `stats.py`, `progress_*.py`, `scout_tab.py`, `explorer.py`, `db.py` and
+  `puzzle_tab.py` (2026-10-16). Phase 5 ports their last commits; diff once committed.
+- **Stats tables** sort by clicking a heading like the desktop's; the bars are the
+  same ▰▱ text. Charts are SVG. Game Review's move badges are chessground custom
+  shapes in the square's corner.
 - "Play it out" runs its own engine, so limiting its strength never touches
   the shared engine's analysis.
 - Uses chessops instead of chess.js: it matches python-chess's model

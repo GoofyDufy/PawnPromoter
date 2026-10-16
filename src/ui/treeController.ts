@@ -19,7 +19,7 @@ import type { DrillView, RepertoireEntry } from '../data/drillServices';
 import type { MyDeviationView, MyGamesReport, OpponentDeviationView } from '../data/myGamesServices';
 import { IDEA_BRUSHES, ideaRows } from './analysis';
 import type { Arrow } from './Board';
-import { LIKELY_TEXT, moveLabel, posKey, shortName } from './treeHelpers';
+import { LIKELY_TEXT, moveLabel, posKey, shortName, variationName } from './treeHelpers';
 
 export const ALL_SCOPE: Record<PlayerColor, string> = { white: 'All White openings', black: 'All Black openings' };
 export const TOP_STARS = 3;            // moves named under the tree per star (the rest: "+N more")
@@ -58,6 +58,14 @@ export class TreeController {
   myDevs = new Map<Node, MyDeviationView[]>();
   oppDevs = new Map<Node, OpponentDeviationView[]>();
   showBefore = true;
+  mode: 'moves' | 'drawing' = 'moves';   // the move list (easier to read) or the tree drawing
+  // filtering the openings shown: by name (search), and by opening (hide some)
+  filterText = '';
+  hiddenOpenings = new Set<string>();
+  openingNames: string[] = [];           // the openings in this scope (one button each)
+  lineCounts = { shown: 0, total: 0 };
+  private allLines: OpeningLine[] = [];  // the scope's moves, before filtering
+  private startPaths: Record<string, string[]> = {};
   ideasOn = false;
   zoom = true;
   sidelinesHidden = false;               // the drawing had no room for the selected position's sidelines
@@ -83,7 +91,15 @@ export class TreeController {
   }
 
   async init(): Promise<void> {
-    const s = await this.client.service('getSettings', ['tree_scope', 'tree_show_before', 'tree_ideas', 'tree_zoom']);
+    const s = await this.client.service('getSettings', ['tree_scope', 'tree_show_before', 'tree_ideas', 'tree_zoom', 'tree_view', 'tree_filter']);
+    this.mode = s.tree_view === 'drawing' ? 'drawing' : 'moves';
+    try {
+      const f = JSON.parse(s.tree_filter || '{}');
+      this.filterText = typeof f.text === 'string' ? f.text : '';
+      this.hiddenOpenings = new Set(Array.isArray(f.hidden) ? f.hidden : []);
+    } catch {
+      /* no filter saved */
+    }
     this.scope = s.tree_scope || '';
     this.showBefore = s.tree_show_before !== '0';
     this.ideasOn = s.tree_ideas === '1';
@@ -188,23 +204,100 @@ export class TreeController {
     const token = {};
     this.refreshToken = token;
     const lines = await this.client.service('treeLines', name, color);
-    const tree = openingTree.buildFromLines(lines, color);
     const reps = this.scopeRepertoires();
     const paths = await this.client.service('treeStarts', reps, color);
+    if (this.refreshToken !== token) return;
+    this.allLines = lines;
+    this.startPaths = paths;
+    this.openingNames = [...new Set(lines.map((l) => l.repertoire_name))].sort();
+    await this.rebuild(token, null);
+  }
+
+  /** The tree from the scope's moves, filtered; selects `keep` (moves) if it's still
+   *  in the tree, else the start (or follows the drill). */
+  private async rebuild(token: object, keep: string[] | null): Promise<void> {
+    const scope = this.scopeValue();
+    if (!scope) return;
+    const color = scope[1];
+    const lines = this.filtered();
+    const tree = openingTree.buildFromLines(lines, color);
     const starts: [string, Node][] = [];
-    for (const rep of reps) {
-      const node = tree.nodeForPath(paths[rep] ?? []);
-      if (node) starts.push([rep, node]);
+    for (const rep of this.scopeRepertoires()) {
+      const node = tree.nodeForPath(this.startPaths[rep] ?? []);
+      if (node && node.lines().length) starts.push([rep, node]);
     }
     const deviations = await this.deviationsFor(tree, color);
     if (this.refreshToken !== token) return;
     this.tree = tree;
     this.starts = starts;
     this.deviations = deviations;
+    this.lineCounts = { shown: tree.leaves.length, total: openingTree.buildFromLines(this.allLines, color).leaves.length };
     this.focus = tree.leaves[0]?.[1] ?? [];
     this.updateMyDeviations();
+    const kept = keep ? tree.nodeForPath(keep) : null;
     if (this.host.drill()) this.followDrill();     // don't touch a drill's board: just show where it is
-    else this.show(tree.root, false);
+    else if (kept) {
+      this.focus = kept.lines()[0]?.[1] ?? this.focus;
+      this.show(kept, false);
+    } else this.show(tree.root, false);
+  }
+
+  /** Whole imported lines (a root and everything under it) whose opening is shown and whose
+   *  name (or opening's name) contains the search text. */
+  private filtered(): OpeningLine[] {
+    const text = this.filterText.trim().toLowerCase();
+    if (!text && !this.hiddenOpenings.size) return this.allLines;
+    const byId = new Map(this.allLines.map((l) => [l.id, l]));
+    const rootOf = new Map<string, OpeningLine>();
+    const root = (l: OpeningLine): OpeningLine => {
+      const known = rootOf.get(l.id);
+      if (known) return known;
+      const parent = l.parent_id ? byId.get(l.parent_id) : undefined;
+      const r = parent ? root(parent) : l;
+      rootOf.set(l.id, r);
+      return r;
+    };
+    const shown = (r: OpeningLine) => !this.hiddenOpenings.has(r.repertoire_name)
+      && (!text || (r.line_name ?? '').toLowerCase().includes(text) || r.repertoire_name.toLowerCase().includes(text));
+    return this.allLines.filter((l) => shown(root(l)));
+  }
+
+  /** The filter changed: the tree again (keeping the position shown when it's still there). */
+  private async applyFilter(): Promise<void> {
+    await this.client.service('setSettings', { tree_filter: JSON.stringify({ text: this.filterText, hidden: [...this.hiddenOpenings] }) });
+    if (this.draft.length) this.clearDraft();
+    const token = {};
+    this.refreshToken = token;
+    await this.rebuild(token, this.node ? this.node.path.map((m) => m.move_uci) : null);
+  }
+
+  async setFilterText(text: string): Promise<void> {
+    this.filterText = text;
+    await this.applyFilter();
+  }
+
+  async toggleOpening(name: string): Promise<void> {
+    if (this.hiddenOpenings.has(name)) this.hiddenOpenings.delete(name);
+    else this.hiddenOpenings.add(name);
+    await this.applyFilter();
+  }
+
+  /** Only this opening (click again: all of them). */
+  async onlyOpening(name: string): Promise<void> {
+    const others = this.openingNames.filter((n) => n !== name);
+    const alreadyOnly = others.every((n) => this.hiddenOpenings.has(n)) && !this.hiddenOpenings.has(name);
+    this.hiddenOpenings = alreadyOnly ? new Set() : new Set(others);
+    await this.applyFilter();
+  }
+
+  async clearFilter(): Promise<void> {
+    this.filterText = '';
+    this.hiddenOpenings = new Set();
+    await this.applyFilter();
+  }
+
+  filtering(): boolean {
+    return !!this.filterText.trim() || this.openingNames.some((n) => this.hiddenOpenings.has(n));
   }
 
   // ---------- selecting and showing a position ----------
@@ -240,7 +333,7 @@ export class TreeController {
   show(node: Node, follow: boolean): void {
     this.node = node;
     const line = this.focusName();
-    this.lineLabel = line ? shortName(line, this.scopeName()) : '';
+    this.lineLabel = line ? variationName(line) : '';
     const board = Board.fromFen();
     const sans: string[] = [];
     for (const n of node.path) {
@@ -257,7 +350,7 @@ export class TreeController {
     }
     this.board = { fen: board.fen(), lastMove: node.move?.move_uci ?? null, orientation: this.scopeValue()?.[1] ?? 'white', arrows: [] };
     this.requestIdeas(board);
-    this.host.setTitle(line ? `Exploring: ${shortName(line, this.scopeName())}` : 'Exploring');
+    this.host.setTitle(line ? `Exploring: ${variationName(line)}` : 'Exploring');
     this.host.setStatus('Exploring the tree — Drill this line to practise it.', 'muted');
     this.host.setMoveNote(node.move?.notes ?? '');
     this.host.changed();
@@ -387,6 +480,14 @@ export class TreeController {
   async setShowBefore(on: boolean): Promise<void> {
     this.showBefore = on;
     await this.client.service('setSettings', { tree_show_before: on ? '1' : '0' });
+    this.host.changed();
+  }
+
+  async setMode(mode: 'moves' | 'drawing'): Promise<void> {
+    this.mode = mode;
+    this.sidelinesHidden = false;
+    await this.client.service('setSettings', { tree_view: mode });
+    if (this.node) this.showNodeDeviations(this.node);
     this.host.changed();
   }
 

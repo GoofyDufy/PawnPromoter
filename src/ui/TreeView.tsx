@@ -16,7 +16,7 @@ import * as openingTree from '../core/openingTree';
 import type { Branch, Node, Tree } from '../core/openingTree';
 import type { MyDeviationView, OpponentDeviationView } from '../data/myGamesServices';
 import type { TreeController } from './treeController';
-import { likelyColors, moveLabel, shortName } from './treeHelpers';
+import { endName, familyRoots, likelyColors, moveLabel } from './treeHelpers';
 
 const BARK = '#4E4434';
 const BEAD = '#8A7E68';
@@ -194,6 +194,7 @@ export function TreeView({ t, onSelect, onDeviation, onStar, onContext, onWheel 
   const add = (el: ReactNode) => els.push(<g key={key++}>{el}</g>);
 
   const shown = tree.branches.filter((b) => tree.visible(b));
+  const families = familyRoots(tree);
   const nodes = shown.flatMap((b) => b.nodes);
   const overview = tree.focus === null && tree.branches.filter((b) => b.parent === null).length > 1;
   const onPath = new Set<Node>();
@@ -309,7 +310,7 @@ export function TreeView({ t, onSelect, onDeviation, onStar, onContext, onWheel 
         add(<path data-hit={id} d={leafShape(lx, ly, tilt)} fill={color} stroke="#111317" strokeWidth={1} />);
         obstacles.push([lx - 12, ly - 20, lx + 12, ly + 4]);
         if (!overview) {
-          let name = shortName(end.line_ends[0][0], t.scopeValue()?.[0] ?? '');
+          let name = endName(end, end.line_ends[0][0], end.line_ends[0][1], families);
           if (name.length > NAME_CHARS) name = `${name.slice(0, NAME_CHARS - 1).replace(/[ ,(]+$/, '')}…`;
           if (end.line_ends.length > 1) name += ` +${end.line_ends.length - 1}`;
           const tw = textWidth(name, 13, true);
@@ -335,6 +336,21 @@ export function TreeView({ t, onSelect, onDeviation, onStar, onContext, onWheel 
       const label = moveLabel(b.nodes[0]);
       add(<text x={x + 8} y={y} dominantBaseline="central" fontSize={12} style={{ fill: 'var(--ink-2)' }}>{label}</text>);
       obstacles.push([x + 8, y - 7, x + 8 + textWidth(label, 12), y + 7]);
+    }
+  }
+
+  // each opening's name, once, where its lines branch off on their own (the leaves show just the variation)
+  {
+    const visibleSet = new Set(nodes);
+    for (const [node, { label: name }] of families) {
+      if (node === tree.root || !visibleSet.has(node)) continue;
+      const tw = textWidth(name, 12, true);
+      const [x, y] = [node.x - tw / 2, node.y + 12];
+      add(<g pointerEvents="none">
+        <rect x={x - 5} y={y - 1} width={tw + 10} height={17} rx={8} className="family-pill" />
+        <text x={node.x} y={y + 8} textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight="bold" className="family-text">{name}</text>
+      </g>);
+      obstacles.push([x - 5, y - 1, x + tw + 5, y + 16]);
     }
   }
 
@@ -477,7 +493,7 @@ export function TreeView({ t, onSelect, onDeviation, onStar, onContext, onWheel 
   if (hover && nodes.includes(hover)) {
     let text = hover.move === null ? 'Start' : moveLabel(hover);
     if (hover.line_ends.length) {
-      text = shortName(hover.line_ends[0][0], t.scopeValue()?.[0] ?? '') + (hover.line_ends.length > 1 ? ` (+${hover.line_ends.length - 1})` : '');
+      text = endName(hover, hover.line_ends[0][0], hover.line_ends[0][1], families) + (hover.line_ends.length > 1 ? ` (+${hover.line_ends.length - 1})` : '');
     }
     const right = hover.x < tree.width - 80;
     const tw = textWidth(text, 13, true);

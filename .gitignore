@@ -8,6 +8,7 @@ chessprep_*.db
 *.sqlite3
 profiles.json
 spikes/public/tasks.json
+spikes/public/tasks-strength.json
 
 node_modules/
 results/

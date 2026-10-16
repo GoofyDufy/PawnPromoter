@@ -191,4 +191,24 @@ describe('the shared engine', () => {
     shared.shutdown();
     await expect(shared.analyse(board, { depth: 4 })).rejects.toBeInstanceOf(NoStockfish);
   });
+
+  it('restart: lets queued searches finish, closes the engine, starts a new one', async () => {
+    const quits: number[] = [];
+    let started = 0;
+    const make = (n: number): Engine & { quit(): void } => ({
+      async analyse(_b, limit) {
+        await new Promise((r) => setTimeout(r, 5));
+        return [{ pv: ['e2e4'], score: new PovScore(Score.cp(n * 100 + limit.depth!), 'white') }];
+      },
+      quit: () => quits.push(n),
+    });
+    const shared = new SharedEngine(async () => make(++started));
+    const board = Board.fromFen();
+    const first = shared.analyse(board, { depth: 1 });
+    shared.restart();
+    const second = shared.analyse(board, { depth: 2 });
+    expect((await first)[0].score.relative.score()).toBe(101);   // the old engine finished its search
+    expect((await second)[0].score.relative.score()).toBe(202);  // then the new one took over
+    expect(quits).toEqual([1]);
+  });
 });

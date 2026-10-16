@@ -72,7 +72,8 @@ function TagPicker({ c, onClose }: { c: PuzzleController; onClose: () => void })
   );
 }
 
-export function PuzzleScreen({ c }: { c: PuzzleController }) {
+/** onReview(gameId, fen): Game Review at that position. */
+export function PuzzleScreen({ c, onReview }: { c: PuzzleController; onReview: (gameId: string, fen: string) => void }) {
   useController(c);
   const [picker, setPicker] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -93,8 +94,9 @@ export function PuzzleScreen({ c }: { c: PuzzleController }) {
 
   const setFilter = (name: keyof Filters) => (v: string) => void c.setFilter(name, v);
   const review = () => {
-    const url = c.isLichess() ? p?.game_url : c.details?.game?.url;
-    if (url) window.open(url, '_blank', 'noopener');
+    if (!p) return;
+    if (c.isLichess()) { if (p.game_url) window.open(p.game_url, '_blank', 'noopener'); }
+    else if (p.source_game_id) onReview(p.source_game_id, p.fen);
   };
   const done = c.state === 'done';
   const analysing = c.analysis.active;
@@ -135,8 +137,7 @@ export function PuzzleScreen({ c }: { c: PuzzleController }) {
             <span className="note game-label">{c.gameLabel()}</span>
             <span style={{ flex: 1 }} />
             {p && <button type="button" className="btn secondary small" onClick={review}
-              disabled={c.isLichess() ? !p.game_url : !c.details?.game?.url}
-              title={c.isLichess() ? undefined : 'Opens the game on chess.com (Game Review comes in Phase 5)'}>
+              disabled={c.isLichess() ? !p.game_url : !p.source_game_id}>
               {c.isLichess() ? 'Open on Lichess' : 'Review game'}</button>}
             {p && <button type="button" className="btn secondary small" onClick={() => setPlaying(true)}>Play it out</button>}
           </div>
@@ -181,6 +182,7 @@ export function PuzzleScreen({ c }: { c: PuzzleController }) {
         <div className="card commentary-card" aria-label="Commentary">
           <p className={`status ${c.status.tone}`} role="status">{c.status.text}</p>
           {c.explanation && <p className="explanation">{c.explanation}</p>}
+          {c.details?.note && <div className="puzzle-note"><div className="section">📝 Your note on this position</div><p className="pre">{c.details.note}</p></div>}
           {analysing && (
             <div className="ideas">
               <div className="row"><strong>{c.analysis.panel.title}</strong><span className="note">{c.analysis.panel.header}</span></div>

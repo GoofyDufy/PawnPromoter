@@ -8,6 +8,7 @@ import { useRef, useState } from 'react';
 import type { DbClient } from '../../data/client';
 import type { ProfilesView } from '../../data/dbWorker';
 import type { Summary } from '../../data/services';
+import { engineStrength, setEngineStrength, type Strength } from '../../engine/stockfish';
 
 interface Props {
   client: DbClient;
@@ -113,6 +114,8 @@ export function DataScreen({ client, profiles, summary, onChange }: Props) {
           <button type="button" className="btn secondary" disabled={!!busy} onClick={backup}>Back up my database</button>
         </div>
 
+        <EngineCard />
+
         <div className="card">
           <h2>Players</h2>
           <p className="note">Several people can share the app; each gets their own database.</p>
@@ -126,6 +129,34 @@ export function DataScreen({ client, profiles, summary, onChange }: Props) {
         {busy ?? (message && <span className={message.ok ? 'ok' : 'error'}>{message.text}</span>)}
       </p>
     </section>
+  );
+}
+
+/** Stockfish's strength on this device (the engine choice is per browser, not per player). */
+function EngineCard() {
+  const [strength, setStrength] = useState<Strength>(engineStrength);
+  const choose = (s: Strength) => { setStrength(s); setEngineStrength(s); };
+  return (
+    <div className="card">
+      <h2>Engine</h2>
+      <p className="note">
+        Stockfish for analysis boards, explanations, puzzles, the trainers and Play it out. Analyzing your games always
+        uses the standard engine, several at once.
+      </p>
+      <div className="segmented" role="radiogroup" aria-label="Engine strength">
+        {(['standard', 'strong'] as const).map((s) => (
+          <button key={s} type="button" role="radio" aria-checked={strength === s}
+            className={strength === s ? 'active' : ''} onClick={() => choose(s)}>
+            {s === 'standard' ? 'Standard' : 'Strong'}
+          </button>
+        ))}
+      </div>
+      <p className="note">
+        {strength === 'standard'
+          ? 'Standard: a 1.8 MB download, ready in about a second.'
+          : 'Strong: Stockfish\'s full network — a 95 MB download the first time (about 20 s), then kept by the browser. Finds the best move more often; uses more memory.'}
+      </p>
+    </div>
   );
 }
 

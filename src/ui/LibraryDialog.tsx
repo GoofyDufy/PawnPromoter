@@ -22,7 +22,9 @@ const SEARCH_DELAY_MS = 250;
 const MANY = 40;                 // adding more than this many lines at once asks first
 const CHARACTER_COLORS: Record<string, string> = { Sharp: '#E8735E', Balanced: '#E6A94A', Quiet: '#8FB3E8' };
 
-export function LibraryDialog({ client, onAdded, onClose }: { client: DbClient; onAdded: () => Promise<void>; onClose: () => void }) {
+export function LibraryDialog({ client, onAdded, onClose, onReview }: {
+  client: DbClient; onAdded: () => Promise<void>; onClose: () => void; onReview: (gameId: string, fen: string) => void;
+}) {
   const [status, setStatus] = useState('Opening the library…');
   const [ready, setReady] = useState(false);
   const [families, setFamilies] = useState<[string, number][]>([]);
@@ -213,9 +215,9 @@ export function LibraryDialog({ client, onAdded, onClose }: { client: DbClient; 
       {saving && <SaveDialog names={names} onSave={save} onClose={() => setSaving(null)} />}
       {games && (
         <Modal title={`${detail?.title ?? ''} — ${games.length} game${games.length !== 1 ? 's' : ''}`} onClose={() => setGames(null)}>
-          <p className="note">Each opens on chess.com (Game Review comes in Phase 5).</p>
+          <p className="note">Click one to open it in Game Review at this line's position.</p>
           <ol className="queue games-list">
-            {games.map((g) => <li key={g.id}><a href={g.url} target="_blank" rel="noopener">{`${g.played}  ${({ win: 'W', loss: 'L', draw: 'D' } as Record<string, string>)[g.result] ?? '?'}  vs ${g.opponent}  (${g.timeControl})`}</a></li>)}
+            {games.map((g) => <li key={g.id}><button type="button" onClick={() => { setGames(null); onReview(g.id, detail!.fen); }}>{`${g.played}  ${({ win: 'W', loss: 'L', draw: 'D' } as Record<string, string>)[g.result] ?? '?'}  vs ${g.opponent}  (${g.timeControl})`}</button></li>)}
           </ol>
           <div className="row modal-buttons"><button type="button" className="btn" onClick={() => setGames(null)}>Close</button></div>
         </Modal>

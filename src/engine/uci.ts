@@ -1,8 +1,7 @@
 /**
  * Stockfish in the browser: talks UCI to a Stockfish Web Worker (stockfish.js
- * by Nathan Rugg / Chess.com, the 1.8 MB "lite single-threaded" build — Phase 0
- * showed it's as accurate as the 95 MB one at our depths and needs no special
- * server headers) and implements the core's Engine interface, so everything in
+ * by Nathan Rugg / Chess.com, single-threaded builds: the 1.8 MB lite one by
+ * default, the 95 MB full one as "Strong" — see stockfish.ts) and implements the core's Engine interface, so everything in
  * src/core runs against it exactly as the tests run against FakeEngine.
  *
  * One search at a time per engine (UCI has no concurrency): analyse() calls

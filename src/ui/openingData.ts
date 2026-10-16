@@ -22,6 +22,7 @@ export class OpeningData {
   private queue: Job[] = [];
   private running = false;
   private stopped = false;
+  private chain: Promise<unknown> = Promise.resolve();
 
   constructor(private readonly client: DbClient) {}
 
@@ -39,6 +40,30 @@ export class OpeningData {
   start(name: string | null): void {
     this.queue.push({ name });
     if (!this.running) void this.next();
+  }
+
+  /** Downloads these positions (those not cached yet), after anything already queued —
+   *  never two requests at once. Resolves to [fetched, error or null]. */
+  fetchFens(fens: string[], onProgress?: (done: number, total: number) => void): Promise<[number, string | null]> {
+    const run = this.chain.then(async (): Promise<[number, string | null]> => {
+      while (this.running) await new Promise((r) => setTimeout(r, 200));     // the repertoire downloads first
+      const todo = await this.client.service('explorerMissing', fens);
+      if (!todo.token) return [0, 'Not connected to Lichess.'];
+      if (!todo.fens.length) return [0, null];
+      let done = 0;
+      const saves: Promise<void>[] = [];
+      this.stopped = false;
+      const result = await explorer.warm(todo.token, todo.fens, todo.bands, (fen, data) => {
+        saves.push(this.client.service('explorerSave', fen, todo.bands, data));
+        done += 1;
+        onProgress?.(done, todo.fens.length);
+      }, () => this.stopped);
+      await Promise.all(saves);
+      if (result[0]) this.set({ version: this.state.version + 1 });
+      return result;
+    });
+    this.chain = run.catch((): [number, string | null] => [0, null]);
+    return run;
   }
 
   stop(): void {

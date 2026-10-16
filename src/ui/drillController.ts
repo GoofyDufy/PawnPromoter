@@ -269,6 +269,17 @@ export class DrillController {
     this.begin(view, entry.kind);
   }
 
+  /** From Stats' "Openings that fit your style": the opening into "Style suggestions"
+   *  (once), selected, and a drill started (drill_tab.drill_suggestion). */
+  async drillSuggestion(catalogIndex: number): Promise<void> {
+    const { repertoire, color, lineName } = await this.client.service('drillSuggestion', catalogIndex);
+    await this.refreshRepertoires();
+    await this.setRepertoire(`${repertoire} (${color})`);
+    const i = this.variations.findIndex((v) => v.kind === 'line' && v.label === lineName);
+    if (i >= 0) await this.selectVariation(i);
+    await this.start();
+  }
+
   async sameLine(): Promise<void> {
     if (!this.drill) return;
     this.begin(await this.client.service('drillRestart'), this.kind);

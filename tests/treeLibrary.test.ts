@@ -10,7 +10,8 @@ import type { DbClient } from '../src/data/client';
 import type { RepertoireEntry } from '../src/data/drillServices';
 import { services } from '../src/data/services';
 import { ALL_SCOPE, TreeController, type TreeHost } from '../src/ui/treeController';
-import { shortName } from '../src/ui/treeHelpers';
+import { endName, familyRoots, shortName, variationName } from '../src/ui/treeHelpers';
+import * as openingTree from '../src/core/openingTree';
 
 const LONDON = `[Event "London - Main"]
 
@@ -67,7 +68,7 @@ describe('the Tree', () => {
     await t.step(1);
     await t.step(1);
     expect(t.movesLabel).toBe('1.d4 d5   ·   2 lines from here');
-    expect(h.title).toBe('Exploring: London · Main');
+    expect(h.title).toBe('Exploring: Main');
     // a move your lines don't have: a new branch, saved as its own line
     await t.step(1);                                    // 2.Bf4
     await t.exploreMove('c7c6');
@@ -98,9 +99,60 @@ describe('the Tree', () => {
     expect(t.starts.map(([r, n]) => [r, n.path.map((m) => m.move_uci).join(' ')])).toEqual([['London', 'd2d4 d7d5']]);
   });
 
+  it("each opening's name once where it branches off; leaves show just the variation", async () => {
+    const { client } = await setup();
+    await client.service('importPgn', LONDON, 'London', 'white');
+    await client.service('importPgn', `[Event "Queens Gambit - Exchange"]\n\n1. d4 d5 2. c4 e6 3. cxd5 *\n`, "Queen's Gambit", 'white');
+    const tree = openingTree.buildFromLines(await client.service('treeLines', null, 'white'), 'white');
+    const families = familyRoots(tree);
+    const at = (n: openingTree.Node) => n.path.map((m) => m.move_san).join(' ');
+    expect([...families].map(([n, f]) => [at(n), f.label]).sort()).toEqual([['d4 d5 Bf4', 'London'], ['d4 d5 c4', 'Queens Gambit']]);
+    const names = tree.leaves.map(([name, path, node]) => endName(node, name, path, families)).sort();
+    expect(names).toEqual(['Exchange', 'Main', 'Main']);
+    // lines added from the opening library name the opening differently: still just the variation
+    await client.service('importPgn', `[Event "London System: Poisoned Pawn"]\n\n1. d4 d5 2. Bf4 c5 3. e3 cxd4 4. exd4 Qb6 *\n`, 'London', 'white');
+    const tree2 = openingTree.buildFromLines(await client.service('treeLines', null, 'white'), 'white');
+    const fam2 = familyRoots(tree2);
+    expect(tree2.leaves.map(([name, path, node]) => endName(node, name, path, fam2)).sort()).toEqual(['Exchange', 'Main', 'Main', 'Poisoned Pawn']);      // "Queens Gambit" matches "Queen's Gambit"
+  });
+
+  it('filters the openings shown: search, hide one, only one, clear', async () => {
+    const { client } = await setup();
+    await client.service('importPgn', LONDON, 'London', 'white');
+    await client.service('importPgn', `[Event "Queens Gambit - Exchange"]\n\n1. d4 d5 2. c4 e6 3. cxd5 *\n`, "Queen's Gambit", 'white');
+    const { h } = host(client);
+    await h.refresh();
+    const t = new TreeController(client, h, null);
+    h.tree = t;
+    await t.init();
+    await t.onShown();
+    await t.setScope(ALL_SCOPE.white);
+    expect(t.openingNames).toEqual(['London', "Queen's Gambit"]);
+    expect(t.tree!.leaves.length).toBe(3);
+    await t.setFilterText('exch');
+    expect(t.tree!.leaves.map(([n]) => n)).toEqual(['Queens Gambit - Exchange']);
+    expect(t.lineCounts).toEqual({ shown: 1, total: 3 });
+    await t.setFilterText('');
+    await t.toggleOpening("Queen's Gambit");
+    expect(t.tree!.leaves.length).toBe(2);
+    await t.onlyOpening("Queen's Gambit");
+    expect(t.tree!.leaves.length).toBe(1);
+    await t.clearFilter();
+    expect(t.tree!.leaves.length).toBe(3);
+    expect(t.filtering()).toBe(false);
+    // remembered
+    const t2 = new TreeController(client, h, null);
+    await t.setFilterText('main');
+    await t2.init();
+    expect(t2.filterText).toBe('main');
+  });
+
   it('short names inside a repertoire and across all of them', () => {
     expect(shortName('Catalan - Closed', 'Catalan')).toBe('Closed');
     expect(shortName('Catalan - Closed', '')).toBe('Catalan · Closed');
+    expect(variationName('Catalan - Open, Classical 7.Qc2')).toBe('Open, Classical 7.Qc2');
+    expect(variationName('Catalan: Open')).toBe('Open');
+    expect(variationName('Testing_Branch_1')).toBe('Testing_Branch_1');
   });
 });
 

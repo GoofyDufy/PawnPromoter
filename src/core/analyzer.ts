@@ -118,6 +118,7 @@ export function applyChancesRule(conn: Db): [number, number] {
   const relabel: [string, string][] = [];
   for (const r of conn.all('SELECT id, eval_before_cp, eval_after_cp, puzzle_type FROM puzzles WHERE eval_after_cp IS NOT NULL')) {
     if (r.puzzle_type === MISSED_SACRIFICE) continue;          // its own rule (amazing.missedSacrifice)
+    if (String(r.id).startsWith('pick-')) continue;            // one you made yourself
     const lost = chancesLost(r.eval_before_cp || 0, r.eval_after_cp);
     if (lost < MIN_CHANCES_LOST) {
       removed.push(r.id);

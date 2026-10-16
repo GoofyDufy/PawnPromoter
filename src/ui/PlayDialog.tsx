@@ -10,7 +10,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Board as ChessBoard, type Color, WHITE } from '../core/chess';
 import { pySigned } from '../core/format';
-import { startStockfish } from '../engine/stockfish';
+import { startChosenStockfish } from '../engine/stockfish';
 import type { UciEngine } from '../engine/uci';
 import { type Arrow, Board } from './Board';
 
@@ -71,7 +71,7 @@ export function PlayDialog({ fen, title, onClose, myColor: mine, analyze = false
 
   useEffect(() => {
     dialog.current?.showModal();
-    engine.current = startStockfish();
+    engine.current = startChosenStockfish();
     engine.current.catch((e) => setEngineError(`Engine error: ${e instanceof Error ? e.message : e}`));
     return () => { void engine.current?.then((e) => e.quit()).catch(() => {}); };
   }, []);

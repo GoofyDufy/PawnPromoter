@@ -37,6 +37,17 @@ export interface BoardProps {
   onMove?: (uci: string) => void;
   lastMove?: string | null;          // UCI, highlighted
   arrows?: Arrow[];
+  /** A move badge in a square's corner (Game Review's !!, !, ✓, ?!, ?, ??, ≡, ⚑). */
+  badges?: { square: string; text: string; color: string }[];
+}
+
+/** The badge's SVG, in chessground's 100-unit square with its origin at the centre. */
+function badgeSvg(text: string, color: string): string {
+  const esc = text.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const size = text.length > 1 ? 17 : 21;
+  return `<g transform="translate(36 -36)"><circle r="17" fill="${color}" stroke="#fff" stroke-width="3"/>`
+    + `<text text-anchor="middle" dominant-baseline="central" font-size="${size}" font-weight="700" fill="#fff" `
+    + `font-family="system-ui, sans-serif">${esc}</text></g>`;
 }
 
 const BRUSHES: Record<NonNullable<Arrow['brush']>, string> = {
@@ -60,7 +71,7 @@ function destsOf(board: ChessBoard): Map<Key, Key[]> {
   return dests;
 }
 
-export function Board({ fen, orientation = 'white', movable = null, onMove, lastMove, arrows = [] }: BoardProps) {
+export function Board({ fen, orientation = 'white', movable = null, onMove, lastMove, arrows = [], badges = [] }: BoardProps) {
   const el = useRef<HTMLDivElement>(null);
   const api = useRef<Api | null>(null);
   const [promotion, setPromotion] = useState<{ from: string; to: string } | null>(null);
@@ -118,9 +129,12 @@ export function Board({ fen, orientation = 'white', movable = null, onMove, last
           },
         },
       },
-      drawable: { autoShapes: arrows.map((a): DrawShape => ({ orig: a.from as Key, dest: a.to as Key, brush: BRUSHES[a.brush ?? 'green'] })) },
+      drawable: { autoShapes: [
+        ...arrows.map((a): DrawShape => ({ orig: a.from as Key, dest: a.to as Key, brush: BRUSHES[a.brush ?? 'green'] })),
+        ...badges.map((b): DrawShape => ({ orig: b.square as Key, customSvg: { html: badgeSvg(b.text, b.color) } })),
+      ] },
     });
-  }, [fen, orientation, movable, lastMove, arrows]);
+  }, [fen, orientation, movable, lastMove, arrows, badges]);
 
   const choose = (letter: string | null) => {
     const p = promotion;

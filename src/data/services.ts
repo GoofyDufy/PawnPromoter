@@ -13,12 +13,18 @@ import * as progression from '../core/progression';
 import * as puzzleKind from '../core/puzzleKind';
 import * as puzzleTags from '../core/puzzleTags';
 import type { Db } from '../core/sqlite';
+import * as gameNotes from '../core/gameNotes';
 import * as stats from '../core/stats';
 import * as style from '../core/style';
 import { fromIso } from '../core/time';
 import { drillServices } from './drillServices';
 import { libraryServices } from './libraryServices';
 import { myGamesServices } from './myGamesServices';
+import { reviewServices } from './reviewServices';
+import { progressServices } from './progressServices';
+import { statsServices } from './statsServices';
+import { trainerServices } from './trainerServices';
+import { shortDate } from './dates';
 import { level, type LevelView } from './level';
 
 export { level, type LevelView };
@@ -86,6 +92,8 @@ export function upgradePuzzles(conn: Db): string[] {
     db.setSetting(conn, 'puzzle_kind_version', puzzleKind.VERSION);
     done.push('kinds');
   }
+  // the web app's own: puzzles you made are named "Self made"
+  conn.run("UPDATE puzzles SET puzzle_type = 'Self made' WHERE id LIKE 'pick-%' AND puzzle_type = 'Your pick'");
   return done;
 }
 
@@ -203,17 +211,12 @@ export interface PuzzleDetails {
   autoTags: string[];
   userTags: string[];
   triedToday: boolean;
+  /** Your note on this position in that game (Game Review), if any. */
+  note: string | null;
   /** The engine's saved 2nd / 3rd choices for this exact position (near-best tries). */
   top: { second: string | null; cpSecond: number | null; third: string | null; cpThird: number | null } | null;
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-/** strftime("%b %d, %Y") */
-function shortDate(iso: string): string {
-  const d = fromIso(iso);
-  return `${MONTHS[d.getMonth()]} ${String(d.getDate()).padStart(2, '0')}, ${d.getFullYear()}`;
-}
 
 const itemType = (p: Puzzle) => (p.source === 'lichess' ? lichessPuzzles.ITEM_TYPE : 'puzzle');
 
@@ -238,7 +241,8 @@ export function puzzleDetails(conn: Db, p: Puzzle): PuzzleDetails {
       [p.source_game_id, p.fen]);
     if (row) top = { second: row.second_move_uci, cpSecond: row.cp_second, third: row.third_move_uci, cpThird: row.cp_third };
   }
-  return { game, sharp, endgame, autoTags, userTags, triedToday: db.triedToday(conn, itemType(p), p.id), top };
+  const note = p.source_game_id && p.source !== 'lichess' ? gameNotes.atPosition(conn, p.source_game_id, p.fen) : null;
+  return { game, sharp, endgame, autoTags, userTags, triedToday: db.triedToday(conn, itemType(p), p.id), note, top };
 }
 
 export interface TryResult {
@@ -370,5 +374,9 @@ export const services = {
   ...drillServices,
   ...myGamesServices,
   ...libraryServices,
+  ...trainerServices,
+  ...reviewServices,
+  ...statsServices,
+  ...progressServices,
 };
 export type Services = typeof services;

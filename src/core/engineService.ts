@@ -40,6 +40,17 @@ export class SharedEngine implements Engine {
     return run;
   }
 
+  /** A different engine from now on (e.g. a new strength): after the searches
+   *  already queued, the running one is closed and the next search starts a new one. */
+  restart(): void {
+    this.queue = this.queue.then(async () => {
+      const old = this.engine;
+      this.engine = null;
+      const engine = await old?.catch(() => null);
+      (engine as { quit?: () => void } | null | undefined)?.quit?.();
+    }).catch(() => undefined);
+  }
+
   /** At exit: no more searches (a late one gets NoStockfish). */
   shutdown(): void {
     this.closed = true;

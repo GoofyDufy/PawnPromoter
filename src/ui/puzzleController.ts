@@ -449,6 +449,9 @@ export class PuzzleController {
     const swing = p.eval_swing_cp !== null ? pyFixed(p.eval_swing_cp / 100, 1) : '?';
     const allowedMate = p.eval_after_cp !== null && p.eval_after_cp <= -MATE_CP;
     const swingNote = allowedMate ? '' : ` — about a ${swing}-pawn swing`;   // a pawn count means nothing once mate is on the board
+    if (p.played_move_san === p.correct_move_san) {         // one you picked yourself, where you found it in the game too
+      return `This was the engine's top choice here, keeping the evaluation around ${before} — and you found it in your game too.`;
+    }
     if (correct) {
       return `This was the engine's top choice here, keeping the evaluation around ${before}. In your actual game, you played `
         + `${p.played_move_san} instead, which dropped it to ${after}${swingNote}.`;

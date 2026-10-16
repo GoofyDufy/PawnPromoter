@@ -16,6 +16,7 @@ import { IDEA_BRUSHES } from '../analysis';
 import { Board } from '../Board';
 import { ADD_LINES, type DrillController, MY_GAMES, TREE, VIEWS } from '../drillController';
 import { ALL } from '../myGamesController';
+import { TreeMoves } from '../TreeMoves';
 import { TreeView } from '../TreeView';
 import { moveLabel } from '../treeHelpers';
 import { LibraryDialog } from '../LibraryDialog';
@@ -134,17 +135,17 @@ function PromptDialog({ c }: { c: DrillController }) {
   );
 }
 
-/** The games where you played a deviation (newest first): each opens on chess.com until Game Review (Phase 5). */
-function GamesDialog({ c, d, onClose }: { c: DrillController; d: MyDeviationView; onClose: () => void }) {
+/** The games where you played a deviation (newest first): pick one for Game Review at that position. */
+function GamesDialog({ c, d, onClose, onReview }: { c: DrillController; d: MyDeviationView; onClose: () => void; onReview: (gameId: string, fen: string) => void }) {
   const [rows, setRows] = useState<Awaited<ReturnType<DrillController['myGames']['games']>> | null>(null);
   useEffect(() => { void c.myGames.games(d).then(setRows); }, [c, d]);
   const marks: Record<string, string> = { win: 'W', loss: 'L', draw: 'D' };
   return (
     <Modal title={`${d.line} — with ${d.playedSan}`} onClose={onClose}>
-      <p className="note">{rows ? `${rows.length} game${rows.length !== 1 ? 's' : ''}. ` : ''}Each opens on chess.com (Game Review comes in Phase 5).</p>
+      <p className="note">{rows ? `${rows.length} game${rows.length !== 1 ? 's' : ''}. ` : ''}Click one to open it in Game Review at this position.</p>
       <ol className="queue games-list">
         {(rows ?? []).map((r) => (
-          <li key={r.id}><a href={r.url} target="_blank" rel="noopener">{`${r.played}  ${marks[r.result] ?? '?'}  vs ${r.opponent}  (${r.timeControl})`}</a></li>
+          <li key={r.id}><button type="button" onClick={() => { onClose(); onReview(r.id, d.fen); }}>{`${r.played}  ${marks[r.result] ?? '?'}  vs ${r.opponent}  (${r.timeControl})`}</button></li>
         ))}
       </ol>
       <div className="row modal-buttons"><button type="button" className="btn" onClick={onClose}>Close</button></div>
@@ -183,23 +184,96 @@ function TreeMenu({ c, node, x, y, onClose }: { c: DrillController; node: Node; 
   );
 }
 
+/** The tree drawing over the whole screen, with the board small beside it. */
+function ExpandedTree({ c, onClose, onContext }: { c: DrillController; onClose: () => void; onContext: (node: Node, x: number, y: number) => void }) {
+  const t = c.tree;
+  const b = c.board();
+  return (
+    <Modal title="Tree" onClose={onClose} wide>
+      <div className="tree-expanded">
+        <TreeView t={t} version={c.version} onSelect={(n) => void t.select(n)} onDeviation={(n, u) => void t.onDeviation(n, u)}
+          onStar={(d) => void t.onStar(d)} onContext={onContext} onWheel={(d) => void t.step(d)} />
+        <div className="tree-expanded-side">
+          <Board fen={b.fen} orientation={b.orientation} lastMove={b.lastMove} movable={b.movable} arrows={b.arrows} onMove={(uci) => void c.onMove(uci)} />
+          <strong>{t.lineLabel}</strong>
+          <p className="note">{t.movesLabel}</p>
+          {t.devLabel && <p className="note dev-label">{t.devLabel}</p>}
+          <div className="row">
+            <button type="button" className="btn secondary" aria-label="Back" onClick={() => void t.step(-1)}>◀</button>
+            <button type="button" className="btn secondary" aria-label="Forward" onClick={() => void t.step(1)}>▶</button>
+            <span style={{ flex: 1 }} />
+            <button type="button" className="btn" onClick={onClose}>Close</button>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/** Filter the openings in the tree: a search box, and a button per opening (click: hide / show;
+ *  double-click: only that one). */
+function TreeFilter({ c }: { c: DrillController }) {
+  const t = c.tree;
+  const [text, setText] = useState(t.filterText);
+  useEffect(() => setText(t.filterText), [t.filterText]);
+  // filter as you type, a moment after the last key
+  useEffect(() => {
+    if (text === t.filterText) return;
+    const timer = setTimeout(() => void t.setFilterText(text), 250);
+    return () => clearTimeout(timer);
+  }, [text, t]);
+  return (
+    <div className="tree-filter">
+      <div className="row">
+        <input aria-label="Filter openings" placeholder="Filter openings… (e.g. Slav, Exchange)" value={text}
+          onChange={(e) => setText(e.target.value)} style={{ flex: 1, minWidth: 120 }} />
+        {t.filtering() && <button type="button" className="btn ghost small" onClick={() => { setText(''); void t.clearFilter(); }}>Clear</button>}
+      </div>
+      {t.openingNames.length > 1 && (
+        <div className="opening-chips" role="group" aria-label="Openings shown">
+          {t.openingNames.map((n) => (
+            <button key={n} type="button" className={`chip ${t.hiddenOpenings.has(n) ? 'off' : 'on'}`} aria-pressed={!t.hiddenOpenings.has(n)}
+              title="Click to hide or show · double-click to show only this one"
+              onClick={() => void t.toggleOpening(n)} onDoubleClick={() => void t.onlyOpening(n)}>{n}</button>
+          ))}
+        </div>
+      )}
+      {t.filtering() && <p className="note">Showing {t.lineCounts.shown} of {t.lineCounts.total} lines.</p>}
+    </div>
+  );
+}
+
 function TreePanel({ c }: { c: DrillController }) {
   const t = c.tree;
   const [menu, setMenu] = useState<{ node: Node; x: number; y: number } | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const context = (node: Node, x: number, y: number) => setMenu({ node, x, y });
   return (
     <div className="drill-view tree-panel">
-      <select aria-label="Tree" value={t.scope} onChange={(e) => void t.setScope(e.target.value)} disabled={!t.scopeOptions.length}>
-        {t.scopeOptions.map((o) => <option key={o}>{o}</option>)}
-      </select>
-      <TreeView t={t} version={c.version} onSelect={(n) => void t.select(n)} onDeviation={(n, u) => void t.onDeviation(n, u)}
-        onStar={(d) => void t.onStar(d)} onContext={(node, x, y) => setMenu({ node, x, y })} onWheel={(d) => void t.step(d)} />
+      <div className="row tree-head">
+        <select aria-label="Tree" value={t.scope} onChange={(e) => void t.setScope(e.target.value)} disabled={!t.scopeOptions.length}>
+          {t.scopeOptions.map((o) => <option key={o}>{o}</option>)}
+        </select>
+        <span style={{ flex: 1 }} />
+        <div className="segmented" role="tablist" aria-label="Show as">
+          {(['moves', 'drawing'] as const).map((m) => <button key={m} type="button" role="tab" aria-selected={t.mode === m} aria-checked={t.mode === m}
+            onClick={() => void t.setMode(m)}>{m === 'moves' ? 'Moves' : 'Drawing'}</button>)}
+        </div>
+        <button type="button" className="btn secondary small" onClick={() => setExpanded(true)} title="The tree drawing over the whole screen">Expand</button>
+      </div>
+      <TreeFilter c={c} />
+      {t.mode === 'moves' ? <TreeMoves t={t} onContext={context} /> : (
+        <TreeView t={t} version={c.version} onSelect={(n) => void t.select(n)} onDeviation={(n, u) => void t.onDeviation(n, u)}
+          onStar={(d) => void t.onStar(d)} onContext={context} onWheel={(d) => void t.step(d)} />
+      )}
+      {expanded && <ExpandedTree c={c} onClose={() => setExpanded(false)} onContext={context} />}
       <strong>{t.lineLabel}</strong>
       <p className="note">{t.movesLabel}</p>
       {t.devLabel && <p className="note dev-label">{t.devLabel}</p>}
       <div className="row tree-toggles">
         <label className="check"><input type="checkbox" checked={t.showBefore} onChange={(e) => void t.setShowBefore(e.target.checked)} /> Other openings</label>
         <label className="check"><input type="checkbox" checked={t.ideasOn} onChange={(e) => void t.setIdeas(e.target.checked)} /> Stockfish's ideas</label>
-        <label className="check"><input type="checkbox" checked={t.zoom} onChange={(e) => void t.setZoom(e.target.checked)} /> Zoom in</label>
+        {t.mode === 'drawing' && <label className="check"><input type="checkbox" checked={t.zoom} onChange={(e) => void t.setZoom(e.target.checked)} /> Zoom in</label>}
       </div>
       <div className="row">
         <button type="button" className="btn secondary" aria-label="Back" onClick={() => void t.step(-1)}>◀</button>
@@ -242,7 +316,7 @@ function MyGamesPanel({ c, onGames, onAnalyze }: { c: DrillController; onGames: 
   );
 }
 
-export function DrillScreen({ c, client }: { c: DrillController; client: DbClient }) {
+export function DrillScreen({ c, client, onReview }: { c: DrillController; client: DbClient; onReview: (gameId: string, fen: string | null) => void }) {
   useSyncExternalStore(c.subscribe, () => c.version);
   const data = useSyncExternalStore(c.openingData.subscribe, () => c.openingData.state);
   const [dialog, setDialog] = useState<Dialog>(null);
@@ -472,8 +546,9 @@ export function DrillScreen({ c, client }: { c: DrillController; client: DbClien
         </Modal>
       )}
       {c.prompt && <PromptDialog key={c.prompt.title + c.prompt.text} c={c} />}
-      {dialog?.kind === 'library' && <LibraryDialog client={client} onAdded={() => c.refreshRepertoires()} onClose={() => setDialog(null)} />}
-      {dialog?.kind === 'games' && <GamesDialog c={c} d={dialog.d} onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'library' && <LibraryDialog client={client} onAdded={() => c.refreshRepertoires()} onClose={() => setDialog(null)}
+        onReview={(id, fen) => { setDialog(null); onReview(id, fen); }} />}
+      {dialog?.kind === 'games' && <GamesDialog c={c} d={dialog.d} onClose={() => setDialog(null)} onReview={onReview} />}
       {dialog?.kind === 'analyze' && <PlayDialog fen={dialog.fen} title={dialog.title} analyze onClose={() => setDialog(null)} />}
       {dialog?.kind === 'play' && d && (
         <PlayDialog fen={d.fen} myColor={d.myColor} title={`Play it out — ${d.lineName}`} onClose={() => setDialog(null)} />

@@ -9,6 +9,9 @@ const params = new URLSearchParams(location.search);
 const flavor = params.get("flavor") || "stockfish-19-lite-single";
 const threads = Number(params.get("threads") || 1);
 const workers = Number(params.get("workers") || 1);  // engines analyzing side by side
+const movetime = Number(params.get("movetime") || 0);   // ms per position instead of a fixed depth
+const taskFile = params.get("tasks") || "tasks";
+const hash = Number(params.get("hash") || 16);
 const log = (s) => (document.getElementById("log").textContent += s + "\n");
 
 function report(data) {
@@ -33,33 +36,36 @@ function engine(url) {
 }
 
 try {
-  const { depth, my_color, tasks } = await (await fetch("public/tasks.json")).json();
+  const { depth, my_color, tasks } = await (await fetch(`public/${taskFile}.json`)).json();
   async function runOne() {
     const t0 = performance.now();
     const sf = engine(`node_modules/stockfish/bin/${flavor}.js`);
     sf.send("uci"); await sf.until("uciok");
     if (threads > 1) sf.send(`setoption name Threads value ${threads}`);
+    sf.send(`setoption name Hash value ${hash}`);
     sf.send("isready"); await sf.until("readyok");
     const loadMs = performance.now() - t0;
     log(`${flavor} loaded in ${loadMs.toFixed(0)} ms`);
 
-    let agree = 0, cpDiffs = [];
+    let agree = 0, cpDiffs = []; const depths = [];
     for (const t of tasks) {
       sf.lines.length = 0;
       sf.send(`setoption name MultiPV value ${t.multipv}`);
       sf.send(`position fen ${t.fen}`);
-      sf.send(`go depth ${depth}`);
+      sf.send(movetime ? `go movetime ${movetime}` : `go depth ${depth}`);
       const best = (await sf.until("bestmove")).split(" ")[1];
       // last "info depth N ... multipv 1 score cp X" line = final eval, side-to-move POV
-      const info = sf.lines.filter((l) => l.includes(` depth ${depth} `) && / multipv 1 /.test(l)).pop() || "";
+      const info = sf.lines.filter((l) => (movetime ? l.startsWith("info depth") : l.includes(` depth ${depth} `)) && / multipv 1 /.test(l) && / pv /.test(l)).pop() || "";
+      const reached = +(info.match(/ depth (\d+)/) || [0, 0])[1];
+      depths.push(reached);
       const m = info.match(/score (cp|mate) (-?\d+)/);
       let cp = m ? (m[1] === "cp" ? +m[2] : (+m[2] > 0 ? 10000 : -10000)) : null;
-      const stmIsMe = (t.fen.split(" ")[1] === "w") === (my_color === "white");
+      const stmIsMe = (t.fen.split(" ")[1] === "w") === ((t.my_color || my_color) === "white");
       if (cp !== null && !stmIsMe) cp = -cp;
       if (best === t.best) agree++;
       if (cp !== null) cpDiffs.push(Math.abs(Math.max(-1000, Math.min(1000, cp)) - Math.max(-1000, Math.min(1000, t.cp))));
     }
-    return { loadMs, agree, cpDiffs };
+    return { loadMs, agree, cpDiffs, depths };
   }
   const t1 = performance.now();
   const runs = await Promise.all(Array.from({ length: workers }, runOne));
@@ -72,6 +78,7 @@ try {
     secondsPerGame: +(searchMs / workers / 1000).toFixed(1),
     bestMoveAgreement: `${agree}/${tasks.length}`,
     medianCpDiff: cpDiffs[Math.floor(cpDiffs.length / 2)],
+    movetime, hash, avgDepth: +(runs[0].depths.reduce((a, b) => a + b, 0) / runs[0].depths.length).toFixed(1),
     crossOriginIsolated: self.crossOriginIsolated,
     userAgent: navigator.userAgent,
   };

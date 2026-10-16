@@ -90,6 +90,12 @@ export interface Puzzle {
   setup_uci: string | null;
 }
 
+/** Puzzles you made yourself (Game Review → Make this a puzzle), typed "Self made" so the
+ *  Type filter finds them: kept when your games' puzzles are rebuilt (a web-app addition;
+ *  the desktop app doesn't have them). */
+export const SELF_MADE = 'Self made';
+export const PICK_PREFIX = 'pick-';
+
 export function makePuzzle(
   p: Pick<Puzzle, 'fen' | 'correct_move_san' | 'correct_move_uci' | 'source'> & Partial<Puzzle>,
 ): Puzzle {

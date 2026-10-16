@@ -4,6 +4,7 @@
  * chessprep.db from the desktop app opens here as-is (and vice versa).
  */
 import { EVAL_VERSION } from './analyzer';
+import * as gameNotes from './gameNotes';
 import * as amazing from './amazing';
 import * as lichessPuzzles from './lichessPuzzles';
 import * as myLines from './myLines';
@@ -169,6 +170,7 @@ function initSchema(db: Db): void {
   myLines.ensureSchema(db);              // your games, matched to the library's named lines
   amazing.ensureSchema(db);              // amazing moves / missed sacrifices, searched once per game
   sac.ensureSchema(db);                  // Sacrifice!! rounds (Tactics & Threats)
+  gameNotes.ensureSchema(db);            // your notes on positions (a web-app addition)
   migrate(db);
 }
 
@@ -372,9 +374,10 @@ export function insertPuzzle(db: Db, p: Puzzle): void {
 export function replacePuzzlesForGames(db: Db, gameIds: string[], puzzles: Puzzle[]): void {
   db.transaction(() => {
     for (const gameId of gameIds) {
+      // (puzzles you made yourself — ids 'pick-…' — stay)
       db.run(`DELETE FROM review_state WHERE puzzle_id IN
-                (SELECT id FROM puzzles WHERE source_game_id = ?)`, [gameId]);
-      db.run('DELETE FROM puzzles WHERE source_game_id = ?', [gameId]);
+                (SELECT id FROM puzzles WHERE source_game_id = ? AND id NOT LIKE 'pick-%')`, [gameId]);
+      db.run("DELETE FROM puzzles WHERE source_game_id = ? AND id NOT LIKE 'pick-%'", [gameId]);
     }
     for (const p of puzzles) insertPuzzle(db, p);
   });

@@ -18,6 +18,15 @@ import { DrillScreen } from './screens/DrillScreen';
 import { ImportScreen } from './screens/ImportScreen';
 import { Placeholder } from './screens/Placeholder';
 import { PuzzleScreen } from './screens/PuzzleScreen';
+import { ReviewScreen } from './screens/ReviewScreen';
+import { StatsScreen } from './screens/StatsScreen';
+import { ProgressScreen } from './screens/ProgressScreen';
+import { ScoutScreen } from './screens/ScoutScreen';
+import { ReviewController } from './reviewController';
+import { TrainerScreen, type Trainers } from './screens/TrainerScreen';
+import { SacController } from './trainer/sacController';
+import { SpotController } from './trainer/spotController';
+import { ThreatController } from './trainer/threatController';
 
 export type ScreenId = 'data' | 'analysis' | 'puzzles' | 'import' | 'tactics' | 'review' | 'drill' | 'stats' | 'progress' | 'scout';
 
@@ -30,17 +39,12 @@ interface ScreenDef {
 
 export const SCREENS: ScreenDef[] = [
   { id: 'puzzles', label: 'Puzzle Review' },
-  { id: 'tactics', label: 'Tactics & Threats', phase: 5,
-    about: "Three drills: Is there a tactic?, What's the threat?, and Sacrifice!! — find the follow-up that makes a sacrifice work." },
-  { id: 'review', label: 'Game Review', phase: 5,
-    about: 'Step through any analyzed game: evaluation graph, move badges (!!, !, ✓, ?!, ?, ??), accuracy, and where it left your prep.' },
+  { id: 'tactics', label: 'Tactics & Threats' },
+  { id: 'review', label: 'Game Review' },
   { id: 'drill', label: 'Opening Drill' },
-  { id: 'stats', label: 'Stats', phase: 5,
-    about: 'Results by opening, how you lose, accuracy by phase, time pressure, your playing style, and repertoire gaps.' },
-  { id: 'progress', label: 'Progress', phase: 5,
-    about: 'Rating against your goal, blunders per game, your themes weakest first, and your week in review.' },
-  { id: 'scout', label: 'Opponent Prep', phase: 5,
-    about: "Scout any chess.com player's openings and see whether your repertoire covers them." },
+  { id: 'stats', label: 'Stats' },
+  { id: 'progress', label: 'Progress' },
+  { id: 'scout', label: 'Opponent Prep' },
   { id: 'import', label: 'Import & Analyze' },
   { id: 'analysis', label: 'Analysis board' },
   { id: 'data', label: 'Your data' },
@@ -58,6 +62,25 @@ export function App({ client }: { client: DbClient }) {
   // Puzzle Review keeps its place while you visit other screens; a new one per player
   const current = profiles?.current ?? null;
   const puzzles = useMemo(() => (current ? new PuzzleController(client, sharedEngine(), onLevel) : null), [client, current, onLevel]);
+  const trainers = useMemo((): Trainers | null => (current ? {
+    spot: new SpotController(client, sharedEngine(), onLevel),
+    threat: new ThreatController(client, sharedEngine(), onLevel),
+    sac: new SacController(client, sharedEngine(), onLevel),
+  } : null), [client, current, onLevel]);
+  useEffect(() => {
+    if (import.meta.env.MODE === 'e2e' && trainers) (window as unknown as { trainers: Trainers }).trainers = trainers;   // tests/e2e
+    return () => { trainers?.spot.dispose(); trainers?.threat.dispose(); trainers?.sac.dispose(); };
+  }, [trainers]);
+  const review = useMemo(() => (current ? new ReviewController(client, sharedEngine()) : null), [client, current]);
+  useEffect(() => {
+    if (import.meta.env.MODE === 'e2e' && review) (window as unknown as { review: ReviewController }).review = review;   // tests/e2e
+    return () => review?.dispose();
+  }, [review]);
+  /** "Review game" anywhere: Game Review, at that position. */
+  const reviewGame = useCallback((gameId: string, fen: string | null = null) => {
+    setScreen('review');
+    void review?.openGame(gameId, fen);
+  }, [review]);
   const openingData = useMemo(() => new OpeningData(client), [client]);
   const drill = useMemo(() => (current ? new DrillController(client, openingData, onLevel, sharedEngine()) : null), [client, current, openingData, onLevel]);
 
@@ -148,8 +171,30 @@ export function App({ client }: { client: DbClient }) {
         )}
         {shown.phase ? <Placeholder title={shown.label} phase={shown.phase} about={shown.about!} />
           : screen === 'analysis' ? <AnalysisScreen />
-            : screen === 'puzzles' ? (puzzles && <PuzzleScreen c={puzzles} />)
-            : screen === 'drill' ? (drill && <DrillScreen c={drill} client={client} />)
+            : screen === 'puzzles' ? (puzzles && <PuzzleScreen c={puzzles} onReview={reviewGame} />)
+            : screen === 'review' ? (review && <ReviewScreen r={review} client={client}
+              onOpenPuzzle={(id) => { setScreen('puzzles'); void puzzles?.openPuzzle(id); }}
+              onPuzzlesChanged={() => { void puzzles?.reloadQueue(); void refresh(); }} />)
+            : screen === 'scout' ? (profiles && <ScoutScreen client={client} />)
+            : screen === 'progress' ? (profiles && <ProgressScreen client={client} actions={{
+              practiceTheme: (tag) => { setScreen('puzzles'); void puzzles?.practiceTheme(tag); },
+              openPuzzle: (id) => { setScreen('puzzles'); void puzzles?.openPuzzle(id); },
+              reviewGame,
+              threats: () => void client.service('setSettings', { trainer_mode: 'Threat?' }).then(() => setScreen('tactics')),
+              tactics: () => void client.service('setSettings', { trainer_mode: 'Tactic?' }).then(() => setScreen('tactics')),
+              analyze: () => setScreen('import'),
+            }} />)
+            : screen === 'stats' ? (profiles && <StatsScreen client={client} openingData={openingData} onReview={reviewGame}
+              onDrill={(i) => { setScreen('drill'); void drill?.drillSuggestion(i); }} onRepertoireChanged={() => void drill?.refreshRepertoires()}
+              onPractice={(action) => {
+                if (action === 'tactics' || action === 'threats') {
+                  void client.service('setSettings', { trainer_mode: action === 'tactics' ? 'Tactic?' : 'Threat?' }).then(() => setScreen('tactics'));
+                } else if (action === 'drill') setScreen('drill');
+                else if (action === 'endgames') { setScreen('puzzles'); void puzzles?.setFilter('type', 'Endgames'); }
+                else setScreen('puzzles');
+              }} />)
+            : screen === 'drill' ? (drill && <DrillScreen c={drill} client={client} onReview={reviewGame} />)
+            : screen === 'tactics' ? (trainers && <TrainerScreen client={client} trainers={trainers} onReview={reviewGame} />)
               : screen === 'import' ? (profiles && (
                 <ImportScreen client={client} jobs={jobs} puzzleSource={puzzles?.filters.source ?? 'My games'}
                   onFocusChange={(f) => void puzzles?.setFilter('focus', f)} />))
