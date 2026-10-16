@@ -36,6 +36,15 @@ export function DataScreen({ client, profiles, summary, onChange }: Props) {
     }
   };
 
+  /** Dev server only: your desktop database, fetched from ~/Chess by the dev server (vite.config.ts). */
+  const importKingCoach = () => run('Loading your King Coach database…', async () => {
+    const r = await fetch('/__king-coach/chessprep.db', { cache: 'no-store' });
+    if (!r.ok) throw new Error(r.headers.get('Content-Type')?.startsWith('text/') ? await r.text() : `Couldn't load it (${r.status}).`);
+    const view = await client.importDb(new Uint8Array(await r.arrayBuffer()), asNewPlayer);
+    await onChange(view);
+    return `Loaded your King Coach database into ${view.current}.`;
+  });
+
   const importFile = (f: File) => run('Importing…', async () => {
     const view = await client.importDb(new Uint8Array(await f.arrayBuffer()), asNewPlayer);
     await onChange(view);
@@ -97,6 +106,11 @@ export function DataScreen({ client, profiles, summary, onChange }: Props) {
             <button type="button" className="btn" disabled={!!busy} onClick={() => file.current?.click()}>
               Import chessprep.db…
             </button>
+            {import.meta.env.DEV && (
+              <button type="button" className="btn secondary" disabled={!!busy} onClick={() => void importKingCoach()}>
+                Load from King Coach on this computer
+              </button>
+            )}
             <input ref={file} type="file" accept=".db,.sqlite,.sqlite3,application/x-sqlite3" hidden
               onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void importFile(f); }} />
           </div>
