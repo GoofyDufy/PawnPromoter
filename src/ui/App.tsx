@@ -8,10 +8,13 @@ import type { DbClient } from '../data/client';
 import type { ProfilesView } from '../data/dbWorker';
 import type { LevelView, Summary } from '../data/services';
 import { sharedEngine } from '../engine/stockfish';
+import { DrillController } from './drillController';
 import { Jobs } from './jobs';
+import { OpeningData } from './openingData';
 import { PuzzleController } from './puzzleController';
 import { AnalysisScreen } from './screens/AnalysisScreen';
 import { DataScreen } from './screens/DataScreen';
+import { DrillScreen } from './screens/DrillScreen';
 import { ImportScreen } from './screens/ImportScreen';
 import { Placeholder } from './screens/Placeholder';
 import { PuzzleScreen } from './screens/PuzzleScreen';
@@ -31,8 +34,7 @@ export const SCREENS: ScreenDef[] = [
     about: "Three drills: Is there a tactic?, What's the threat?, and Sacrifice!! — find the follow-up that makes a sacrifice work." },
   { id: 'review', label: 'Game Review', phase: 5,
     about: 'Step through any analyzed game: evaluation graph, move badges (!!, !, ✓, ?!, ?, ??), accuracy, and where it left your prep.' },
-  { id: 'drill', label: 'Opening Drill', phase: 4,
-    about: 'Your repertoire, drilled against the moves real players at your level make — plus the opening library, the tree, and My games.' },
+  { id: 'drill', label: 'Opening Drill' },
   { id: 'stats', label: 'Stats', phase: 5,
     about: 'Results by opening, how you lose, accuracy by phase, time pressure, your playing style, and repertoire gaps.' },
   { id: 'progress', label: 'Progress', phase: 5,
@@ -56,6 +58,8 @@ export function App({ client }: { client: DbClient }) {
   // Puzzle Review keeps its place while you visit other screens; a new one per player
   const current = profiles?.current ?? null;
   const puzzles = useMemo(() => (current ? new PuzzleController(client, sharedEngine(), onLevel) : null), [client, current, onLevel]);
+  const openingData = useMemo(() => new OpeningData(client), [client]);
+  const drill = useMemo(() => (current ? new DrillController(client, openingData, onLevel, sharedEngine()) : null), [client, current, openingData, onLevel]);
 
   const refresh = useCallback(async (view?: ProfilesView) => {
     try {
@@ -79,6 +83,13 @@ export function App({ client }: { client: DbClient }) {
     const timer = setTimeout(() => void jobs.classify(), 3000);
     return () => { clearTimeout(timer); jobs.pauseClassifying(); puzzles.dispose(); };
   }, [puzzles, jobs]);
+
+  useEffect(() => {
+    if (!drill) return;
+    if (import.meta.env.MODE === 'e2e') (window as unknown as { drill: DrillController }).drill = drill;   // tests/e2e reads the line
+    void drill.init();
+    return () => { openingData.stop(); drill.dispose(); };
+  }, [drill, openingData]);
 
   // new or rebuilt puzzles: the queue again, and the level / counts
   useEffect(() => {
@@ -138,11 +149,12 @@ export function App({ client }: { client: DbClient }) {
         {shown.phase ? <Placeholder title={shown.label} phase={shown.phase} about={shown.about!} />
           : screen === 'analysis' ? <AnalysisScreen />
             : screen === 'puzzles' ? (puzzles && <PuzzleScreen c={puzzles} />)
+            : screen === 'drill' ? (drill && <DrillScreen c={drill} client={client} />)
               : screen === 'import' ? (profiles && (
                 <ImportScreen client={client} jobs={jobs} puzzleSource={puzzles?.filters.source ?? 'My games'}
                   onFocusChange={(f) => void puzzles?.setFilter('focus', f)} />))
                 : <DataScreen client={client} profiles={profiles} summary={summary}
-                  onChange={async (view) => { await refresh(view); await puzzles?.reloadQueue(); }} />}
+                  onChange={async (view) => { await refresh(view); await puzzles?.reloadQueue(); await drill?.refreshRepertoires(); }} />}
       </main>
     </div>
   );

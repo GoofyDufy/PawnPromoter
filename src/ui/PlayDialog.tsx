@@ -47,12 +47,14 @@ function drawReason(b: ChessBoard): string {
   return 'seventyfive moves';
 }
 
-export function PlayDialog({ fen, title, onClose }: { fen: string; title: string; onClose: () => void }) {
-  const myColor: Color = ChessBoard.fromFen(fen).turn;
+/** myColor: your side (default: the side to move — a puzzle; a drilled line passes yours). */
+/** analyze: open straight into Analyze myself, with the engine evaluation on. */
+export function PlayDialog({ fen, title, onClose, myColor: mine, analyze = false }: { fen: string; title: string; onClose: () => void; myColor?: Color; analyze?: boolean }) {
+  const myColor: Color = mine ?? ChessBoard.fromFen(fen).turn;
   const [moves, setMoves] = useState<string[]>([]);
-  const [mode, setMode] = useState(PLAY_MODE);
+  const [mode, setMode] = useState(analyze ? ANALYZE_MODE : PLAY_MODE);
   const [strength, setStrength] = useState('Intermediate (1700)');
-  const [showEval, setShowEval] = useState(false);
+  const [showEval, setShowEval] = useState(analyze);
   const [orientation, setOrientation] = useState<Color>(myColor);
   const [thinking, setThinking] = useState(false);
   const [engineError, setEngineError] = useState<string | null>(null);
@@ -138,9 +140,11 @@ export function PlayDialog({ fen, title, onClose }: { fen: string; title: string
   const undo = () => {
     if (thinking) return;
     if (analyzing) { setMoves(moves.slice(0, -1)); return; }
-    // take back to the last position where it's your move (you move first: an even count)
-    const keep = Math.max(0, moves.length - 1);
-    setMoves(moves.slice(0, keep - (keep % 2)));
+    // take back to the last position where it's your move
+    const youFirst = ChessBoard.fromFen(fen).turn === myColor;
+    let keep = Math.max(0, moves.length - 1);
+    if ((keep % 2 === 0) !== youFirst) keep = Math.max(0, keep - 1);
+    setMoves(moves.slice(0, keep));
   };
 
   const restart = () => {

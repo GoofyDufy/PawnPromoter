@@ -16,17 +16,14 @@ import type { Db } from '../core/sqlite';
 import * as stats from '../core/stats';
 import * as style from '../core/style';
 import { fromIso } from '../core/time';
+import { drillServices } from './drillServices';
+import { libraryServices } from './libraryServices';
+import { myGamesServices } from './myGamesServices';
+import { level, type LevelView } from './level';
+
+export { level, type LevelView };
 
 // ---------- summary & level ----------
-
-export interface LevelView {
-  number: number;
-  name: string;
-  totalXp: number;
-  xpIntoLevel: number;
-  xpForLevel: number | null;
-  progress: number;
-}
 
 export interface Summary {
   games: number;
@@ -37,12 +34,6 @@ export interface Summary {
   attempts: number;
   username: string | null;
   level: LevelView;
-}
-
-export function level(conn: Db): LevelView {
-  const l = progression.levelFor(progression.totalXp(conn));
-  return { number: l.number, name: l.name, totalXp: l.total_xp, xpIntoLevel: l.xp_into_level,
-    xpForLevel: l.xp_for_level, progress: l.progress };
 }
 
 export function summary(conn: Db): Summary {
@@ -376,5 +367,8 @@ export const services = {
   summary, level, getSettings, setSettings, upgradePuzzles, puzzleQueue, records, puzzleDetails, recordFirstTry,
   updateTry, savePuzzleKind, saveKinds, unclassified, changeTag, gameSummary, importGames, gamesToAnalyze,
   saveGameAnalysis, regeneratePuzzles, lichessSummary, lichessIds, lichessSave, lichessRemoveAll,
+  ...drillServices,
+  ...myGamesServices,
+  ...libraryServices,
 };
 export type Services = typeof services;

@@ -8,11 +8,13 @@ import { createElement, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { evaluateGame } from '../../src/core/analyzer';
 import { Board } from '../../src/core/chess';
+const ChessBoardFen = (fen: string) => Board.fromFen(fen);
 import { rowToGame } from '../../src/core/db';
 import { DbClient } from '../../src/data/client';
 import { runPool } from '../../src/engine/pool';
 import { startStockfish } from '../../src/engine/stockfish';
 import { App } from '../../src/ui/App';
+import type { DrillController } from '../../src/ui/drillController';
 import type { PuzzleController } from '../../src/ui/puzzleController';
 import '../../src/ui/styles.css';
 
@@ -247,6 +249,124 @@ async function phaseSelect(client: DbClient) {
     containerRect: rect('cg-container'), pieces: document.querySelectorAll('cg-board piece').length };
 }
 
+/** Opening Drill on your repertoire: start a line and play it to the end by clicking (run after phase=ui). */
+async function phaseDrill(client: DbClient) {
+  const errors: string[] = [];
+  results.pageErrors = errors;
+  addEventListener('error', (e) => errors.push(`${e.message} ${e.error?.stack}`));
+  addEventListener('unhandledrejection', (e) => errors.push(e.reason instanceof Error ? `${e.reason.message} ${e.reason.stack}` : String(e.reason)));
+  createRoot(document.getElementById('root')!).render(createElement(StrictMode, null, createElement(App, { client })));
+  await waitFor('the app', () => document.querySelector('.level-card'), 120_000);
+  nav('Opening Drill');
+  const c = (window as unknown as { drill: DrillController }).drill;
+  await waitFor('the repertoires', () => c.repertoires.length > 0 && c.variations.length > 0 && c.status.text, 30_000);
+  results.drillSetup = { repertoires: c.repertoires.length, first: c.repertoire, variations: c.variations.length,
+    view: c.view, status: statusText() };
+  // the screen redraws a moment after the data arrives: wait for the button to be live
+  await waitFor('Start drill enabled', () => { const b = button(c.startLabel); return b && !b.disabled; }, 10_000);
+  button(c.startLabel).click();
+  await waitFor('a line', () => c.drill && c.status.text.endsWith('Your move.'), 10_000);
+  const statuses: string[] = [statusText()];
+  let moves = 0;
+  while (c.drill && !c.drill.finished && moves < 30) {
+    await waitFor('your turn', () => c.drill!.finished || (c.drill!.myTurn && c.board().movable), 10_000);
+    if (c.drill.finished) break;
+    const uci = c.drill.path[c.drill.index].uci;
+    const cgs = () => { const st = (window as unknown as { cg: { state: any } }).cg.state;
+      return { color: st.movable.color, turn: st.turnColor, dests: st.movable.dests?.size ?? null, selected: st.selected ?? null,
+        orientation: st.orientation, fen: st.pieces.size }; };
+    results.drillDebug = { uci, before: cgs(), status: c.status.text, dom: statusText(), myTurn: c.drill.myTurn, movable: c.board().movable };
+    await clickSquare(uci.slice(0, 2));
+    (results.drillDebug as Record<string, unknown>).afterFirst = cgs();
+    await clickSquare(uci.slice(2, 4));
+    (results.drillDebug as Record<string, unknown>).afterSecond = { ...cgs(), status: c.status.text, index: c.drill.index };
+    moves += 1;
+    await waitFor('the answer', () => statusText().startsWith('Correct') || statusText().startsWith('Not'), 10_000);
+    statuses.push(statusText());
+    await waitFor('the reply', () => c.drill!.finished || !statusText().startsWith('Correct'), 10_000);
+    statuses.push(statusText());
+  }
+  await waitFor('the end of the line', () => statusText().startsWith('End of line'), 10_000);
+  results.drill = { line: c.drill!.lineName, myMoves: moves, statuses: statuses.slice(0, 6), end: statusText(),
+    recap: document.querySelector('.commentary-card .explanation')?.textContent, plans: c.plans?.title ?? null };
+
+  // the Tree: drawn, a click on a move shows it, a new branch, Discard
+  button('Tree').click();
+  const t = c.tree;
+  await waitFor('the tree', () => t.tree && document.querySelectorAll('.tree-view svg path').length > 3, 30_000);
+  const box = (sel: string) => { const r = document.querySelector(sel)!.getBoundingClientRect(); return [r.left, r.top, r.width, r.height].map(Math.round); };
+  results.tree = { scope: t.scope, leaves: t.tree!.leaves.length, paths: document.querySelectorAll('.tree-view svg path').length,
+    svg: box('.tree-view svg'), view: box('.tree-view'), board: box('.board-wrap'), lineLabel: t.lineLabel, moves: t.movesLabel,
+    title: document.querySelector('.board-card .game-label')?.textContent };
+  // click (mouse down + up) on the first leaf's position in the drawing
+  const leaf = t.tree!.leaves[0][2];
+  const svg = document.querySelector('.tree-view svg') as SVGSVGElement;
+  const sr = svg.getBoundingClientRect();
+  const at = { bubbles: true, clientX: sr.left + leaf.x, clientY: sr.top + leaf.y, button: 0 };
+  svg.dispatchEvent(new MouseEvent('mousedown', at));
+  svg.dispatchEvent(new MouseEvent('mouseup', at));
+  await waitFor('the leaf on the board', () => t.node === leaf, 5000);
+  results.treeClick = { moves: t.movesLabel, status: statusText(), title: document.querySelector('.board-card .game-label')?.textContent,
+    fen: c.board().fen, line: t.lineLabel };
+  await t.step(-1);
+  const back = t.node!;
+  // the board redraws a moment later: wait until it takes moves for both sides at this position
+  const ready = () => { const st = (window as unknown as { cg: { state: any } }).cg.state;
+    return { color: st.movable.color, dests: st.movable.dests?.size ?? null, last: st.lastMove ?? null, want: back.move?.move_uci,
+      exploring: t.exploring(), boardMovable: c.board().movable, view: c.view, drill: !!c.drill }; };
+  setTimeout(() => { if (!t.draft.length) results.readyState = ready(); }, 4900);
+  await waitFor('the board ready', () => {
+    const st = (window as unknown as { cg: { state: any } }).cg.state;
+    return st.movable.color === st.turnColor && st.movable.dests?.size > 0 && st.lastMove?.join('') === back.move?.move_uci.slice(0, 4);
+  }, 5000);
+  const legal = ChessBoardFen(c.board().fen).legalMoves().find((m) => !back.children.some((ch) => ch.move!.move_uci === m))!;
+  const snap = () => { const st = (window as unknown as { cg: { state: any } }).cg.state;
+    return { node: t.node?.path.map((m) => m.move_uci).join(' ').slice(-24), draft: [...t.draft], selected: st.selected ?? null,
+      last: st.lastMove ?? null, status: c.status.text.slice(0, 60) }; };
+  results.draftTrace = [{ legal, ...snap() }];
+  await clickSquare(legal.slice(0, 2));
+  (results.draftTrace as unknown[]).push(snap());
+  await clickSquare(legal.slice(2, 4));
+  (results.draftTrace as unknown[]).push(snap());
+  await new Promise((r) => setTimeout(r, 800));
+  (results.draftTrace as unknown[]).push(snap());
+  await waitFor('a new branch', () => t.draft.length === 1, 5000);
+  results.treeDraft = { draft: t.draft, label: t.lineLabel, status: statusText(), saveButton: !!button('Save branch') };
+  button('Discard').click();
+  await waitFor('discarded', () => t.draft.length === 0, 5000);
+
+  // My games: the report, a deviation on the board with Stockfish's commentary
+  button('My games').click();
+  await waitFor('the report', () => c.myGames.report && !c.myGames.loading, 60_000);
+  const g = c.myGames;
+  results.myGames = { summary: g.summary(), openings: g.openings.length, deviations: g.shown.length };
+  if (g.shown.length) {
+    const t0 = performance.now();
+    await c.openMyDeviation(g.shown[0]);
+    await waitFor('the commentary', () => g.text && !g.text.includes('Stockfish is looking'), 60_000);
+    results.myGamesPick = { ms: ms(t0), title: document.querySelector('.board-card .game-label')?.textContent, status: statusText(),
+      arrows: c.board().arrows.length, text: g.text.slice(0, 400) };
+  }
+
+  // the opening library: loads the pre-built lines, searches, previews
+  button('Add lines').click();
+  await waitFor('the library button', () => button('Opening library — all named openings…'), 5000);
+  let t1 = performance.now();
+  button('Opening library — all named openings…').click();
+  await waitFor('the library', () => document.querySelectorAll('.library-lines .queue li button').length > 100, 60_000);
+  results.library = { loadMs: ms(t1), count: document.querySelector('.library > p.note')?.textContent,
+    rows: document.querySelectorAll('.library-lines .queue li button').length };
+  const search = document.querySelector('.library input[aria-label="Search"]') as HTMLInputElement;
+  setInput(search, 'Najdorf');
+  await waitFor('the search', () => (document.querySelector('.library-lines .queue li button')?.textContent ?? '').includes('Najdorf'), 10_000);
+  (document.querySelector('.library-lines .queue li button') as HTMLButtonElement).click();
+  t1 = performance.now();
+  await waitFor('the preview', () => document.querySelector('.library-preview h3'), 10_000);
+  results.libraryPick = { ms: ms(t1), title: document.querySelector('.library-preview h3')!.textContent,
+    flag: document.querySelector('.library-preview .flag')?.textContent, pieces: document.querySelectorAll('.library-preview cg-board piece').length,
+    games: document.querySelector('.library-preview .pre')?.textContent?.slice(0, 200) };
+}
+
 async function phase2(client: DbClient) {
   const t = performance.now();
   results.profiles = await client.init();
@@ -262,6 +382,7 @@ async function phase2(client: DbClient) {
     else if (phase === 'ui') await phaseUi(client);
     else if (phase === 'layout') await phaseLayout(client);
     else if (phase === 'select') await phaseSelect(client);
+    else if (phase === 'drill') await phaseDrill(client);
     else await phase2(client);
     results.ok = true;
   } catch (e) {

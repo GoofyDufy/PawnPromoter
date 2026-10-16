@@ -17,11 +17,11 @@ reference: this project only ever reads from it, never changes it.
 | 1 | All the training logic ported to TypeScript and checked against the desktop app | done (`src/core/`, see [PORTING.md](PORTING.md)) |
 | 2 | App shell, board, Stockfish in the browser (pool + shared engine), database in a worker, desktop import, backup, players | done (`src/ui/`, `src/engine/`, `src/data/`) |
 | 3 | Puzzles: import from chess.com, analyze, solve (multi-move lines, near-best tries, explanations), the shared analysis board, Play it out, tags, Lichess puzzles, missed sacrifices — first public version | done (`src/ui/puzzleController.ts`, `src/ui/jobs.ts`, `src/ui/screens/`) |
-| 4 | **next** — Opening drill, repertoire import, tree, opening library, My games (where you leave your prep, why, what works at your level) | |
-| 5 | Stats, Progress (overview, themes, this week), Game Review (badges, accuracy, prep), Tactics & Threats (tactic? / threat? / sacrifice!!), scouting | |
+| 4 | Opening drill, repertoire import, tree, opening library, My games (where you leave your prep, why, what works at your level) | done (`src/ui/drillController.ts`, `treeController.ts`, `TreeView.tsx`, `myGamesController.ts`, `LibraryDialog.tsx`) |
+| 5 | **next** — Stats, Progress (overview, themes, this week), Game Review (badges, accuracy, prep), Tactics & Threats (tactic? / threat? / sacrifice!!), scouting | |
 | 6 | Phone layout, installable app | |
 
-The app opens (`npm run dev`) on Puzzle Review; Import & Analyze brings in your chess.com games and Lichess puzzles, and "Your data" imports your desktop `chessprep.db`, backs up and adds players. The other screens come with their phases.
+The app opens (`npm run dev`) on Puzzle Review; Import & Analyze brings in your chess.com games and Lichess puzzles; Opening Drill drills your repertoire, with its tree, the opening library and My games; and "Your data" imports your desktop `chessprep.db`, backs up and adds players. The other screens come with their phases.
 
 ## Layout
 
@@ -55,7 +55,7 @@ Needs Node.js 24.
     npm run build       # into dist/ — static files, any host
     npm test            # unit tests; golden tests skip unless set up (below)
     npm run typecheck
-    tests/e2e/run.sh    # the app in headless Firefox: storage, import, Stockfish, solving a puzzle, rebuild, Lichess, reload
+    tests/e2e/run.sh    # the app in headless Firefox: storage, import, Stockfish, solving a puzzle, rebuild, Lichess, drilling a line, reload
 
 The golden tests need the desktop app in `~/Chess` with its database. They
 read a snapshot (your personal data, gitignored) and skip themselves without

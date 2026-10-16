@@ -161,10 +161,19 @@ export class Tree {
 /** One repertoire's tree, or (repertoireName null) every repertoire of that
  *  colour merged into one forest — a tree per first move. */
 export function build(conn: Db, repertoireName: string | null, myColor: PlayerColor): Tree {
+  return buildFromLines(treeLines(conn, repertoireName, myColor), myColor);
+}
+
+/** The enabled moves a tree is built from (the web app reads them in the
+ *  database worker and builds the tree on the page). */
+export function treeLines(conn: Db, repertoireName: string | null, myColor: PlayerColor): OpeningLine[] {
   const rows = repertoireName === null
     ? conn.all('SELECT * FROM opening_lines WHERE my_color = ? AND is_enabled = 1', [myColor])
     : conn.all('SELECT * FROM opening_lines WHERE repertoire_name = ? AND my_color = ? AND is_enabled = 1', [repertoireName, myColor]);
-  const nodes = rows.map(db.rowToOpeningLine);
+  return rows.map(db.rowToOpeningLine);
+}
+
+export function buildFromLines(nodes: OpeningLine[], myColor: PlayerColor): Tree {
   const children = new Map<string | null, OpeningLine[]>();
   for (const n of nodes) {
     if (!children.has(n.parent_id)) children.set(n.parent_id, []);
@@ -420,7 +429,7 @@ export function deviations(tree: Tree, statsFor: StatsFor, myColor: PlayerColor)
 // your lines. Default: where all the repertoire's lines still agree (its trunk);
 // a player can move it (saved per repertoire in settings).
 
-function startKey(repertoireName: string, myColor: PlayerColor): string {
+export function startKey(repertoireName: string, myColor: PlayerColor): string {
   return `opening_start|${repertoireName}|${myColor}`;
 }
 

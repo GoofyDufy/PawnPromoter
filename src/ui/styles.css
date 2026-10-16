@@ -237,6 +237,74 @@ button.chip { cursor: pointer; }
 .segmented button[aria-checked="true"] { background: var(--panel-2); color: var(--ink); }
 .play-buttons { margin-top: auto; display: flex; flex-direction: column; gap: 6px; padding-top: 12px; }
 
+/* ---------- Opening Drill ---------- */
+.drill-side { gap: 10px; }
+.drill-view { display: flex; flex-direction: column; gap: 6px; min-height: 0; flex: 1; }
+.drill-view h2 { margin: 6px 0 2px; font-size: 15px; }
+.drill-view .queue { flex: 1; }
+.drill-view.plans { overflow-y: auto; }
+.drill-view.plans ul { margin: 2px 0 8px; padding-left: 18px; }
+.drill-view.plans p { margin: 2px 0 8px; }
+.drill-view .note { white-space: pre-line; margin: 2px 0; }
+.move-note { color: var(--accent); margin: 4px 0 0; }
+
+/* Tree and My games: the side column takes the spare width, the commentary narrows */
+.puzzles.wide-side { grid-template-columns: minmax(320px, 1fr) auto minmax(220px, 260px);
+  --board: max(220px, min(520px, calc(100cqh - 160px), calc(100cqw - 700px))); }
+.tree-panel { gap: 4px; }
+.tree-panel > select { align-self: flex-start; }
+.tree-view { position: relative; flex: 1; min-height: 160px; overflow-y: hidden; background: var(--panel-2); border-radius: var(--radius); }
+.tree-view svg { display: block; cursor: default; user-select: none; }
+.tree-view svg.pointing, .tree-view .clickable { cursor: pointer; }
+.tree-view .glyph.white { fill: #fff; stroke: #222; stroke-width: 1px; paint-order: stroke; }
+.tree-view .glyph.black { fill: #222; stroke: #ddd; stroke-width: 1px; paint-order: stroke; }
+.tree-zoom { position: absolute; top: 8px; right: 8px; display: flex; gap: 3px; align-items: center; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 8px; padding: 3px; }
+.tree-zoom button { width: 26px; height: 24px; border: 0; border-radius: 6px; background: var(--panel-2); color: var(--ink); cursor: pointer; font-weight: 700; }
+.tree-zoom span { font-size: 12px; color: var(--ink-2); padding: 0 4px; }
+.tree-toggles { gap: 14px; }
+.dev-label { color: var(--ink-2); }
+.queue.short { flex: 0 1 auto; max-height: 7.5em; }
+.my-games .queue { min-height: 60px; }
+.games-list a { display: block; padding: 3px 8px; color: var(--ink); text-decoration: none; white-space: pre; font-size: 13px; }
+.games-list a:hover { background: var(--panel); }
+.menu-veil { position: fixed; inset: 0; z-index: 30; }
+.context-menu { position: fixed; z-index: 31; min-width: 260px; max-width: 360px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; box-shadow: var(--shadow); padding: 4px; display: flex; flex-direction: column; }
+.context-menu button { text-align: left; border: 0; background: none; color: var(--ink); padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.context-menu button:hover { background: var(--panel-2); }
+.context-menu hr { border: 0; border-top: 1px solid var(--line); margin: 3px 0; }
+
+/* ---------- Opening library ---------- */
+.modal.wide:has(.library) { width: min(1180px, calc(100vw - 32px)); height: min(820px, calc(100vh - 32px)); display: flex; flex-direction: column; }
+.library { display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; }
+.library-head { gap: 8px; }
+.library-cols { display: grid; grid-template-columns: 220px minmax(260px, 1fr) 340px; gap: 12px; flex: 1; min-height: 0; }
+.library-cols > div { display: flex; flex-direction: column; min-height: 0; }
+.library-cols .queue { flex: 1; min-height: 0; }
+.library-lines .queue button.in-rep { color: var(--good); }
+.library-lines .queue button.in-rep[aria-current="true"] { color: var(--accent-ink); }
+.library-preview { overflow-y: auto; gap: 4px; }
+.library-preview .board-wrap { width: 100%; max-width: 320px; }
+.library-preview h3 { margin: 8px 0 0; font-size: 15px; }
+.library-preview p { margin: 2px 0; white-space: pre-line; }
+.library-preview .flag { display: inline-block; align-self: flex-start; padding: 3px 10px; border-radius: 8px; background: var(--panel-2); font-weight: 700; }
+.library-preview .flag.in { color: var(--good); }
+@media (max-width: 860px) { .library-cols { grid-template-columns: 1fr; } }
+
+/* ---------- dialogs ---------- */
+.modal { border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); color: var(--ink);
+  padding: 18px 20px; width: min(480px, calc(100vw - 32px)); }
+.modal.wide { width: min(640px, calc(100vw - 32px)); }
+.modal::backdrop { background: rgb(0 0 0 / 0.5); }
+.modal h2 { margin: 0 0 8px; font-size: 17px; }
+.modal h3 { margin: 12px 0 4px; font-size: 14px; }
+.modal textarea { width: 100%; font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 6px; padding: 8px; resize: vertical; }
+.modal-buttons { justify-content: flex-end; margin-top: 14px; }
+.lines-list { max-height: 55vh; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 4px 12px 10px; }
+.lines-list .check { padding: 2px 0; color: var(--ink); font-size: 14px; }
+
 /* ---------- small screens ---------- */
 @media (max-width: 860px) {
   .app { grid-template-columns: 1fr; height: auto; min-height: 100%; }
@@ -254,6 +322,8 @@ button.chip { cursor: pointer; }
   .analysis, .puzzles { grid-template-columns: 1fr; }
   .puzzles .board-card { order: -2; }          /* on a phone: the board first, then the commentary, then the queue */
   .puzzles .commentary-card { order: -1; max-height: none; }
+  .puzzles.wide-side { grid-template-columns: 1fr; --board: max(240px, min(440px, calc(100vw - 32px - 30px), calc(100vh - 260px))); }
+  .tree-view { min-height: 320px; }
   .import-cards { grid-template-columns: 1fr; }
   .board-wrap { width: max(240px, min(440px, calc(100vw - 32px - 30px), calc(100vh - 260px))); }
 }

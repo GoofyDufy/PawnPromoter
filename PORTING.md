@@ -69,6 +69,11 @@ etc. are UI — Phases 2-5.
 | `src/ui/puzzleController.ts`, `screens/PuzzleScreen.tsx` | `puzzle_tab.py` (5a380ca), Puzzle Review | `tests/puzzles.test.ts`, e2e (solves one of your puzzles by clicking) |
 | `src/ui/jobs.ts`, `screens/ImportScreen.tsx` | `puzzle_tab.py` (5a380ca), Import & Analyze | e2e (rebuild, Lichess packs); analysis is `evaluateGame` (golden) |
 | `src/ui/PlayDialog.tsx` | `play_window.py` (59a84d6) | by hand |
+| `src/ui/drillController.ts`, `screens/DrillScreen.tsx`, `src/data/drillServices.ts` | `drill_tab.py` (5a380ca): Setup, Plans, Add lines, the drill flow | `tests/drillScreen.test.ts`, e2e (drills one of your lines by clicking) |
+| `src/ui/treeController.ts`, `TreeView.tsx` (SVG), `treeHelpers.ts` | `drill_tab.py` tree methods (5a380ca), `tree_view.py` (59a84d6) | `tests/treeLibrary.test.ts`, e2e (draws your tree, a click, a new branch) |
+| `src/ui/myGamesController.ts`, `src/data/myGamesServices.ts` | `my_games_view.py` (5a380ca) | e2e (your deviations, commentary, works best at your level) |
+| `src/ui/LibraryDialog.tsx`, `src/data/libraryServices.ts` | `library_window.py` (5a380ca) | `tests/treeLibrary.test.ts`, e2e (load, search, preview) |
+| `src/ui/openingData.ts`, the Connect Lichess dialog | `lichess_ui.py` (5a380ca) | by hand (needs your token) |
 | `src/data/services.ts` | the database calls the tabs make (`upgradePuzzles` = puzzle_tab's start-up rule upgrades) | golden core modules + the above |
 
 ## Deliberate differences
@@ -119,6 +124,20 @@ etc. are UI — Phases 2-5.
   results show as a notice on the page instead of message boxes.
 - The tag picker is a pop-over and shows every tag (no "+N" overflow chip):
   chips wrap instead.
+- **Opening Drill:** after the computer's reply, the drill waits for your move.
+  Desktop checked again 0.3 s later regardless, and a quick move made that
+  check play the next reply at once, over your "Correct". The drill session
+  runs in the database worker (it reads your lines and the Lichess cache).
+  Message boxes are notices in the commentary panel; dialogs are pop-overs.
+- **The tree is drawn in SVG**, not on a canvas: the same layout (openingTree.ts),
+  hovering, clicking, zoom and drag. Where the selected position's Lichess
+  sidelines go is decided against the drawing's own shapes instead of
+  Tk's find_overlapping.
+- **The opening library ships described** (no background describer in the
+  browser); your games are matched to its lines in the database worker the
+  first time it opens.
+- **"Review game(s)"** in My games and the library open the games on
+  chess.com until Game Review (Phase 5).
 - "Play it out" runs its own engine, so limiting its strength never touches
   the shared engine's analysis.
 - Uses chessops instead of chess.js: it matches python-chess's model

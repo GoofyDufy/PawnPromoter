@@ -17,4 +17,5 @@ tests/e2e/run_page.sh "e2e.html?phase=1" 300
 tests/e2e/run_page.sh "e2e.html?phase=2" 120
 export SPIKE_PROFILE="$PWD/tests/e2e/results/ff-profile-fresh"; rm -rf "$SPIKE_PROFILE"; mkdir -p "$SPIKE_PROFILE"
 tests/e2e/run_page.sh "e2e.html?phase=ui" 500
+tests/e2e/run_page.sh "e2e.html?phase=drill" 240
 grep -v '"done": true' tests/e2e/results/results.jsonl | python3 -m json.tool --json-lines

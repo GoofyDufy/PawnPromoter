@@ -67,6 +67,20 @@ export class PositionStats {
   }
 }
 
+/** PositionStats as plain data (to cross to another thread) and back. */
+export interface PlainStats {
+  games: number;
+  moves: { uci: string; san: string; games: number; white: number; draws: number; black: number }[];
+}
+
+export function toPlain(stats: PositionStats): PlainStats {
+  return { games: stats.games, moves: stats.moves.map((m) => ({ uci: m.uci, san: m.san, games: m.games, white: m.white, draws: m.draws, black: m.black })) };
+}
+
+export function fromPlain(p: PlainStats): PositionStats {
+  return new PositionStats(p.games, p.moves.map((m) => new MoveStat(m.uci, m.san, m.games, m.white, m.draws, m.black)));
+}
+
 // ---------- token ----------
 
 export function getToken(conn: Db): string | null {
