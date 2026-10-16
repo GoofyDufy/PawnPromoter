@@ -15,16 +15,19 @@ reference: this project only ever reads from it, never changes it.
 |---|---|---|
 | 0 | Feasibility: chess.com / Lichess APIs from the browser, Stockfish WASM speed, SQLite in browser storage; Lichess puzzles as pre-built packs with theme top-ups (the Lichess file can't be downloaded by a browser); the opening library pre-described | done (`spikes/`, `public/`) |
 | 1 | All the training logic ported to TypeScript and checked against the desktop app | done (`src/core/`, see [PORTING.md](PORTING.md)) |
-| 2 | App shell, board, Stockfish workers, browser database | next |
-| 3 | Puzzles: import from chess.com, analyze, solve, the shared analysis board, tags, Lichess puzzles, missed sacrifices — first public version | |
-| 4 | Opening drill, repertoire import, tree, opening library, My games (where you leave your prep, why, what works at your level) | |
+| 2 | App shell, board, Stockfish in the browser (pool + shared engine), database in a worker, desktop import, backup, players | done (`src/ui/`, `src/engine/`, `src/data/`) |
+| 3 | Puzzles: import from chess.com, analyze, solve (multi-move lines, near-best tries, explanations), the shared analysis board, Play it out, tags, Lichess puzzles, missed sacrifices — first public version | done (`src/ui/puzzleController.ts`, `src/ui/jobs.ts`, `src/ui/screens/`) |
+| 4 | **next** — Opening drill, repertoire import, tree, opening library, My games (where you leave your prep, why, what works at your level) | |
 | 5 | Stats, Progress (overview, themes, this week), Game Review (badges, accuracy, prep), Tactics & Threats (tactic? / threat? / sacrifice!!), scouting | |
 | 6 | Phone layout, installable app | |
 
-There's no web page to open yet: so far it's the logic and its tests.
+The app opens (`npm run dev`) on Puzzle Review; Import & Analyze brings in your chess.com games and Lichess puzzles, and "Your data" imports your desktop `chessprep.db`, backs up and adds players. The other screens come with their phases.
 
 ## Layout
 
+- `src/ui/` — the React app: shell, board (chessground), evaluation bar, screens.
+- `src/engine/` — Stockfish in the browser: UCI over a Web Worker, the pool, the shared engine.
+- `src/data/` — the database worker (SQLite on OPFS, one file per player) and the page's client.
 - `src/core/` — the training logic (puzzles, analysis, drills, stats, …), one
   module per desktop module. `src/core/data/` is generated from the desktop
   app's text by `tools/gen_data.py` — don't edit it by hand.
@@ -48,8 +51,11 @@ There's no web page to open yet: so far it's the logic and its tests.
 Needs Node.js 24.
 
     npm install
+    npm run dev         # the app at http://localhost:5173
+    npm run build       # into dist/ — static files, any host
     npm test            # unit tests; golden tests skip unless set up (below)
     npm run typecheck
+    tests/e2e/run.sh    # the app in headless Firefox: storage, import, Stockfish, solving a puzzle, rebuild, Lichess, reload
 
 The golden tests need the desktop app in `~/Chess` with its database. They
 read a snapshot (your personal data, gitignored) and skip themselves without

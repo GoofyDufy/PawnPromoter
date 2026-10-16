@@ -1,0 +1,7 @@
+<!doctype html><meta charset="utf-8"><script type="module">
+const phase = new URLSearchParams(location.search).get("phase") || "1";
+const w = new Worker(`pool-worker.mjs?phase=${phase}`, { type: "module" });
+const send = (d) => fetch("/report", { method: "POST", body: JSON.stringify(d) });
+w.onmessage = async (e) => { await send(e.data); await send({ done: true }); };
+w.onerror = async (e) => { await send({ spike: "pool", error: "worker: " + e.message }); await send({ done: true }); };
+</script>

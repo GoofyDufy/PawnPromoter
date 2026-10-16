@@ -152,6 +152,13 @@ export function setSetting(db: Db, key: string, value: string): void {
  *  older files). Opening the file itself is the platform's job (OPFS in the
  *  browser, memory in tests). */
 export function initDb(db: Db): Db {
+  // one transaction: in browser storage every commit is a disk flush, and
+  // ~60 separate schema statements took ~18 s on a new database
+  db.transaction(() => initSchema(db));
+  return db;
+}
+
+function initSchema(db: Db): void {
   db.exec(SCHEMA);
   lichessPuzzles.ensureSchema(db);       // its own table, kept apart from your games' puzzles
   puzzleTags.ensureSchema(db);           // tags you add to puzzles
@@ -163,7 +170,6 @@ export function initDb(db: Db): Db {
   amazing.ensureSchema(db);              // amazing moves / missed sacrifices, searched once per game
   sac.ensureSchema(db);                  // Sacrifice!! rounds (Tactics & Threats)
   migrate(db);
-  return db;
 }
 
 const columns = (db: Db, table: string) => new Set(db.all(`PRAGMA table_info(${table})`).map((r) => r.name));

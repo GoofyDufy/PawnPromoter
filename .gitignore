@@ -19,3 +19,9 @@ tests/golden/
 
 # Python bytecode from the tools/ scripts
 __pycache__/
+
+# copied from node_modules by tools/copy-engine.mjs
+public/engine/
+dist/
+dist-e2e/
+tests/e2e/results/

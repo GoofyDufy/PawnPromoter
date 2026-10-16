@@ -96,6 +96,21 @@ export class Board {
     return [...this.pos.castles.castlingRights].join(',');
   }
 
+  /** The position before the first move pushed on this Board (its own FEN if none). */
+  startFen(): string {
+    return this.stack.length ? makeFen(this.stack[0].pos.toSetup()) : this.fen();
+  }
+
+  /** board.copy() with its move stack: the same start position, the same moves pushed. */
+  cloneWithHistory(): Board {
+    const out = Board.fromFen(this.startFen(), this.chess960);
+    for (const { uci } of this.stack) {
+      if (uci === '0000') out.pushNull();
+      else out.push(uci);
+    }
+    return out;
+  }
+
   /** UCI strings of every move pushed since this Board was made (move_stack). */
   get moveStack(): string[] {
     return this.stack.map((s) => s.uci);

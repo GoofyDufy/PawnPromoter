@@ -59,7 +59,17 @@ it when the prototype's notes or catalog text change.
 Not ported (desktop-only): `paths.py`, `engine_locator.py`. The `*_tab.py`,
 `gui.py`, `board_widget.py`, `tree_view.py`, `charts.py`, `analysis_board.py`,
 `library_window.py`, `my_games_view.py`, `progress_views.py`, `trainer_page.py`
-etc. are UI — Phases 2-5 (the analysis board's tests come with it).
+etc. are UI — Phases 2-5.
+
+## Screens (Phase 3)
+
+| Web | Desktop (commit) | Checked by |
+|---|---|---|
+| `src/ui/analysis.ts` | `analysis_board.py` (67e3b53) | `tests/analysis.test.ts` (incl. the prototype's AnalysisBoardTests) |
+| `src/ui/puzzleController.ts`, `screens/PuzzleScreen.tsx` | `puzzle_tab.py` (5a380ca), Puzzle Review | `tests/puzzles.test.ts`, e2e (solves one of your puzzles by clicking) |
+| `src/ui/jobs.ts`, `screens/ImportScreen.tsx` | `puzzle_tab.py` (5a380ca), Import & Analyze | e2e (rebuild, Lichess packs); analysis is `evaluateGame` (golden) |
+| `src/ui/PlayDialog.tsx` | `play_window.py` (59a84d6) | by hand |
+| `src/data/services.ts` | the database calls the tabs make (`upgradePuzzles` = puzzle_tab's start-up rule upgrades) | golden core modules + the above |
 
 ## Deliberate differences
 
@@ -78,6 +88,12 @@ etc. are UI — Phases 2-5 (the analysis board's tests come with it).
   described Sharp / Balanced / Quiet by the prototype's own code and native
   Stockfish. The descriptions depend only on the line, so this saves every
   user ~35 minutes of browser Stockfish; the download itself would work.
+- **Database settings in the browser:** `journal_mode=TRUNCATE`,
+  `synchronous=NORMAL`, `temp_store=MEMORY` (dbWorker.ts), and schema setup in
+  one transaction (`initDb`). Browser storage flushes to disk on every commit;
+  on a laptop hard drive that cut a commit from ~0.5 s to ~0.15 s and a new
+  database's setup from ~18 s to ~0.4 s. The desktop keeps SQLite's defaults;
+  a database file moves between the two either way.
 - Engine calls are `async` (`evaluateGame`, `spot.classify/judgeMove/…`,
   `explainAttempt/explainSolution`); everything else stays synchronous like
   the Python, because SQLite WASM is synchronous inside a worker.
@@ -94,6 +110,17 @@ etc. are UI — Phases 2-5 (the analysis board's tests come with it).
   async newest-position-only loop instead of a thread + UI poller.
 - `profiles.ts` takes its storage as a parameter (profiles.json on desktop,
   browser storage in the app); `drill.ts` takes its random source (seeded in tests).
+- **Games are analyzed with the lite single-threaded Stockfish** (WASM, ~0.5 s
+  a move, 2 engines side by side). It picks the desktop's best move about 70%
+  of the time, so puzzles made in the browser differ a little from desktop
+  ones; a desktop database imported into the app keeps its own.
+- "Review game" opens the game on chess.com until Game Review arrives
+  (Phase 5). Import asks for the username on the page instead of a dialog;
+  results show as a notice on the page instead of message boxes.
+- The tag picker is a pop-over and shows every tag (no "+N" overflow chip):
+  chips wrap instead.
+- "Play it out" runs its own engine, so limiting its strength never touches
+  the shared engine's analysis.
 - Uses chessops instead of chess.js: it matches python-chess's model
   (attack maps, attackers, pseudo-legal moves, PGN variations).
 

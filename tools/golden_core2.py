@@ -50,6 +50,7 @@ golden = {
     "stats": {name: stats_json(stats.compute(conn, tc)) for name, tc in models.TIME_FILTERS.items()},
     "style": {name: style_json(style.compute_style(conn, tc)) for name, tc in models.TIME_FILTERS.items()},
     "progress": {tc: progress_data.compute(conn, tc, 1800) for tc in ("Rapid", "Blitz", "Bullet", "Daily")},
+    "progress_today": __import__("datetime").date.today().isoformat(),   # progress depends on the date
     "xp": xp, "level": [level.number, level.name, level.xp_into_level, level.xp_for_level],
     "level_costs": progression.LEVEL_COSTS,
     "sharpness": sorted([k, v] for k, v in style.puzzle_sharpness(conn, puzzles).items()),

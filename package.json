@@ -2,21 +2,32 @@
   "name": "pawn-promoter",
   "version": "0.1.0",
   "private": true,
-  "description": "Pawn Promoter — browser chess trainer that turns your own games into puzzles (web port of King Coach)",
+  "description": "Pawn Promoter \u2014 browser chess trainer that turns your own games into puzzles (web port of King Coach)",
   "license": "GPL-3.0-or-later",
   "type": "module",
   "scripts": {
+    "dev": "node tools/copy-engine.mjs && vite",
+    "build": "node tools/copy-engine.mjs && tsc --noEmit && vite build",
+    "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@sqlite.org/sqlite-wasm": "3.53.4-build1",
-    "chessops": "0.15.1"
+    "chessground": "9.2.1",
+    "chessops": "0.15.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "stockfish": "19.0.0"
   },
   "devDependencies": {
     "@types/node": "24.19.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
     "typescript": "5.9.3",
+    "vite": "8.3.2",
     "vitest": "5.0.3"
   }
 }

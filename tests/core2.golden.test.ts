@@ -11,6 +11,7 @@ import * as db from '../src/core/db';
 import { explainAttempt, explainSolution } from '../src/core/explain';
 import { TIME_FILTERS } from '../src/core/models';
 import * as progressData from '../src/core/progressData';
+import { fromIso } from '../src/core/time';
 import * as progression from '../src/core/progression';
 import * as spot from '../src/core/spot';
 import { type Db, openMemoryDb } from '../src/core/sqlite';
@@ -69,7 +70,8 @@ describe.skipIf(!ready)('stats, style, progress, XP and explanations match the P
 
   it('progress numbers for every time class', () => {
     for (const tc of ['Rapid', 'Blitz', 'Bullet', 'Daily']) {
-      const p = progressData.compute(conn, tc, 1800);
+      // the date the prototype's answers were recorded on ("this week", "30 days ago" depend on it)
+      const p = progressData.compute(conn, tc, 1800, fromIso(golden.progress_today));
       const g = golden.progress[tc];
       expect({ ...p, blunders_per_game_weekly: undefined }, tc)
         .toEqual({ ...g, blunders_per_game_weekly: undefined });
