@@ -6,7 +6,7 @@ import { addDays, isoformat, nowIso } from './time';
 
 export type PlayerColor = 'white' | 'black';
 export type GameResult = 'win' | 'loss' | 'draw';
-export type PuzzleSource = 'own_game_mistake' | 'opening_prep';
+export type PuzzleSource = 'own_game_mistake' | 'opening_prep' | 'lichess';   // lichess: lichessPuzzles.ts
 
 export function newId(): string {
   return crypto.randomUUID();
@@ -50,10 +50,15 @@ export interface Game {
   result: GameResult;
   is_analyzed: boolean;
   analyzed_at: string | null;
+  // chess.com's accuracy (%), for games reviewed there (null otherwise)
+  my_accuracy: number | null;
+  opp_accuracy: number | null;
 }
 
-export function makeGame(g: Omit<Game, 'id' | 'is_analyzed' | 'analyzed_at'> & Partial<Game>): Game {
-  return { id: newId(), is_analyzed: false, analyzed_at: null, ...g };
+export function makeGame(
+  g: Omit<Game, 'id' | 'is_analyzed' | 'analyzed_at' | 'my_accuracy' | 'opp_accuracy'> & Partial<Game>,
+): Game {
+  return { id: newId(), is_analyzed: false, analyzed_at: null, my_accuracy: null, opp_accuracy: null, ...g };
 }
 
 export interface Puzzle {
@@ -66,10 +71,23 @@ export interface Puzzle {
   eval_swing_cp: number | null;         // magnitude of the mistake
   eval_before_cp: number | null;        // eval if the best move is played
   eval_after_cp: number | null;         // eval after the played (mistake) move
-  puzzle_type: string | null;           // heuristic tag, e.g. "Hanging Piece"
+  puzzle_type: string | null;           // heuristic tag, e.g. "Left Hanging"
   source_game_id: string | null;
   opening_line_id: string | null;
   created_at: string;
+  // from puzzleKind.ts (null until classified): the solution to play, how many
+  // of your moves it is, and Attacking / Defensive / Positional
+  solution_ucis: string | null;
+  solution_moves: number | null;
+  kind: string | null;
+  // Lichess puzzles only: their rating, themes, game, opening, and the
+  // opponent's move that sets the puzzle up (shown on the board first)
+  rating: number | null;
+  themes: string | null;
+  game_url: string | null;
+  opening: string | null;
+  setup_fen: string | null;
+  setup_uci: string | null;
 }
 
 export function makePuzzle(
@@ -77,7 +95,9 @@ export function makePuzzle(
 ): Puzzle {
   return {
     id: newId(), played_move_san: null, eval_swing_cp: null, eval_before_cp: null, eval_after_cp: null,
-    puzzle_type: null, source_game_id: null, opening_line_id: null, created_at: nowIso(), ...p,
+    puzzle_type: null, source_game_id: null, opening_line_id: null, created_at: nowIso(),
+    solution_ucis: null, solution_moves: null, kind: null,
+    rating: null, themes: null, game_url: null, opening: null, setup_fen: null, setup_uci: null, ...p,
   };
 }
 

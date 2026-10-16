@@ -16,3 +16,6 @@ dist/
 
 # golden fixtures are generated from your own games (personal data)
 tests/golden/
+
+# Python bytecode from the tools/ scripts
+__pycache__/

@@ -69,8 +69,9 @@ export interface Limit {
 
 export interface Engine {
   /** Always returns a list (best first); python-chess returns one dict
-   *  without multipv — callers take [0] there. */
-  analyse(board: Board, limit: Limit, multipv?: number): Promise<InfoLine[]>;
+   *  without multipv — callers take [0] there. rootMoves: search only these
+   *  moves (python-chess root_moves, UCI "go ... searchmoves"). */
+  analyse(board: Board, limit: Limit, multipv?: number, rootMoves?: string[]): Promise<InfoLine[]>;
 }
 
 /** Turns a UCI "info ... score cp X / mate N ... pv ..." line into an InfoLine,

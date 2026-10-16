@@ -14,9 +14,8 @@ import { MATE_CP } from './analyzer';
 import { Board, type Role, opposite } from './chess';
 import { pyPercent } from './format';
 import { type Puzzle, inTimeFilter } from './models';
-import { readHeaders } from './pgn';
 import type { Db, Row } from './sqlite';
-import { BLUNDER_CP, MAX_LOSS_CP, PhaseStat, Record, openingKey, openingName } from './stats';
+import { BLUNDER_CP, MAX_LOSS_CP, PhaseStat, Record, openingKey, openingName, pgnHeaders } from './stats';
 
 export const ONLY_MOVE_GAP_CP = 120;     // best beats 2nd best by this much = only move
 export const PUNISH_CHANCE_CP = 200;     // opponent's move handed you at least this much
@@ -48,12 +47,17 @@ export function isSharp(row: { cp_second?: number | null; cp_before: number; fen
 /** Closed = 3+ pawn pairs locked head-to-head; Open = at most one locked pair
  *  and 12 or fewer pawns left; otherwise Semi-open. */
 export function pawnStructure(fen: string): string {
-  const board = Board.fromFen(fen);
-  const white = board.pieces('pawn', 'white');
-  const black = new Set(board.pieces('pawn', 'black'));
-  const locked = white.filter((sq) => sq + 8 < 64 && black.has(sq + 8)).length;
+  const rows = fen.split(' ', 1)[0].split('/')              // rank 8 first
+    .map((r) => r.replace(/\d/g, (d) => '.'.repeat(Number(d))));
+  let locked = 0;                                           // black pawn right in front of a white one
+  for (let r = 0; r + 1 < rows.length; r++) {
+    for (let c = 0; c < Math.min(rows[r].length, rows[r + 1].length); c++) {
+      if (rows[r][c] === 'p' && rows[r + 1][c] === 'P') locked += 1;
+    }
+  }
   if (locked >= 3) return 'Closed center';
-  if (locked <= 1 && white.length + black.size <= 12) return 'Open center';
+  const pawns = rows.reduce((n, row) => n + [...row].filter((ch) => ch === 'p' || ch === 'P').length, 0);
+  if (locked <= 1 && pawns <= 12) return 'Open center';
   return 'Semi-open center';
 }
 
@@ -88,7 +92,8 @@ export function computeStyle(db: Db, timeClasses: Set<string> | null = null): St
   }
 
   const evalsByGame = new Map<string, Row[]>();
-  for (const ev of db.all('SELECT * FROM move_evaluations ORDER BY game_id, ply')) {
+  for (const ev of db.all('SELECT game_id, ply, fen_before, cp_before, cp_after, cp_second, move_uci, '
+    + 'best_move_uci FROM move_evaluations ORDER BY game_id, ply')) {
     if (!games.has(ev.game_id)) continue;
     if (!evalsByGame.has(ev.game_id)) evalsByGame.set(ev.game_id, []);
     evalsByGame.get(ev.game_id)!.push(ev);
@@ -137,9 +142,8 @@ export function computeStyle(db: Db, timeClasses: Set<string> | null = null): St
 
       if (!structureOf.has(gameId) && ev.ply >= 28) structureOf.set(gameId, pawnStructure(ev.fen_before));
       if (!queensOf.has(gameId) && ev.ply >= 40) {
-        const board = Board.fromFen(ev.fen_before);
-        queensOf.set(gameId, board.pieces('queen', 'white').length || board.pieces('queen', 'black').length
-          ? 'Queens kept past move 20' : 'Queens off by move 20');
+        const placement = ev.fen_before.split(' ', 1)[0];
+        queensOf.set(gameId, placement.toLowerCase().includes('q') ? 'Queens kept past move 20' : 'Queens off by move 20');
       }
     }
     if (totalMid >= 5) gameSharpness.set(gameId, sharpMid / totalMid);
@@ -162,7 +166,7 @@ export function computeStyle(db: Db, timeClasses: Set<string> | null = null): St
     if (gameSharpness.has(gameId)) types.get(`${report.character(gameSharpness.get(gameId)!)} games`)!.add(g.result);
     if (structureOf.has(gameId)) types.get(structureOf.get(gameId)!)!.add(g.result);
     if (queensOf.has(gameId)) types.get(queensOf.get(gameId)!)!.add(g.result);
-    const key = openingKey(openingName(readHeaders(g.pgn)), g.my_color);
+    const key = openingKey(openingName(pgnHeaders(g.pgn)), g.my_color);
     if (!openingRecords.has(key)) openingRecords.set(key, new Record());
     openingRecords.get(key)!.add(g.result);
     if (!openingSharpness.has(key)) openingSharpness.set(key, []);

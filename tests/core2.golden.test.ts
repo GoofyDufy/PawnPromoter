@@ -4,6 +4,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { Board } from '../src/core/chess';
 import * as db from '../src/core/db';
@@ -17,7 +18,7 @@ import * as stats from '../src/core/stats';
 import * as style from '../src/core/style';
 
 const FIXTURE = new URL('./golden/core2.json', import.meta.url);
-const DB_FILE = join(process.env.CHESS_DIR ?? join(homedir(), 'Chess'), 'chessprep.db');
+const DB_FILE = fileURLToPath(new URL('./golden/chessprep.snapshot.db', import.meta.url));   // tools/snapshot.py
 const ready = existsSync(FIXTURE) && existsSync(DB_FILE);
 const golden = ready ? JSON.parse(readFileSync(FIXTURE, 'utf8')) : null;
 

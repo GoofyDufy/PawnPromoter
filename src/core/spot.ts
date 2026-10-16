@@ -22,13 +22,12 @@
  *
  * Engine calls are async here (the browser engine answers by message).
  */
-import { MATE_CP, scoreToCp } from './analyzer';
+import { MATE_CP, scoreToCp, winChances } from './analyzer';
 import { Board, type Color, WHITE, opposite } from './chess';
 import type { Engine, PovScore } from './engine';
 import { VALUES } from './explain';
 import { readGame } from './pgn';
 import type { Db } from './sqlite';
-import { ONLY_MOVE_GAP_CP } from './style';
 import { nowIso } from './time';
 
 export const QUIET_SHARE = 1 / 3;
@@ -37,9 +36,12 @@ export const MIN_GAIN_PAWNS = 1;          // material a forcing line must net
 export const FORCING_PLIES = 8;           // how far down the engine line a forcing win is looked for
 export const MAX_MATE = 4;                // forced mates up to this many moves count
 export const MAX_SOLUTION_MOVES = 4;      // longest sequence you play (FORCING_PLIES covers it)
-export const MIN_WINNING_CP = 100;        // ...and the position must actually be good for you after it
+export const MIN_WINNING_CP = 200;        // ...and you must stand clearly better after it (Lichess: +2.00)
+/** ...and the first move must be the only one: Lichess's rule, best beats 2nd best by 0.7 in winning
+ *  chances (-1..1), e.g. +3 vs no better than -0.5 */
+export const ONLY_MOVE_WIN_GAP = 0.7;
 export const MOVE_OK_CP = 50;             // quiet positions: a move within half a pawn of the best is good
-export const MAX_START_CP = 400;          // skip positions already decided either way
+export const LICHESS_TOO_WINNING_CP = 300;   // tactics: not if you were already this far ahead before their move (Lichess)
 export const CLASSIFY_DEPTH = 14;
 export const JUDGE_DEPTH = 12;
 export const LINE_DEPTH = 18;             // the walk-through line
@@ -98,7 +100,17 @@ function material(board: Board, color: Color): number {
 
 /** Random positions from your analyzed games that are likely quiet / likely
  *  tactical (the final call is classify()'s). */
-export function candidates(conn: Db, quiet: boolean, exclude: Set<string>, limit = BATCH): Candidate[] {
+/** random.shuffle */
+export function shuffle<T>(items: T[], random: () => number = Math.random): T[] {
+  for (let i = items.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [items[i], items[j]] = [items[j], items[i]];
+  }
+  return items;
+}
+
+export function candidates(conn: Db, quiet: boolean, exclude: Set<string>, limit = BATCH,
+  random: () => number = Math.random): Candidate[] {
   let sql: string;
   let args: (string | number)[];
   if (quiet) {
@@ -109,14 +121,18 @@ export function candidates(conn: Db, quiet: boolean, exclude: Set<string>, limit
            ORDER BY RANDOM() LIMIT ?`;
     args = [MIN_QUIET_PLY, limit];
   } else {
-    // only-move positions, or your opponent's last move just handed you 2+ pawns
-    sql = `SELECT e.game_id, e.ply, e.fen_before, e.move_uci FROM move_evaluations e
-           LEFT JOIN move_evaluations prev ON prev.game_id = e.game_id AND prev.ply = e.ply - 2
-           WHERE e.cp_second IS NOT NULL AND abs(e.cp_before) < ?
-             AND (e.cp_before - e.cp_second >= ?
-                  OR (prev.cp_after IS NOT NULL AND e.cp_before - prev.cp_after >= 200))
-           ORDER BY RANDOM() LIMIT ?`;
-    args = [MAX_START_CP, ONLY_MOVE_GAP_CP, limit];
+    // by the saved analysis already +2 with only one move (Lichess's bar, see
+    // winsByForce), and you weren't winning big before their last move
+    const rows = conn.all(
+      `SELECT e.game_id, e.ply, e.fen_before, e.move_uci, e.cp_before, e.cp_second
+       FROM move_evaluations e
+       LEFT JOIN move_evaluations prev ON prev.game_id = e.game_id AND prev.ply = e.ply - 2
+       WHERE e.cp_second IS NOT NULL AND e.cp_before >= ? AND e.cp_before - e.cp_second >= 150
+         AND (prev.cp_after IS NULL OR prev.cp_after < ?)`,
+      [MIN_WINNING_CP, LICHESS_TOO_WINNING_CP],
+    ).filter((r) => !exclude.has(r.fen_before) && isOnlyMove(r.cp_before, Math.max(r.cp_second, -MATE_CP)));
+    shuffle(rows, random);
+    return rows.slice(0, limit).map((r) => ({ game_id: r.game_id, ply: r.ply, fen: r.fen_before, played_uci: r.move_uci }));
   }
   return conn.all(sql, args)
     .filter((r) => !exclude.has(r.fen_before))
@@ -238,6 +254,16 @@ export function mateLine(board: Board, pv: string[]): string[] {
   return line;
 }
 
+export function isOnlyMove(bestCp: number, secondCp: number | null): boolean {
+  return secondCp === null || winChances(bestCp) > winChances(secondCp) + ONLY_MOVE_WIN_GAP;
+}
+
+/** A material tactic, Lichess's standard: a forcing line that nets material,
+ *  leaves you +2 or better, and has only one first move. */
+export function winsByForce(gain: number, length: number, bestCp: number, secondCp: number | null): boolean {
+  return gain >= MIN_GAIN_PAWNS && length > 0 && bestCp >= MIN_WINNING_CP && isOnlyMove(bestCp, secondCp);
+}
+
 /** The moves to play (yours and the replies, ending with yours): the forcing
  *  line to mate or to the material win, at most MAX_SOLUTION_MOVES of yours —
  *  or just the first move when the position isn't a forcing tactic. */
@@ -273,7 +299,7 @@ export async function classify(engine: Engine, board: Board, justLost = 0): Prom
     return new Verdict(true, 'mate', best, bestCp, secondCp, pv, mate, 0, line.length ? line : [best]);
   }
   const [gain, length] = forcingWin(board, pv, justLost);
-  if (gain >= MIN_GAIN_PAWNS && bestCp >= MIN_WINNING_CP) {
+  if (winsByForce(gain, length, bestCp, secondCp)) {
     return new Verdict(true, 'material', best, bestCp, secondCp, pv, null, gain, pv.slice(0, length));
   }
   if (secondCp !== null && bestCp - secondCp < MOVE_OK_CP && !pov.isMate()) {

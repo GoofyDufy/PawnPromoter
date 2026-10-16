@@ -9,6 +9,7 @@ import { PovScore, Score } from '../src/core/engine';
 import { pyFixed, pyPercent, pySigned } from '../src/core/format';
 import { type MoveEvaluation, ReviewState, timeClass } from '../src/core/models';
 import * as progression from '../src/core/progression';
+import * as puzzleKind from '../src/core/puzzleKind';
 import * as spot from '../src/core/spot';
 import { openMemoryDb } from '../src/core/sqlite';
 import { Record } from '../src/core/stats';
@@ -198,6 +199,49 @@ describe('progression', () => {
     expect(db.puzzleRecords(conn).get('a')).toEqual({ correct: 1, near_best: 0, missed: 2 });
     db.setAttemptOutcome(conn, row, 'near_best');
     expect(db.puzzleRecords(conn).get('a')).toEqual({ correct: 1, near_best: 1, missed: 1 });
+  });
+});
+
+describe('puzzle kinds', () => {
+  const HANGING = 'rnb1kbnr/ppp1pppp/8/3q4/8/2N5/PPPP1PPP/R1BQKBNR w KQkq - 0 3';   // Nxd5 wins the queen
+
+  const passedKey = (fen: string) => {
+    const b = Board.fromFen(fen);
+    b.pushNull();
+    return b.boardFen();
+  };
+
+  it('a forcing win is attacking', async () => {
+    const board = Board.fromFen(HANGING);
+    const eng = new FakeEngine({ [board.boardFen()]: [[['c3d5', 'c7c6', 'd5c3'], 900]] });
+    const r = await puzzleKind.classify(eng, HANGING, 'c3d5');
+    expect([r.kind, r.moves, r.solution]).toEqual(['Attacking', 1, ['c3d5']]);
+  });
+
+  it('meeting a threat is defensive, otherwise positional', async () => {
+    const fen = START;
+    const key = Board.fromFen(fen).boardFen();
+    // if White could pass, Black would be 2 pawns better off: White faces a threat
+    const threat = new FakeEngine({ [key]: [[['e2e4'], 20]], [passedKey(fen)]: [[[], 180]] });
+    expect((await puzzleKind.classify(threat, fen, 'e2e4')).kind).toBe('Defensive');
+    const calm = new FakeEngine({ [key]: [[['e2e4'], 20]], [passedKey(fen)]: [[[], -10]] });
+    expect((await puzzleKind.classify(calm, fen, 'e2e4')).kind).toBe('Positional');
+  });
+
+  it('saved and read back', async () => {
+    const conn = await freshConn();
+    const [p] = analyzer.puzzlesFromEvaluations([ev(0, START, 'e2e4', 'd2d4', 30, -200)], 150);
+    db.replacePuzzlesForGames(conn, ['g1'], [p]);
+    puzzleKind.save(conn, p.id, new puzzleKind.Result(['d2d4'], 'Positional'));
+    const [back] = db.allPuzzles(conn);
+    expect([back.kind, back.solution_moves, back.solution_ucis]).toEqual(['Positional', 1, 'd2d4']);
+    expect(puzzleKind.unclassified(conn)).toEqual([]);
+  });
+
+  it('a pass that would leave the opponent in check is not tried', async () => {
+    // White gives check; "passing" as Black would leave White to move with Black in check: invalid
+    expect(Board.isValidFen('4k3/8/8/8/8/8/8/4K2R b K - 0 1')).toBe(true);
+    expect(Board.isValidFen('4k2R/8/8/8/8/8/8/4K3 w - - 0 1')).toBe(false);
   });
 });
 

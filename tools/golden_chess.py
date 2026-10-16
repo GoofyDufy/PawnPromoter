@@ -1,13 +1,13 @@
 """Golden fixtures for src/core/chess.ts: python-chess's answers on real games.
 
 Run with the prototype's venv:  ~/Chess/.venv/bin/python tools/golden_chess.py [n_games]
-Reads ~/Chess/chessprep.db read-only; writes tests/golden/chess.json (gitignored —
+Reads the snapshot from tools/snapshot.py (read-only); writes tests/golden/chess.json (gitignored —
 it's built from your games).
 """
 import hashlib, io, json, os, pathlib, sqlite3, sys
+from golden_common import CHESS, COMMIT, PROTOTYPE, SNAPSHOT  # noqa: E402  (prototype at its last commit)
 import chess, chess.pgn
 
-CHESS = pathlib.Path(os.environ.get("CHESS_DIR", pathlib.Path.home() / "Chess"))
 OUT = pathlib.Path(__file__).resolve().parent.parent / "tests" / "golden" / "chess.json"
 N = int(sys.argv[1]) if len(sys.argv) > 1 else 200
 
@@ -30,7 +30,7 @@ def position_facts(board):
             "check": board.is_check(), "mate": board.is_checkmate(), "over": board.is_game_over()}
 
 
-conn = sqlite3.connect(f"file:{CHESS / 'chessprep.db'}?mode=ro", uri=True)
+conn = sqlite3.connect(f"file:{SNAPSHOT}?mode=ro", uri=True)
 rows = conn.execute("SELECT id, pgn FROM games ORDER BY played_at DESC LIMIT ?", (N,)).fetchall()
 games = []
 for gid, pgn in rows:

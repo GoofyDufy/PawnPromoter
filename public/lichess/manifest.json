@@ -1,0 +1,6117 @@
+{
+ "source": "https://database.lichess.org/lichess_db_puzzle.csv.zst",
+ "prototype_commit": "67e3b53",
+ "license": "CC0 1.0 (Lichess puzzle database)",
+ "built": "2026-10-15",
+ "rows_scanned": 6157341,
+ "per_band": 3000,
+ "band": 100,
+ "per_theme": 300,
+ "filters": {
+  "min_popularity": 80,
+  "min_plays": 300,
+  "max_rating_deviation": 100
+ },
+ "packs": [
+  {
+   "band": 400,
+   "file": "puzzles-400.csv.gz",
+   "count": 3000,
+   "bytes": 172564,
+   "first_id": "008Nz",
+   "last_id": "E6fv7"
+  },
+  {
+   "band": 500,
+   "file": "puzzles-500.csv.gz",
+   "count": 3000,
+   "bytes": 179139,
+   "first_id": "002vV",
+   "last_id": "74GSJ"
+  },
+  {
+   "band": 600,
+   "file": "puzzles-600.csv.gz",
+   "count": 3000,
+   "bytes": 181803,
+   "first_id": "000rZ",
+   "last_id": "4RHQD"
+  },
+  {
+   "band": 700,
+   "file": "puzzles-700.csv.gz",
+   "count": 3000,
+   "bytes": 184246,
+   "first_id": "005Ep",
+   "last_id": "37iQz"
+  },
+  {
+   "band": 800,
+   "file": "puzzles-800.csv.gz",
+   "count": 3000,
+   "bytes": 186723,
+   "first_id": "001pC",
+   "last_id": "1hB9T"
+  },
+  {
+   "band": 900,
+   "file": "puzzles-900.csv.gz",
+   "count": 3000,
+   "bytes": 188254,
+   "first_id": "001wr",
+   "last_id": "0slDk"
+  },
+  {
+   "band": 1000,
+   "file": "puzzles-1000.csv.gz",
+   "count": 3000,
+   "bytes": 192676,
+   "first_id": "0009B",
+   "last_id": "11R76"
+  },
+  {
+   "band": 1100,
+   "file": "puzzles-1100.csv.gz",
+   "count": 3000,
+   "bytes": 192636,
+   "first_id": "001wR",
+   "last_id": "0c7si"
+  },
+  {
+   "band": 1200,
+   "file": "puzzles-1200.csv.gz",
+   "count": 3000,
+   "bytes": 196596,
+   "first_id": "001Fg",
+   "last_id": "0rAZT"
+  },
+  {
+   "band": 1300,
+   "file": "puzzles-1300.csv.gz",
+   "count": 3000,
+   "bytes": 198811,
+   "first_id": "0008Q",
+   "last_id": "0lCtN"
+  },
+  {
+   "band": 1400,
+   "file": "puzzles-1400.csv.gz",
+   "count": 3000,
+   "bytes": 199993,
+   "first_id": "000Sa",
+   "last_id": "0mM0I"
+  },
+  {
+   "band": 1500,
+   "file": "puzzles-1500.csv.gz",
+   "count": 3000,
+   "bytes": 201585,
+   "first_id": "0000D",
+   "last_id": "0m2S8"
+  },
+  {
+   "band": 1600,
+   "file": "puzzles-1600.csv.gz",
+   "count": 3000,
+   "bytes": 202101,
+   "first_id": "0017R",
+   "last_id": "0pwfL"
+  },
+  {
+   "band": 1700,
+   "file": "puzzles-1700.csv.gz",
+   "count": 3000,
+   "bytes": 203031,
+   "first_id": "00143",
+   "last_id": "0zkgq"
+  },
+  {
+   "band": 1800,
+   "file": "puzzles-1800.csv.gz",
+   "count": 3000,
+   "bytes": 204454,
+   "first_id": "00008",
+   "last_id": "1Bdrm"
+  },
+  {
+   "band": 1900,
+   "file": "puzzles-1900.csv.gz",
+   "count": 3000,
+   "bytes": 205290,
+   "first_id": "001kG",
+   "last_id": "14vIc"
+  },
+  {
+   "band": 2000,
+   "file": "puzzles-2000.csv.gz",
+   "count": 3000,
+   "bytes": 204986,
+   "first_id": "001aK",
+   "last_id": "1HaiE"
+  },
+  {
+   "band": 2100,
+   "file": "puzzles-2100.csv.gz",
+   "count": 3000,
+   "bytes": 206162,
+   "first_id": "000qP",
+   "last_id": "1eX6A"
+  },
+  {
+   "band": 2200,
+   "file": "puzzles-2200.csv.gz",
+   "count": 3000,
+   "bytes": 208859,
+   "first_id": "003Ec",
+   "last_id": "280Ay"
+  },
+  {
+   "band": 2300,
+   "file": "puzzles-2300.csv.gz",
+   "count": 3000,
+   "bytes": 208419,
+   "first_id": "006XF",
+   "last_id": "2dG5h"
+  },
+  {
+   "band": 2400,
+   "file": "puzzles-2400.csv.gz",
+   "count": 3000,
+   "bytes": 210603,
+   "first_id": "004Ys",
+   "last_id": "4K0dD"
+  },
+  {
+   "band": 2500,
+   "file": "puzzles-2500.csv.gz",
+   "count": 3000,
+   "bytes": 210651,
+   "first_id": "002e8",
+   "last_id": "8ImsS"
+  },
+  {
+   "band": 2600,
+   "file": "puzzles-2600.csv.gz",
+   "count": 3000,
+   "bytes": 210792,
+   "first_id": "002e5",
+   "last_id": "AmRl7"
+  },
+  {
+   "band": 2700,
+   "file": "puzzles-2700.csv.gz",
+   "count": 3000,
+   "bytes": 210501,
+   "first_id": "00CNA",
+   "last_id": "DTREF"
+  },
+  {
+   "band": 2800,
+   "file": "puzzles-2800.csv.gz",
+   "count": 2765,
+   "bytes": 195879,
+   "first_id": "03cYQ",
+   "last_id": "zxdog"
+  },
+  {
+   "band": 2900,
+   "file": "puzzles-2900.csv.gz",
+   "count": 826,
+   "bytes": 60018,
+   "first_id": "00jmD",
+   "last_id": "zyYKq"
+  },
+  {
+   "band": 3000,
+   "file": "puzzles-3000.csv.gz",
+   "count": 91,
+   "bytes": 7386,
+   "first_id": "0KMgT",
+   "last_id": "zx07i"
+  },
+  {
+   "band": 3100,
+   "file": "puzzles-3100.csv.gz",
+   "count": 3,
+   "bytes": 484,
+   "first_id": "3Tbqr",
+   "last_id": "puuYy"
+  }
+ ],
+ "themes": {
+  "advancedPawn": {
+   "packs": [
+    {
+     "band": 400,
+     "file": "themes/advancedPawn/puzzles-400.csv.gz",
+     "count": 227,
+     "bytes": 11607
+    },
+    {
+     "band": 500,
+     "file": "themes/advancedPawn/puzzles-500.csv.gz",
+     "count": 215,
+     "bytes": 11725
+    },
+    {
+     "band": 600,
+     "file": "themes/advancedPawn/puzzles-600.csv.gz",
+     "count": 196,
+     "bytes": 11593
+    },
+    {
+     "band": 700,
+     "file": "themes/advancedPawn/puzzles-700.csv.gz",
+     "count": 194,
+     "bytes": 12200
+    },
+    {
+     "band": 800,
+     "file": "themes/advancedPawn/puzzles-800.csv.gz",
+     "count": 196,
+     "bytes": 12644
+    },
+    {
+     "band": 900,
+     "file": "themes/advancedPawn/puzzles-900.csv.gz",
+     "count": 184,
+     "bytes": 12240
+    },
+    {
+     "band": 1000,
+     "file": "themes/advancedPawn/puzzles-1000.csv.gz",
+     "count": 143,
+     "bytes": 9669
+    },
+    {
+     "band": 1100,
+     "file": "themes/advancedPawn/puzzles-1100.csv.gz",
+     "count": 131,
+     "bytes": 9152
+    },
+    {
+     "band": 1200,
+     "file": "themes/advancedPawn/puzzles-1200.csv.gz",
+     "count": 115,
+     "bytes": 8242
+    },
+    {
+     "band": 1300,
+     "file": "themes/advancedPawn/puzzles-1300.csv.gz",
+     "count": 98,
+     "bytes": 7049
+    },
+    {
+     "band": 1400,
+     "file": "themes/advancedPawn/puzzles-1400.csv.gz",
+     "count": 95,
+     "bytes": 6851
+    },
+    {
+     "band": 1500,
+     "file": "themes/advancedPawn/puzzles-1500.csv.gz",
+     "count": 111,
+     "bytes": 8052
+    },
+    {
+     "band": 1600,
+     "file": "themes/advancedPawn/puzzles-1600.csv.gz",
+     "count": 95,
+     "bytes": 7059
+    },
+    {
+     "band": 1700,
+     "file": "themes/advancedPawn/puzzles-1700.csv.gz",
+     "count": 81,
+     "bytes": 6101
+    },
+    {
+     "band": 1800,
+     "file": "themes/advancedPawn/puzzles-1800.csv.gz",
+     "count": 69,
+     "bytes": 5424
+    },
+    {
+     "band": 1900,
+     "file": "themes/advancedPawn/puzzles-1900.csv.gz",
+     "count": 29,
+     "bytes": 2644
+    },
+    {
+     "band": 2000,
+     "file": "themes/advancedPawn/puzzles-2000.csv.gz",
+     "count": 59,
+     "bytes": 4683
+    },
+    {
+     "band": 2100,
+     "file": "themes/advancedPawn/puzzles-2100.csv.gz",
+     "count": 30,
+     "bytes": 2676
+    },
+    {
+     "band": 2200,
+     "file": "themes/advancedPawn/puzzles-2200.csv.gz",
+     "count": 14,
+     "bytes": 1431
+    },
+    {
+     "band": 2300,
+     "file": "themes/advancedPawn/puzzles-2300.csv.gz",
+     "count": 2,
+     "bytes": 330
+    },
+    {
+     "band": 2400,
+     "file": "themes/advancedPawn/puzzles-2400.csv.gz",
+     "count": 3,
+     "bytes": 426
+    }
+   ],
+   "available": {
+    "400": 300,
+    "500": 300,
+    "600": 300,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 300,
+    "2600": 300,
+    "2700": 300,
+    "2800": 300,
+    "2900": 100,
+    "3000": 15,
+    "3100": 1
+   }
+  },
+  "attackingF2F7": {
+   "packs": [
+    {
+     "band": 400,
+     "file": "themes/attackingF2F7/puzzles-400.csv.gz",
+     "count": 226,
+     "bytes": 13214
+    },
+    {
+     "band": 500,
+     "file": "themes/attackingF2F7/puzzles-500.csv.gz",
+     "count": 171,
+     "bytes": 10379
+    },
+    {
+     "band": 600,
+     "file": "themes/attackingF2F7/puzzles-600.csv.gz",
+     "count": 215,
+     "bytes": 12944
+    },
+    {
+     "band": 700,
+     "file": "themes/attackingF2F7/puzzles-700.csv.gz",
+     "count": 249,
+     "bytes": 14962
+    },
+    {
+     "band": 800,
+     "file": "themes/attackingF2F7/puzzles-800.csv.gz",
+     "count": 262,
+     "bytes": 16082
+    },
+    {
+     "band": 900,
+     "file": "themes/attackingF2F7/puzzles-900.csv.gz",
+     "count": 258,
+     "bytes": 16177
+    },
+    {
+     "band": 1000,
+     "file": "themes/attackingF2F7/puzzles-1000.csv.gz",
+     "count": 273,
+     "bytes": 17036
+    },
+    {
+     "band": 1100,
+     "file": "themes/attackingF2F7/puzzles-1100.csv.gz",
+     "count": 280,
+     "bytes": 17622
+    },
+    {
+     "band": 1200,
+     "file": "themes/attackingF2F7/puzzles-1200.csv.gz",
+     "count": 269,
+     "bytes": 17346
+    },
+    {
+     "band": 1300,
+     "file": "themes/attackingF2F7/puzzles-1300.csv.gz",
+     "count": 286,
+     "bytes": 18752
+    },
+    {
+     "band": 1400,
+     "file": "themes/attackingF2F7/puzzles-1400.csv.gz",
+     "count": 278,
+     "bytes": 18189
+    },
+    {
+     "band": 1500,
+     "file": "themes/attackingF2F7/puzzles-1500.csv.gz",
+     "count": 284,
+     "bytes": 19281
+    },
+    {
+     "band": 1600,
+     "file": "themes/attackingF2F7/puzzles-1600.csv.gz",
+     "count": 275,
+     "bytes": 19633
+    },
+    {
+     "band": 1700,
+     "file": "themes/attackingF2F7/puzzles-1700.csv.gz",
+     "count": 293,
+     "bytes": 21534
+    },
+    {
+     "band": 1800,
+     "file": "themes/attackingF2F7/puzzles-1800.csv.gz",
+     "count": 289,
+     "bytes": 21508
+    },
+    {
+     "band": 1900,
+     "file": "themes/attackingF2F7/puzzles-1900.csv.gz",
+     "count": 285,
+     "bytes": 21375
+    },
+    {
+     "band": 2000,
+     "file": "themes/attackingF2F7/puzzles-2000.csv.gz",
+     "count": 289,
+     "bytes": 21864
+    },
+    {
+     "band": 2100,
+     "file": "themes/attackingF2F7/puzzles-2100.csv.gz",
+     "count": 289,
+     "bytes": 22064
+    },
+    {
+     "band": 2200,
+     "file": "themes/attackingF2F7/puzzles-2200.csv.gz",
+     "count": 290,
+     "bytes": 22272
+    },
+    {
+     "band": 2300,
+     "file": "themes/attackingF2F7/puzzles-2300.csv.gz",
+     "count": 291,
+     "bytes": 22834
+    },
+    {
+     "band": 2400,
+     "file": "themes/attackingF2F7/puzzles-2400.csv.gz",
+     "count": 156,
+     "bytes": 13117
+    },
+    {
+     "band": 2500,
+     "file": "themes/attackingF2F7/puzzles-2500.csv.gz",
+     "count": 97,
+     "bytes": 8636
+    },
+    {
+     "band": 2600,
+     "file": "themes/attackingF2F7/puzzles-2600.csv.gz",
+     "count": 40,
+     "bytes": 3979
+    },
+    {
+     "band": 2700,
+     "file": "themes/attackingF2F7/puzzles-2700.csv.gz",
+     "count": 37,
+     "bytes": 3729
+    }
+   ],
+   "available": {
+    "400": 300,
+    "500": 300,
+    "600": 300,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 173,
+    "2500": 107,
+    "2600": 52,
+    "2700": 45,
+    "2800": 6,
+    "2900": 1
+   }
+  },
+  "attraction": {
+   "packs": [
+    {
+     "band": 400,
+     "file": "themes/attraction/puzzles-400.csv.gz",
+     "count": 1,
+     "bytes": 252
+    },
+    {
+     "band": 500,
+     "file": "themes/attraction/puzzles-500.csv.gz",
+     "count": 13,
+     "bytes": 1161
+    },
+    {
+     "band": 600,
+     "file": "themes/attraction/puzzles-600.csv.gz",
+     "count": 51,
+     "bytes": 3683
+    },
+    {
+     "band": 700,
+     "file": "themes/attraction/puzzles-700.csv.gz",
+     "count": 112,
+     "bytes": 7744
+    },
+    {
+     "band": 800,
+     "file": "themes/attraction/puzzles-800.csv.gz",
+     "count": 291,
+     "bytes": 19359
+    },
+    {
+     "band": 900,
+     "file": "themes/attraction/puzzles-900.csv.gz",
+     "count": 279,
+     "bytes": 19141
+    },
+    {
+     "band": 1000,
+     "file": "themes/attraction/puzzles-1000.csv.gz",
+     "count": 245,
+     "bytes": 17286
+    },
+    {
+     "band": 1100,
+     "file": "themes/attraction/puzzles-1100.csv.gz",
+     "count": 214,
+     "bytes": 15291
+    },
+    {
+     "band": 1200,
+     "file": "themes/attraction/puzzles-1200.csv.gz",
+     "count": 176,
+     "bytes": 12943
+    },
+    {
+     "band": 1300,
+     "file": "themes/attraction/puzzles-1300.csv.gz",
+     "count": 102,
+     "bytes": 7871
+    },
+    {
+     "band": 1400,
+     "file": "themes/attraction/puzzles-1400.csv.gz",
+     "count": 101,
+     "bytes": 7924
+    },
+    {
+     "band": 1500,
+     "file": "themes/attraction/puzzles-1500.csv.gz",
+     "count": 101,
+     "bytes": 8120
+    },
+    {
+     "band": 1600,
+     "file": "themes/attraction/puzzles-1600.csv.gz",
+     "count": 108,
+     "bytes": 8683
+    },
+    {
+     "band": 1700,
+     "file": "themes/attraction/puzzles-1700.csv.gz",
+     "count": 119,
+     "bytes": 9486
+    },
+    {
+     "band": 1800,
+     "file": "themes/attraction/puzzles-1800.csv.gz",
+     "count": 123,
+     "bytes": 9923
+    },
+    {
+     "band": 1900,
+     "file": "themes/attraction/puzzles-1900.csv.gz",
+     "count": 134,
+     "bytes": 10932
+    },
+    {
+     "band": 2000,
+     "file": "themes/attraction/puzzles-2000.csv.gz",
+     "count": 129,
+     "bytes": 10755
+    },
+    {
+     "band": 2100,
+     "file": "themes/attraction/puzzles-2100.csv.gz",
+     "count": 125,
+     "bytes": 10407
+    },
+    {
+     "band": 2200,
+     "file": "themes/attraction/puzzles-2200.csv.gz",
+     "count": 122,
+     "bytes": 10339
+    },
+    {
+     "band": 2300,
+     "file": "themes/attraction/puzzles-2300.csv.gz",
+     "count": 138,
+     "bytes": 11582
+    },
+    {
+     "band": 2400,
+     "file": "themes/attraction/puzzles-2400.csv.gz",
+     "count": 135,
+     "bytes": 11384
+    },
+    {
+     "band": 2500,
+     "file": "themes/attraction/puzzles-2500.csv.gz",
+     "count": 132,
+     "bytes": 11427
+    },
+    {
+     "band": 2600,
+     "file": "themes/attraction/puzzles-2600.csv.gz",
+     "count": 136,
+     "bytes": 11874
+    },
+    {
+     "band": 2700,
+     "file": "themes/attraction/puzzles-2700.csv.gz",
+     "count": 164,
+     "bytes": 13997
+    }
+   ],
+   "available": {
+    "400": 2,
+    "500": 13,
+    "600": 57,
+    "700": 116,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 300,
+    "2600": 300,
+    "2700": 300,
+    "2800": 132,
+    "2900": 27,
+    "3000": 2
+   }
+  },
+  "backRankMate": {
+   "packs": [
+    {
+     "band": 600,
+     "file": "themes/backRankMate/puzzles-600.csv.gz",
+     "count": 6,
+     "bytes": 653
+    },
+    {
+     "band": 700,
+     "file": "themes/backRankMate/puzzles-700.csv.gz",
+     "count": 109,
+     "bytes": 7119
+    },
+    {
+     "band": 800,
+     "file": "themes/backRankMate/puzzles-800.csv.gz",
+     "count": 156,
+     "bytes": 9696
+    },
+    {
+     "band": 900,
+     "file": "themes/backRankMate/puzzles-900.csv.gz",
+     "count": 180,
+     "bytes": 11022
+    },
+    {
+     "band": 1000,
+     "file": "themes/backRankMate/puzzles-1000.csv.gz",
+     "count": 179,
+     "bytes": 10896
+    },
+    {
+     "band": 1100,
+     "file": "themes/backRankMate/puzzles-1100.csv.gz",
+     "count": 215,
+     "bytes": 13267
+    },
+    {
+     "band": 1200,
+     "file": "themes/backRankMate/puzzles-1200.csv.gz",
+     "count": 257,
+     "bytes": 16454
+    },
+    {
+     "band": 1300,
+     "file": "themes/backRankMate/puzzles-1300.csv.gz",
+     "count": 279,
+     "bytes": 17734
+    },
+    {
+     "band": 1400,
+     "file": "themes/backRankMate/puzzles-1400.csv.gz",
+     "count": 275,
+     "bytes": 17720
+    },
+    {
+     "band": 1500,
+     "file": "themes/backRankMate/puzzles-1500.csv.gz",
+     "count": 286,
+     "bytes": 18771
+    },
+    {
+     "band": 1600,
+     "file": "themes/backRankMate/puzzles-1600.csv.gz",
+     "count": 287,
+     "bytes": 18962
+    },
+    {
+     "band": 1700,
+     "file": "themes/backRankMate/puzzles-1700.csv.gz",
+     "count": 284,
+     "bytes": 19324
+    },
+    {
+     "band": 1800,
+     "file": "themes/backRankMate/puzzles-1800.csv.gz",
+     "count": 290,
+     "bytes": 19810
+    },
+    {
+     "band": 1900,
+     "file": "themes/backRankMate/puzzles-1900.csv.gz",
+     "count": 296,
+     "bytes": 20334
+    },
+    {
+     "band": 2000,
+     "file": "themes/backRankMate/puzzles-2000.csv.gz",
+     "count": 228,
+     "bytes": 16184
+    },
+    {
+     "band": 2100,
+     "file": "themes/backRankMate/puzzles-2100.csv.gz",
+     "count": 108,
+     "bytes": 8209
+    },
+    {
+     "band": 2200,
+     "file": "themes/backRankMate/puzzles-2200.csv.gz",
+     "count": 84,
+     "bytes": 6517
+    },
+    {
+     "band": 2300,
+     "file": "themes/backRankMate/puzzles-2300.csv.gz",
+     "count": 33,
+     "bytes": 2912
+    },
+    {
+     "band": 2400,
+     "file": "themes/backRankMate/puzzles-2400.csv.gz",
+     "count": 17,
+     "bytes": 1774
+    },
+    {
+     "band": 2500,
+     "file": "themes/backRankMate/puzzles-2500.csv.gz",
+     "count": 5,
+     "bytes": 628
+    },
+    {
+     "band": 2600,
+     "file": "themes/backRankMate/puzzles-2600.csv.gz",
+     "count": 1,
+     "bytes": 286
+    }
+   ],
+   "available": {
+    "400": 300,
+    "500": 300,
+    "600": 300,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 230,
+    "2100": 110,
+    "2200": 84,
+    "2300": 35,
+    "2400": 19,
+    "2500": 5,
+    "2600": 1
+   }
+  },
+  "bishopEndgame": {
+   "packs": [
+    {
+     "band": 400,
+     "file": "themes/bishopEndgame/puzzles-400.csv.gz",
+     "count": 11,
+     "bytes": 883
+    },
+    {
+     "band": 500,
+     "file": "themes/bishopEndgame/puzzles-500.csv.gz",
+     "count": 95,
+     "bytes": 5672
+    },
+    {
+     "band": 600,
+     "file": "themes/bishopEndgame/puzzles-600.csv.gz",
+     "count": 283,
+     "bytes": 15988
+    },
+    {
+     "band": 700,
+     "file": "themes/bishopEndgame/puzzles-700.csv.gz",
+     "count": 270,
+     "bytes": 15488
+    },
+    {
+     "band": 800,
+     "file": "themes/bishopEndgame/puzzles-800.csv.gz",
+     "count": 275,
+     "bytes": 15934
+    },
+    {
+     "band": 900,
+     "file": "themes/bishopEndgame/puzzles-900.csv.gz",
+     "count": 272,
+     "bytes": 15897
+    },
+    {
+     "band": 1000,
+     "file": "themes/bishopEndgame/puzzles-1000.csv.gz",
+     "count": 271,
+     "bytes": 15886
+    },
+    {
+     "band": 1100,
+     "file": "themes/bishopEndgame/puzzles-1100.csv.gz",
+     "count": 268,
+     "bytes": 15893
+    },
+    {
+     "band": 1200,
+     "file": "themes/bishopEndgame/puzzles-1200.csv.gz",
+     "count": 267,
+     "bytes": 15691
+    },
+    {
+     "band": 1300,
+     "file": "themes/bishopEndgame/puzzles-1300.csv.gz",
+     "count": 258,
+     "bytes": 15529
+    },
+    {
+     "band": 1400,
+     "file": "themes/bishopEndgame/puzzles-1400.csv.gz",
+     "count": 264,
+     "bytes": 15849
+    },
+    {
+     "band": 1500,
+     "file": "themes/bishopEndgame/puzzles-1500.csv.gz",
+     "count": 256,
+     "bytes": 15126
+    },
+    {
+     "band": 1600,
+     "file": "themes/bishopEndgame/puzzles-1600.csv.gz",
+     "count": 248,
+     "bytes": 14765
+    },
+    {
+     "band": 1700,
+     "file": "themes/bishopEndgame/puzzles-1700.csv.gz",
+     "count": 251,
+     "bytes": 15033
+    },
+    {
+     "band": 1800,
+     "file": "themes/bishopEndgame/puzzles-1800.csv.gz",
+     "count": 240,
+     "bytes": 14606
+    },
+    {
+     "band": 1900,
+     "file": "themes/bishopEndgame/puzzles-1900.csv.gz",
+     "count": 247,
+     "bytes": 15400
+    },
+    {
+     "band": 2000,
+     "file": "themes/bishopEndgame/puzzles-2000.csv.gz",
+     "count": 241,
+     "bytes": 14899
+    },
+    {
+     "band": 2100,
+     "file": "themes/bishopEndgame/puzzles-2100.csv.gz",
+     "count": 204,
+     "bytes": 12677
+    },
+    {
+     "band": 2200,
+     "file": "themes/bishopEndgame/puzzles-2200.csv.gz",
+     "count": 240,
+     "bytes": 15005
+    },
+    {
+     "band": 2300,
+     "file": "themes/bishopEndgame/puzzles-2300.csv.gz",
+     "count": 218,
+     "bytes": 13941
+    },
+    {
+     "band": 2400,
+     "file": "themes/bishopEndgame/puzzles-2400.csv.gz",
+     "count": 217,
+     "bytes": 14017
+    },
+    {
+     "band": 2500,
+     "file": "themes/bishopEndgame/puzzles-2500.csv.gz",
+     "count": 212,
+     "bytes": 13449
+    },
+    {
+     "band": 2600,
+     "file": "themes/bishopEndgame/puzzles-2600.csv.gz",
+     "count": 204,
+     "bytes": 13173
+    },
+    {
+     "band": 2700,
+     "file": "themes/bishopEndgame/puzzles-2700.csv.gz",
+     "count": 167,
+     "bytes": 11056
+    }
+   ],
+   "available": {
+    "400": 14,
+    "500": 108,
+    "600": 300,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 300,
+    "2600": 300,
+    "2700": 300,
+    "2800": 131,
+    "2900": 49,
+    "3000": 7
+   }
+  },
+  "capturingDefender": {
+   "packs": [
+    {
+     "band": 600,
+     "file": "themes/capturingDefender/puzzles-600.csv.gz",
+     "count": 5,
+     "bytes": 603
+    },
+    {
+     "band": 700,
+     "file": "themes/capturingDefender/puzzles-700.csv.gz",
+     "count": 29,
+     "bytes": 2562
+    },
+    {
+     "band": 800,
+     "file": "themes/capturingDefender/puzzles-800.csv.gz",
+     "count": 159,
+     "bytes": 11206
+    },
+    {
+     "band": 900,
+     "file": "themes/capturingDefender/puzzles-900.csv.gz",
+     "count": 295,
+     "bytes": 19984
+    },
+    {
+     "band": 1000,
+     "file": "themes/capturingDefender/puzzles-1000.csv.gz",
+     "count": 294,
+     "bytes": 20608
+    },
+    {
+     "band": 1100,
+     "file": "themes/capturingDefender/puzzles-1100.csv.gz",
+     "count": 283,
+     "bytes": 20050
+    },
+    {
+     "band": 1200,
+     "file": "themes/capturingDefender/puzzles-1200.csv.gz",
+     "count": 271,
+     "bytes": 19134
+    },
+    {
+     "band": 1300,
+     "file": "themes/capturingDefender/puzzles-1300.csv.gz",
+     "count": 261,
+     "bytes": 18823
+    },
+    {
+     "band": 1400,
+     "file": "themes/capturingDefender/puzzles-1400.csv.gz",
+     "count": 262,
+     "bytes": 19286
+    },
+    {
+     "band": 1500,
+     "file": "themes/capturingDefender/puzzles-1500.csv.gz",
+     "count": 270,
+     "bytes": 19756
+    },
+    {
+     "band": 1600,
+     "file": "themes/capturingDefender/puzzles-1600.csv.gz",
+     "count": 266,
+     "bytes": 19649
+    },
+    {
+     "band": 1700,
+     "file": "themes/capturingDefender/puzzles-1700.csv.gz",
+     "count": 271,
+     "bytes": 20036
+    },
+    {
+     "band": 1800,
+     "file": "themes/capturingDefender/puzzles-1800.csv.gz",
+     "count": 268,
+     "bytes": 20079
+    },
+    {
+     "band": 1900,
+     "file": "themes/capturingDefender/puzzles-1900.csv.gz",
+     "count": 273,
+     "bytes": 20822
+    },
+    {
+     "band": 2000,
+     "file": "themes/capturingDefender/puzzles-2000.csv.gz",
+     "count": 286,
+     "bytes": 21837
+    },
+    {
+     "band": 2100,
+     "file": "themes/capturingDefender/puzzles-2100.csv.gz",
+     "count": 270,
+     "bytes": 21003
+    },
+    {
+     "band": 2200,
+     "file": "themes/capturingDefender/puzzles-2200.csv.gz",
+     "count": 275,
+     "bytes": 21445
+    },
+    {
+     "band": 2300,
+     "file": "themes/capturingDefender/puzzles-2300.csv.gz",
+     "count": 285,
+     "bytes": 22439
+    },
+    {
+     "band": 2400,
+     "file": "themes/capturingDefender/puzzles-2400.csv.gz",
+     "count": 266,
+     "bytes": 20863
+    },
+    {
+     "band": 2500,
+     "file": "themes/capturingDefender/puzzles-2500.csv.gz",
+     "count": 130,
+     "bytes": 10846
+    },
+    {
+     "band": 2600,
+     "file": "themes/capturingDefender/puzzles-2600.csv.gz",
+     "count": 72,
+     "bytes": 6355
+    },
+    {
+     "band": 2700,
+     "file": "themes/capturingDefender/puzzles-2700.csv.gz",
+     "count": 50,
+     "bytes": 4698
+    }
+   ],
+   "available": {
+    "600": 7,
+    "700": 30,
+    "800": 165,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 140,
+    "2600": 85,
+    "2700": 64,
+    "2800": 18,
+    "2900": 7
+   }
+  },
+  "clearance": {
+   "packs": [
+    {
+     "band": 500,
+     "file": "themes/clearance/puzzles-500.csv.gz",
+     "count": 2,
+     "bytes": 368
+    },
+    {
+     "band": 600,
+     "file": "themes/clearance/puzzles-600.csv.gz",
+     "count": 16,
+     "bytes": 1491
+    },
+    {
+     "band": 700,
+     "file": "themes/clearance/puzzles-700.csv.gz",
+     "count": 98,
+     "bytes": 7024
+    },
+    {
+     "band": 800,
+     "file": "themes/clearance/puzzles-800.csv.gz",
+     "count": 287,
+     "bytes": 19075
+    },
+    {
+     "band": 900,
+     "file": "themes/clearance/puzzles-900.csv.gz",
+     "count": 287,
+     "bytes": 19199
+    },
+    {
+     "band": 1000,
+     "file": "themes/clearance/puzzles-1000.csv.gz",
+     "count": 275,
+     "bytes": 19130
+    },
+    {
+     "band": 1100,
+     "file": "themes/clearance/puzzles-1100.csv.gz",
+     "count": 269,
+     "bytes": 19104
+    },
+    {
+     "band": 1200,
+     "file": "themes/clearance/puzzles-1200.csv.gz",
+     "count": 269,
+     "bytes": 19744
+    },
+    {
+     "band": 1300,
+     "file": "themes/clearance/puzzles-1300.csv.gz",
+     "count": 267,
+     "bytes": 19354
+    },
+    {
+     "band": 1400,
+     "file": "themes/clearance/puzzles-1400.csv.gz",
+     "count": 261,
+     "bytes": 18920
+    },
+    {
+     "band": 1500,
+     "file": "themes/clearance/puzzles-1500.csv.gz",
+     "count": 249,
+     "bytes": 18472
+    },
+    {
+     "band": 1600,
+     "file": "themes/clearance/puzzles-1600.csv.gz",
+     "count": 254,
+     "bytes": 19155
+    },
+    {
+     "band": 1700,
+     "file": "themes/clearance/puzzles-1700.csv.gz",
+     "count": 238,
+     "bytes": 18104
+    },
+    {
+     "band": 1800,
+     "file": "themes/clearance/puzzles-1800.csv.gz",
+     "count": 226,
+     "bytes": 17278
+    },
+    {
+     "band": 1900,
+     "file": "themes/clearance/puzzles-1900.csv.gz",
+     "count": 238,
+     "bytes": 18067
+    },
+    {
+     "band": 2000,
+     "file": "themes/clearance/puzzles-2000.csv.gz",
+     "count": 223,
+     "bytes": 16939
+    },
+    {
+     "band": 2100,
+     "file": "themes/clearance/puzzles-2100.csv.gz",
+     "count": 212,
+     "bytes": 16394
+    },
+    {
+     "band": 2200,
+     "file": "themes/clearance/puzzles-2200.csv.gz",
+     "count": 232,
+     "bytes": 18320
+    },
+    {
+     "band": 2300,
+     "file": "themes/clearance/puzzles-2300.csv.gz",
+     "count": 209,
+     "bytes": 16350
+    },
+    {
+     "band": 2400,
+     "file": "themes/clearance/puzzles-2400.csv.gz",
+     "count": 200,
+     "bytes": 16312
+    },
+    {
+     "band": 2500,
+     "file": "themes/clearance/puzzles-2500.csv.gz",
+     "count": 211,
+     "bytes": 17143
+    },
+    {
+     "band": 2600,
+     "file": "themes/clearance/puzzles-2600.csv.gz",
+     "count": 196,
+     "bytes": 16110
+    },
+    {
+     "band": 2700,
+     "file": "themes/clearance/puzzles-2700.csv.gz",
+     "count": 185,
+     "bytes": 15339
+    }
+   ],
+   "available": {
+    "400": 1,
+    "500": 2,
+    "600": 19,
+    "700": 105,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 300,
+    "2600": 300,
+    "2700": 300,
+    "2800": 120,
+    "2900": 34,
+    "3000": 4
+   }
+  },
+  "defensiveMove": {
+   "packs": [
+    {
+     "band": 500,
+     "file": "themes/defensiveMove/puzzles-500.csv.gz",
+     "count": 14,
+     "bytes": 1112
+    },
+    {
+     "band": 600,
+     "file": "themes/defensiveMove/puzzles-600.csv.gz",
+     "count": 88,
+     "bytes": 5524
+    },
+    {
+     "band": 700,
+     "file": "themes/defensiveMove/puzzles-700.csv.gz",
+     "count": 248,
+     "bytes": 14600
+    },
+    {
+     "band": 800,
+     "file": "themes/defensiveMove/puzzles-800.csv.gz",
+     "count": 278,
+     "bytes": 16929
+    },
+    {
+     "band": 900,
+     "file": "themes/defensiveMove/puzzles-900.csv.gz",
+     "count": 269,
+     "bytes": 16399
+    },
+    {
+     "band": 1000,
+     "file": "themes/defensiveMove/puzzles-1000.csv.gz",
+     "count": 251,
+     "bytes": 16153
+    },
+    {
+     "band": 1100,
+     "file": "themes/defensiveMove/puzzles-1100.csv.gz",
+     "count": 224,
+     "bytes": 14619
+    },
+    {
+     "band": 1200,
+     "file": "themes/defensiveMove/puzzles-1200.csv.gz",
+     "count": 204,
+     "bytes": 13850
+    },
+    {
+     "band": 1300,
+     "file": "themes/defensiveMove/puzzles-1300.csv.gz",
+     "count": 212,
+     "bytes": 14503
+    },
+    {
+     "band": 1400,
+     "file": "themes/defensiveMove/puzzles-1400.csv.gz",
+     "count": 180,
+     "bytes": 12211
+    },
+    {
+     "band": 1500,
+     "file": "themes/defensiveMove/puzzles-1500.csv.gz",
+     "count": 168,
+     "bytes": 11755
+    },
+    {
+     "band": 1600,
+     "file": "themes/defensiveMove/puzzles-1600.csv.gz",
+     "count": 141,
+     "bytes": 10091
+    },
+    {
+     "band": 1700,
+     "file": "themes/defensiveMove/puzzles-1700.csv.gz",
+     "count": 102,
+     "bytes": 7379
+    },
+    {
+     "band": 1800,
+     "file": "themes/defensiveMove/puzzles-1800.csv.gz",
+     "count": 60,
+     "bytes": 4663
+    }
+   ],
+   "available": {
+    "500": 15,
+    "600": 91,
+    "700": 261,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 300,
+    "2600": 300,
+    "2700": 300,
+    "2800": 300,
+    "2900": 258,
+    "3000": 33,
+    "3100": 2
+   }
+  },
+  "deflection": {
+   "packs": [
+    {
+     "band": 500,
+     "file": "themes/deflection/puzzles-500.csv.gz",
+     "count": 18,
+     "bytes": 1502
+    },
+    {
+     "band": 600,
+     "file": "themes/deflection/puzzles-600.csv.gz",
+     "count": 132,
+     "bytes": 8716
+    },
+    {
+     "band": 700,
+     "file": "themes/deflection/puzzles-700.csv.gz",
+     "count": 279,
+     "bytes": 17911
+    },
+    {
+     "band": 800,
+     "file": "themes/deflection/puzzles-800.csv.gz",
+     "count": 247,
+     "bytes": 15599
+    },
+    {
+     "band": 900,
+     "file": "themes/deflection/puzzles-900.csv.gz",
+     "count": 200,
+     "bytes": 13130
+    },
+    {
+     "band": 1000,
+     "file": "themes/deflection/puzzles-1000.csv.gz",
+     "count": 154,
+     "bytes": 10946
+    },
+    {
+     "band": 1100,
+     "file": "themes/deflection/puzzles-1100.csv.gz",
+     "count": 111,
+     "bytes": 8038
+    },
+    {
+     "band": 1200,
+     "file": "themes/deflection/puzzles-1200.csv.gz",
+     "count": 120,
+     "bytes": 8868
+    },
+    {
+     "band": 1300,
+     "file": "themes/deflection/puzzles-1300.csv.gz",
+     "count": 108,
+     "bytes": 7936
+    },
+    {
+     "band": 1400,
+     "file": "themes/deflection/puzzles-1400.csv.gz",
+     "count": 141,
+     "bytes": 10209
+    },
+    {
+     "band": 1500,
+     "file": "themes/deflection/puzzles-1500.csv.gz",
+     "count": 130,
+     "bytes": 9687
+    },
+    {
+     "band": 1600,
+     "file": "themes/deflection/puzzles-1600.csv.gz",
+     "count": 166,
+     "bytes": 12343
+    },
+    {
+     "band": 1700,
+     "file": "themes/deflection/puzzles-1700.csv.gz",
+     "count": 121,
+     "bytes": 9404
+    },
+    {
+     "band": 1800,
+     "file": "themes/deflection/puzzles-1800.csv.gz",
+     "count": 109,
+     "bytes": 8754
+    },
+    {
+     "band": 1900,
+     "file": "themes/deflection/puzzles-1900.csv.gz",
+     "count": 143,
+     "bytes": 11483
+    },
+    {
+     "band": 2000,
+     "file": "themes/deflection/puzzles-2000.csv.gz",
+     "count": 128,
+     "bytes": 10206
+    },
+    {
+     "band": 2100,
+     "file": "themes/deflection/puzzles-2100.csv.gz",
+     "count": 146,
+     "bytes": 11625
+    },
+    {
+     "band": 2200,
+     "file": "themes/deflection/puzzles-2200.csv.gz",
+     "count": 134,
+     "bytes": 10819
+    },
+    {
+     "band": 2300,
+     "file": "themes/deflection/puzzles-2300.csv.gz",
+     "count": 141,
+     "bytes": 11382
+    },
+    {
+     "band": 2400,
+     "file": "themes/deflection/puzzles-2400.csv.gz",
+     "count": 142,
+     "bytes": 11703
+    },
+    {
+     "band": 2500,
+     "file": "themes/deflection/puzzles-2500.csv.gz",
+     "count": 130,
+     "bytes": 10864
+    },
+    {
+     "band": 2600,
+     "file": "themes/deflection/puzzles-2600.csv.gz",
+     "count": 148,
+     "bytes": 12472
+    },
+    {
+     "band": 2700,
+     "file": "themes/deflection/puzzles-2700.csv.gz",
+     "count": 177,
+     "bytes": 14669
+    }
+   ],
+   "available": {
+    "500": 21,
+    "600": 143,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 300,
+    "2600": 300,
+    "2700": 300,
+    "2800": 136,
+    "2900": 33,
+    "3000": 3
+   }
+  },
+  "discoveredAttack": {
+   "packs": [
+    {
+     "band": 400,
+     "file": "themes/discoveredAttack/puzzles-400.csv.gz",
+     "count": 4,
+     "bytes": 494
+    },
+    {
+     "band": 500,
+     "file": "themes/discoveredAttack/puzzles-500.csv.gz",
+     "count": 109,
+     "bytes": 7407
+    },
+    {
+     "band": 600,
+     "file": "themes/discoveredAttack/puzzles-600.csv.gz",
+     "count": 246,
+     "bytes": 16000
+    },
+    {
+     "band": 700,
+     "file": "themes/discoveredAttack/puzzles-700.csv.gz",
+     "count": 162,
+     "bytes": 11271
+    },
+    {
+     "band": 800,
+     "file": "themes/discoveredAttack/puzzles-800.csv.gz",
+     "count": 183,
+     "bytes": 12747
+    },
+    {
+     "band": 900,
+     "file": "themes/discoveredAttack/puzzles-900.csv.gz",
+     "count": 111,
+     "bytes": 8130
+    },
+    {
+     "band": 1000,
+     "file": "themes/discoveredAttack/puzzles-1000.csv.gz",
+     "count": 102,
+     "bytes": 7779
+    },
+    {
+     "band": 1100,
+     "file": "themes/discoveredAttack/puzzles-1100.csv.gz",
+     "count": 98,
+     "bytes": 7538
+    },
+    {
+     "band": 1200,
+     "file": "themes/discoveredAttack/puzzles-1200.csv.gz",
+     "count": 74,
+     "bytes": 5865
+    },
+    {
+     "band": 1300,
+     "file": "themes/discoveredAttack/puzzles-1300.csv.gz",
+     "count": 70,
+     "bytes": 5728
+    },
+    {
+     "band": 1400,
+     "file": "themes/discoveredAttack/puzzles-1400.csv.gz",
+     "count": 92,
+     "bytes": 7489
+    },
+    {
+     "band": 1500,
+     "file": "themes/discoveredAttack/puzzles-1500.csv.gz",
+     "count": 135,
+     "bytes": 10705
+    },
+    {
+     "band": 1600,
+     "file": "themes/discoveredAttack/puzzles-1600.csv.gz",
+     "count": 119,
+     "bytes": 9350
+    },
+    {
+     "band": 1700,
+     "file": "themes/discoveredAttack/puzzles-1700.csv.gz",
+     "count": 134,
+     "bytes": 10480
+    },
+    {
+     "band": 1800,
+     "file": "themes/discoveredAttack/puzzles-1800.csv.gz",
+     "count": 123,
+     "bytes": 9819
+    },
+    {
+     "band": 1900,
+     "file": "themes/discoveredAttack/puzzles-1900.csv.gz",
+     "count": 135,
+     "bytes": 10854
+    },
+    {
+     "band": 2000,
+     "file": "themes/discoveredAttack/puzzles-2000.csv.gz",
+     "count": 143,
+     "bytes": 11578
+    },
+    {
+     "band": 2100,
+     "file": "themes/discoveredAttack/puzzles-2100.csv.gz",
+     "count": 143,
+     "bytes": 11789
+    },
+    {
+     "band": 2200,
+     "file": "themes/discoveredAttack/puzzles-2200.csv.gz",
+     "count": 129,
+     "bytes": 10545
+    },
+    {
+     "band": 2300,
+     "file": "themes/discoveredAttack/puzzles-2300.csv.gz",
+     "count": 156,
+     "bytes": 13122
+    },
+    {
+     "band": 2400,
+     "file": "themes/discoveredAttack/puzzles-2400.csv.gz",
+     "count": 173,
+     "bytes": 14243
+    },
+    {
+     "band": 2500,
+     "file": "themes/discoveredAttack/puzzles-2500.csv.gz",
+     "count": 154,
+     "bytes": 12908
+    },
+    {
+     "band": 2600,
+     "file": "themes/discoveredAttack/puzzles-2600.csv.gz",
+     "count": 186,
+     "bytes": 15489
+    },
+    {
+     "band": 2700,
+     "file": "themes/discoveredAttack/puzzles-2700.csv.gz",
+     "count": 183,
+     "bytes": 15264
+    }
+   ],
+   "available": {
+    "400": 5,
+    "500": 122,
+    "600": 300,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 300,
+    "2600": 300,
+    "2700": 300,
+    "2800": 106,
+    "2900": 34,
+    "3000": 4
+   }
+  },
+  "doubleCheck": {
+   "packs": [
+    {
+     "band": 400,
+     "file": "themes/doubleCheck/puzzles-400.csv.gz",
+     "count": 2,
+     "bytes": 337
+    },
+    {
+     "band": 500,
+     "file": "themes/doubleCheck/puzzles-500.csv.gz",
+     "count": 23,
+     "bytes": 2025
+    },
+    {
+     "band": 600,
+     "file": "themes/doubleCheck/puzzles-600.csv.gz",
+     "count": 120,
+     "bytes": 8195
+    },
+    {
+     "band": 700,
+     "file": "themes/doubleCheck/puzzles-700.csv.gz",
+     "count": 281,
+     "bytes": 18104
+    },
+    {
+     "band": 800,
+     "file": "themes/doubleCheck/puzzles-800.csv.gz",
+     "count": 286,
+     "bytes": 19120
+    },
+    {
+     "band": 900,
+     "file": "themes/doubleCheck/puzzles-900.csv.gz",
+     "count": 290,
+     "bytes": 19560
+    },
+    {
+     "band": 1000,
+     "file": "themes/doubleCheck/puzzles-1000.csv.gz",
+     "count": 280,
+     "bytes": 19622
+    },
+    {
+     "band": 1100,
+     "file": "themes/doubleCheck/puzzles-1100.csv.gz",
+     "count": 289,
+     "bytes": 19887
+    },
+    {
+     "band": 1200,
+     "file": "themes/doubleCheck/puzzles-1200.csv.gz",
+     "count": 281,
+     "bytes": 19574
+    },
+    {
+     "band": 1300,
+     "file": "themes/doubleCheck/puzzles-1300.csv.gz",
+     "count": 267,
+     "bytes": 18131
+    },
+    {
+     "band": 1400,
+     "file": "themes/doubleCheck/puzzles-1400.csv.gz",
+     "count": 288,
+     "bytes": 20358
+    },
+    {
+     "band": 1500,
+     "file": "themes/doubleCheck/puzzles-1500.csv.gz",
+     "count": 284,
+     "bytes": 20250
+    },
+    {
+     "band": 1600,
+     "file": "themes/doubleCheck/puzzles-1600.csv.gz",
+     "count": 268,
+     "bytes": 19635
+    },
+    {
+     "band": 1700,
+     "file": "themes/doubleCheck/puzzles-1700.csv.gz",
+     "count": 274,
+     "bytes": 19843
+    },
+    {
+     "band": 1800,
+     "file": "themes/doubleCheck/puzzles-1800.csv.gz",
+     "count": 271,
+     "bytes": 20312
+    },
+    {
+     "band": 1900,
+     "file": "themes/doubleCheck/puzzles-1900.csv.gz",
+     "count": 270,
+     "bytes": 20404
+    },
+    {
+     "band": 2000,
+     "file": "themes/doubleCheck/puzzles-2000.csv.gz",
+     "count": 269,
+     "bytes": 20278
+    },
+    {
+     "band": 2100,
+     "file": "themes/doubleCheck/puzzles-2100.csv.gz",
+     "count": 278,
+     "bytes": 21488
+    },
+    {
+     "band": 2200,
+     "file": "themes/doubleCheck/puzzles-2200.csv.gz",
+     "count": 265,
+     "bytes": 21231
+    },
+    {
+     "band": 2300,
+     "file": "themes/doubleCheck/puzzles-2300.csv.gz",
+     "count": 280,
+     "bytes": 22595
+    },
+    {
+     "band": 2400,
+     "file": "themes/doubleCheck/puzzles-2400.csv.gz",
+     "count": 261,
+     "bytes": 21509
+    },
+    {
+     "band": 2500,
+     "file": "themes/doubleCheck/puzzles-2500.csv.gz",
+     "count": 126,
+     "bytes": 11165
+    },
+    {
+     "band": 2600,
+     "file": "themes/doubleCheck/puzzles-2600.csv.gz",
+     "count": 86,
+     "bytes": 7644
+    },
+    {
+     "band": 2700,
+     "file": "themes/doubleCheck/puzzles-2700.csv.gz",
+     "count": 55,
+     "bytes": 5307
+    }
+   ],
+   "available": {
+    "400": 2,
+    "500": 25,
+    "600": 130,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 282,
+    "2500": 145,
+    "2600": 111,
+    "2700": 74,
+    "2800": 18,
+    "2900": 8
+   }
+  },
+  "endgame": {
+   "packs": [],
+   "available": {
+    "400": 300,
+    "500": 300,
+    "600": 300,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 300,
+    "2600": 300,
+    "2700": 300,
+    "2800": 300,
+    "2900": 300,
+    "3000": 59,
+    "3100": 3
+   }
+  },
+  "exposedKing": {
+   "packs": [
+    {
+     "band": 400,
+     "file": "themes/exposedKing/puzzles-400.csv.gz",
+     "count": 2,
+     "bytes": 335
+    },
+    {
+     "band": 500,
+     "file": "themes/exposedKing/puzzles-500.csv.gz",
+     "count": 11,
+     "bytes": 1057
+    },
+    {
+     "band": 600,
+     "file": "themes/exposedKing/puzzles-600.csv.gz",
+     "count": 39,
+     "bytes": 3151
+    },
+    {
+     "band": 700,
+     "file": "themes/exposedKing/puzzles-700.csv.gz",
+     "count": 98,
+     "bytes": 7203
+    },
+    {
+     "band": 800,
+     "file": "themes/exposedKing/puzzles-800.csv.gz",
+     "count": 283,
+     "bytes": 19164
+    },
+    {
+     "band": 900,
+     "file": "themes/exposedKing/puzzles-900.csv.gz",
+     "count": 263,
+     "bytes": 17978
+    },
+    {
+     "band": 1000,
+     "file": "themes/exposedKing/puzzles-1000.csv.gz",
+     "count": 252,
+     "bytes": 18035
+    },
+    {
+     "band": 1100,
+     "file": "themes/exposedKing/puzzles-1100.csv.gz",
+     "count": 246,
+     "bytes": 17726
+    },
+    {
+     "band": 1200,
+     "file": "themes/exposedKing/puzzles-1200.csv.gz",
+     "count": 211,
+     "bytes": 15384
+    },
+    {
+     "band": 1300,
+     "file": "themes/exposedKing/puzzles-1300.csv.gz",
+     "count": 215,
+     "bytes": 15822
+    },
+    {
+     "band": 1400,
+     "file": "themes/exposedKing/puzzles-1400.csv.gz",
+     "count": 190,
+     "bytes": 14170
+    },
+    {
+     "band": 1500,
+     "file": "themes/exposedKing/puzzles-1500.csv.gz",
+     "count": 182,
+     "bytes": 13688
+    },
+    {
+     "band": 1600,
+     "file": "themes/exposedKing/puzzles-1600.csv.gz",
+     "count": 179,
+     "bytes": 13469
+    },
+    {
+     "band": 1700,
+     "file": "themes/exposedKing/puzzles-1700.csv.gz",
+     "count": 184,
+     "bytes": 14260
+    },
+    {
+     "band": 1800,
+     "file": "themes/exposedKing/puzzles-1800.csv.gz",
+     "count": 159,
+     "bytes": 12376
+    },
+    {
+     "band": 1900,
+     "file": "themes/exposedKing/puzzles-1900.csv.gz",
+     "count": 159,
+     "bytes": 12480
+    },
+    {
+     "band": 2000,
+     "file": "themes/exposedKing/puzzles-2000.csv.gz",
+     "count": 146,
+     "bytes": 11835
+    },
+    {
+     "band": 2100,
+     "file": "themes/exposedKing/puzzles-2100.csv.gz",
+     "count": 126,
+     "bytes": 10174
+    },
+    {
+     "band": 2200,
+     "file": "themes/exposedKing/puzzles-2200.csv.gz",
+     "count": 127,
+     "bytes": 10322
+    },
+    {
+     "band": 2300,
+     "file": "themes/exposedKing/puzzles-2300.csv.gz",
+     "count": 138,
+     "bytes": 11111
+    },
+    {
+     "band": 2400,
+     "file": "themes/exposedKing/puzzles-2400.csv.gz",
+     "count": 115,
+     "bytes": 9487
+    },
+    {
+     "band": 2500,
+     "file": "themes/exposedKing/puzzles-2500.csv.gz",
+     "count": 99,
+     "bytes": 8565
+    },
+    {
+     "band": 2600,
+     "file": "themes/exposedKing/puzzles-2600.csv.gz",
+     "count": 104,
+     "bytes": 8833
+    },
+    {
+     "band": 2700,
+     "file": "themes/exposedKing/puzzles-2700.csv.gz",
+     "count": 105,
+     "bytes": 8903
+    }
+   ],
+   "available": {
+    "400": 2,
+    "500": 11,
+    "600": 43,
+    "700": 109,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 300,
+    "2600": 300,
+    "2700": 300,
+    "2800": 210,
+    "2900": 67,
+    "3000": 5
+   }
+  },
+  "fork": {
+   "packs": [
+    {
+     "band": 400,
+     "file": "themes/fork/puzzles-400.csv.gz",
+     "count": 71,
+     "bytes": 4705
+    },
+    {
+     "band": 500,
+     "file": "themes/fork/puzzles-500.csv.gz",
+     "count": 186,
+     "bytes": 11398
+    },
+    {
+     "band": 2100,
+     "file": "themes/fork/puzzles-2100.csv.gz",
+     "count": 3,
+     "bytes": 454
+    },
+    {
+     "band": 2200,
+     "file": "themes/fork/puzzles-2200.csv.gz",
+     "count": 5,
+     "bytes": 647
+    },
+    {
+     "band": 2300,
+     "file": "themes/fork/puzzles-2300.csv.gz",
+     "count": 48,
+     "bytes": 4339
+    },
+    {
+     "band": 2400,
+     "file": "themes/fork/puzzles-2400.csv.gz",
+     "count": 45,
+     "bytes": 4216
+    },
+    {
+     "band": 2500,
+     "file": "themes/fork/puzzles-2500.csv.gz",
+     "count": 52,
+     "bytes": 4861
+    },
+    {
+     "band": 2600,
+     "file": "themes/fork/puzzles-2600.csv.gz",
+     "count": 66,
+     "bytes": 5938
+    },
+    {
+     "band": 2700,
+     "file": "themes/fork/puzzles-2700.csv.gz",
+     "count": 95,
+     "bytes": 8539
+    }
+   ],
+   "available": {
+    "400": 94,
+    "500": 300,
+    "600": 300,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 300,
+    "2600": 300,
+    "2700": 300,
+    "2800": 166,
+    "2900": 58,
+    "3000": 7
+   }
+  },
+  "hangingPiece": {
+   "packs": [
+    {
+     "band": 600,
+     "file": "themes/hangingPiece/puzzles-600.csv.gz",
+     "count": 112,
+     "bytes": 7669
+    },
+    {
+     "band": 700,
+     "file": "themes/hangingPiece/puzzles-700.csv.gz",
+     "count": 146,
+     "bytes": 9923
+    },
+    {
+     "band": 800,
+     "file": "themes/hangingPiece/puzzles-800.csv.gz",
+     "count": 158,
+     "bytes": 10818
+    },
+    {
+     "band": 900,
+     "file": "themes/hangingPiece/puzzles-900.csv.gz",
+     "count": 211,
+     "bytes": 14464
+    },
+    {
+     "band": 1000,
+     "file": "themes/hangingPiece/puzzles-1000.csv.gz",
+     "count": 219,
+     "bytes": 15408
+    },
+    {
+     "band": 1100,
+     "file": "themes/hangingPiece/puzzles-1100.csv.gz",
+     "count": 199,
+     "bytes": 13996
+    },
+    {
+     "band": 1200,
+     "file": "themes/hangingPiece/puzzles-1200.csv.gz",
+     "count": 203,
+     "bytes": 14663
+    },
+    {
+     "band": 1300,
+     "file": "themes/hangingPiece/puzzles-1300.csv.gz",
+     "count": 205,
+     "bytes": 14981
+    },
+    {
+     "band": 1400,
+     "file": "themes/hangingPiece/puzzles-1400.csv.gz",
+     "count": 186,
+     "bytes": 13625
+    },
+    {
+     "band": 1500,
+     "file": "themes/hangingPiece/puzzles-1500.csv.gz",
+     "count": 185,
+     "bytes": 13662
+    },
+    {
+     "band": 1600,
+     "file": "themes/hangingPiece/puzzles-1600.csv.gz",
+     "count": 213,
+     "bytes": 15526
+    },
+    {
+     "band": 1700,
+     "file": "themes/hangingPiece/puzzles-1700.csv.gz",
+     "count": 199,
+     "bytes": 14508
+    },
+    {
+     "band": 1800,
+     "file": "themes/hangingPiece/puzzles-1800.csv.gz",
+     "count": 217,
+     "bytes": 15955
+    },
+    {
+     "band": 1900,
+     "file": "themes/hangingPiece/puzzles-1900.csv.gz",
+     "count": 181,
+     "bytes": 13634
+    },
+    {
+     "band": 2000,
+     "file": "themes/hangingPiece/puzzles-2000.csv.gz",
+     "count": 183,
+     "bytes": 13629
+    },
+    {
+     "band": 2100,
+     "file": "themes/hangingPiece/puzzles-2100.csv.gz",
+     "count": 214,
+     "bytes": 16287
+    },
+    {
+     "band": 2200,
+     "file": "themes/hangingPiece/puzzles-2200.csv.gz",
+     "count": 216,
+     "bytes": 16087
+    },
+    {
+     "band": 2300,
+     "file": "themes/hangingPiece/puzzles-2300.csv.gz",
+     "count": 210,
+     "bytes": 16067
+    },
+    {
+     "band": 2400,
+     "file": "themes/hangingPiece/puzzles-2400.csv.gz",
+     "count": 218,
+     "bytes": 16551
+    },
+    {
+     "band": 2500,
+     "file": "themes/hangingPiece/puzzles-2500.csv.gz",
+     "count": 216,
+     "bytes": 16851
+    },
+    {
+     "band": 2600,
+     "file": "themes/hangingPiece/puzzles-2600.csv.gz",
+     "count": 246,
+     "bytes": 18952
+    },
+    {
+     "band": 2700,
+     "file": "themes/hangingPiece/puzzles-2700.csv.gz",
+     "count": 218,
+     "bytes": 16682
+    }
+   ],
+   "available": {
+    "400": 300,
+    "500": 300,
+    "600": 300,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 300,
+    "2600": 300,
+    "2700": 269,
+    "2800": 71,
+    "2900": 14
+   }
+  },
+  "interference": {
+   "packs": [
+    {
+     "band": 600,
+     "file": "themes/interference/puzzles-600.csv.gz",
+     "count": 2,
+     "bytes": 330
+    },
+    {
+     "band": 700,
+     "file": "themes/interference/puzzles-700.csv.gz",
+     "count": 14,
+     "bytes": 1277
+    },
+    {
+     "band": 800,
+     "file": "themes/interference/puzzles-800.csv.gz",
+     "count": 67,
+     "bytes": 5058
+    },
+    {
+     "band": 900,
+     "file": "themes/interference/puzzles-900.csv.gz",
+     "count": 295,
+     "bytes": 19660
+    },
+    {
+     "band": 1000,
+     "file": "themes/interference/puzzles-1000.csv.gz",
+     "count": 294,
+     "bytes": 20505
+    },
+    {
+     "band": 1100,
+     "file": "themes/interference/puzzles-1100.csv.gz",
+     "count": 287,
+     "bytes": 20068
+    },
+    {
+     "band": 1200,
+     "file": "themes/interference/puzzles-1200.csv.gz",
+     "count": 282,
+     "bytes": 20096
+    },
+    {
+     "band": 1300,
+     "file": "themes/interference/puzzles-1300.csv.gz",
+     "count": 288,
+     "bytes": 20629
+    },
+    {
+     "band": 1400,
+     "file": "themes/interference/puzzles-1400.csv.gz",
+     "count": 285,
+     "bytes": 20769
+    },
+    {
+     "band": 1500,
+     "file": "themes/interference/puzzles-1500.csv.gz",
+     "count": 287,
+     "bytes": 20886
+    },
+    {
+     "band": 1600,
+     "file": "themes/interference/puzzles-1600.csv.gz",
+     "count": 287,
+     "bytes": 20796
+    },
+    {
+     "band": 1700,
+     "file": "themes/interference/puzzles-1700.csv.gz",
+     "count": 280,
+     "bytes": 20406
+    },
+    {
+     "band": 1800,
+     "file": "themes/interference/puzzles-1800.csv.gz",
+     "count": 285,
+     "bytes": 21028
+    },
+    {
+     "band": 1900,
+     "file": "themes/interference/puzzles-1900.csv.gz",
+     "count": 282,
+     "bytes": 21000
+    },
+    {
+     "band": 2000,
+     "file": "themes/interference/puzzles-2000.csv.gz",
+     "count": 281,
+     "bytes": 21413
+    },
+    {
+     "band": 2100,
+     "file": "themes/interference/puzzles-2100.csv.gz",
+     "count": 289,
+     "bytes": 22203
+    },
+    {
+     "band": 2200,
+     "file": "themes/interference/puzzles-2200.csv.gz",
+     "count": 280,
+     "bytes": 21584
+    },
+    {
+     "band": 2300,
+     "file": "themes/interference/puzzles-2300.csv.gz",
+     "count": 282,
+     "bytes": 21942
+    },
+    {
+     "band": 2400,
+     "file": "themes/interference/puzzles-2400.csv.gz",
+     "count": 252,
+     "bytes": 19884
+    },
+    {
+     "band": 2500,
+     "file": "themes/interference/puzzles-2500.csv.gz",
+     "count": 117,
+     "bytes": 9778
+    },
+    {
+     "band": 2600,
+     "file": "themes/interference/puzzles-2600.csv.gz",
+     "count": 87,
+     "bytes": 7516
+    },
+    {
+     "band": 2700,
+     "file": "themes/interference/puzzles-2700.csv.gz",
+     "count": 61,
+     "bytes": 5584
+    }
+   ],
+   "available": {
+    "600": 2,
+    "700": 18,
+    "800": 68,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 272,
+    "2500": 138,
+    "2600": 104,
+    "2700": 70,
+    "2800": 15,
+    "2900": 5,
+    "3000": 1
+   }
+  },
+  "intermezzo": {
+   "packs": [
+    {
+     "band": 700,
+     "file": "themes/intermezzo/puzzles-700.csv.gz",
+     "count": 12,
+     "bytes": 1038
+    },
+    {
+     "band": 800,
+     "file": "themes/intermezzo/puzzles-800.csv.gz",
+     "count": 204,
+     "bytes": 11858
+    },
+    {
+     "band": 900,
+     "file": "themes/intermezzo/puzzles-900.csv.gz",
+     "count": 283,
+     "bytes": 17770
+    },
+    {
+     "band": 1000,
+     "file": "themes/intermezzo/puzzles-1000.csv.gz",
+     "count": 285,
+     "bytes": 19215
+    },
+    {
+     "band": 1100,
+     "file": "themes/intermezzo/puzzles-1100.csv.gz",
+     "count": 274,
+     "bytes": 18759
+    },
+    {
+     "band": 1200,
+     "file": "themes/intermezzo/puzzles-1200.csv.gz",
+     "count": 268,
+     "bytes": 18806
+    },
+    {
+     "band": 1300,
+     "file": "themes/intermezzo/puzzles-1300.csv.gz",
+     "count": 254,
+     "bytes": 18087
+    },
+    {
+     "band": 1400,
+     "file": "themes/intermezzo/puzzles-1400.csv.gz",
+     "count": 258,
+     "bytes": 18315
+    },
+    {
+     "band": 1500,
+     "file": "themes/intermezzo/puzzles-1500.csv.gz",
+     "count": 233,
+     "bytes": 17060
+    },
+    {
+     "band": 1600,
+     "file": "themes/intermezzo/puzzles-1600.csv.gz",
+     "count": 242,
+     "bytes": 17769
+    },
+    {
+     "band": 1700,
+     "file": "themes/intermezzo/puzzles-1700.csv.gz",
+     "count": 248,
+     "bytes": 18308
+    },
+    {
+     "band": 1800,
+     "file": "themes/intermezzo/puzzles-1800.csv.gz",
+     "count": 252,
+     "bytes": 18708
+    },
+    {
+     "band": 1900,
+     "file": "themes/intermezzo/puzzles-1900.csv.gz",
+     "count": 238,
+     "bytes": 17989
+    },
+    {
+     "band": 2000,
+     "file": "themes/intermezzo/puzzles-2000.csv.gz",
+     "count": 245,
+     "bytes": 18577
+    },
+    {
+     "band": 2100,
+     "file": "themes/intermezzo/puzzles-2100.csv.gz",
+     "count": 253,
+     "bytes": 19471
+    },
+    {
+     "band": 2200,
+     "file": "themes/intermezzo/puzzles-2200.csv.gz",
+     "count": 244,
+     "bytes": 18601
+    },
+    {
+     "band": 2300,
+     "file": "themes/intermezzo/puzzles-2300.csv.gz",
+     "count": 244,
+     "bytes": 18945
+    },
+    {
+     "band": 2400,
+     "file": "themes/intermezzo/puzzles-2400.csv.gz",
+     "count": 252,
+     "bytes": 19848
+    },
+    {
+     "band": 2500,
+     "file": "themes/intermezzo/puzzles-2500.csv.gz",
+     "count": 260,
+     "bytes": 20592
+    },
+    {
+     "band": 2600,
+     "file": "themes/intermezzo/puzzles-2600.csv.gz",
+     "count": 196,
+     "bytes": 15968
+    },
+    {
+     "band": 2700,
+     "file": "themes/intermezzo/puzzles-2700.csv.gz",
+     "count": 146,
+     "bytes": 12316
+    }
+   ],
+   "available": {
+    "700": 13,
+    "800": 207,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 300,
+    "2600": 231,
+    "2700": 177,
+    "2800": 46,
+    "2900": 11,
+    "3000": 2
+   }
+  },
+  "kingsideAttack": {
+   "packs": [
+    {
+     "band": 1100,
+     "file": "themes/kingsideAttack/puzzles-1100.csv.gz",
+     "count": 43,
+     "bytes": 3571
+    },
+    {
+     "band": 1200,
+     "file": "themes/kingsideAttack/puzzles-1200.csv.gz",
+     "count": 40,
+     "bytes": 3452
+    },
+    {
+     "band": 1300,
+     "file": "themes/kingsideAttack/puzzles-1300.csv.gz",
+     "count": 52,
+     "bytes": 4490
+    },
+    {
+     "band": 1400,
+     "file": "themes/kingsideAttack/puzzles-1400.csv.gz",
+     "count": 89,
+     "bytes": 7213
+    },
+    {
+     "band": 1500,
+     "file": "themes/kingsideAttack/puzzles-1500.csv.gz",
+     "count": 68,
+     "bytes": 5604
+    },
+    {
+     "band": 1600,
+     "file": "themes/kingsideAttack/puzzles-1600.csv.gz",
+     "count": 88,
+     "bytes": 7232
+    },
+    {
+     "band": 1700,
+     "file": "themes/kingsideAttack/puzzles-1700.csv.gz",
+     "count": 82,
+     "bytes": 6816
+    },
+    {
+     "band": 1800,
+     "file": "themes/kingsideAttack/puzzles-1800.csv.gz",
+     "count": 115,
+     "bytes": 9089
+    },
+    {
+     "band": 1900,
+     "file": "themes/kingsideAttack/puzzles-1900.csv.gz",
+     "count": 96,
+     "bytes": 7864
+    },
+    {
+     "band": 2000,
+     "file": "themes/kingsideAttack/puzzles-2000.csv.gz",
+     "count": 109,
+     "bytes": 9013
+    },
+    {
+     "band": 2100,
+     "file": "themes/kingsideAttack/puzzles-2100.csv.gz",
+     "count": 105,
+     "bytes": 8693
+    },
+    {
+     "band": 2200,
+     "file": "themes/kingsideAttack/puzzles-2200.csv.gz",
+     "count": 128,
+     "bytes": 10430
+    },
+    {
+     "band": 2300,
+     "file": "themes/kingsideAttack/puzzles-2300.csv.gz",
+     "count": 136,
+     "bytes": 11351
+    },
+    {
+     "band": 2400,
+     "file": "themes/kingsideAttack/puzzles-2400.csv.gz",
+     "count": 125,
+     "bytes": 10396
+    },
+    {
+     "band": 2500,
+     "file": "themes/kingsideAttack/puzzles-2500.csv.gz",
+     "count": 129,
+     "bytes": 10870
+    },
+    {
+     "band": 2600,
+     "file": "themes/kingsideAttack/puzzles-2600.csv.gz",
+     "count": 155,
+     "bytes": 12995
+    },
+    {
+     "band": 2700,
+     "file": "themes/kingsideAttack/puzzles-2700.csv.gz",
+     "count": 159,
+     "bytes": 13119
+    }
+   ],
+   "available": {
+    "400": 300,
+    "500": 300,
+    "600": 300,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 300,
+    "2600": 300,
+    "2700": 300,
+    "2800": 110,
+    "2900": 27,
+    "3000": 2
+   }
+  },
+  "knightEndgame": {
+   "packs": [
+    {
+     "band": 400,
+     "file": "themes/knightEndgame/puzzles-400.csv.gz",
+     "count": 52,
+     "bytes": 3083
+    },
+    {
+     "band": 500,
+     "file": "themes/knightEndgame/puzzles-500.csv.gz",
+     "count": 131,
+     "bytes": 7311
+    },
+    {
+     "band": 600,
+     "file": "themes/knightEndgame/puzzles-600.csv.gz",
+     "count": 268,
+     "bytes": 14562
+    },
+    {
+     "band": 700,
+     "file": "themes/knightEndgame/puzzles-700.csv.gz",
+     "count": 277,
+     "bytes": 15289
+    },
+    {
+     "band": 800,
+     "file": "themes/knightEndgame/puzzles-800.csv.gz",
+     "count": 283,
+     "bytes": 15869
+    },
+    {
+     "band": 900,
+     "file": "themes/knightEndgame/puzzles-900.csv.gz",
+     "count": 281,
+     "bytes": 15953
+    },
+    {
+     "band": 1000,
+     "file": "themes/knightEndgame/puzzles-1000.csv.gz",
+     "count": 279,
+     "bytes": 16039
+    },
+    {
+     "band": 1100,
+     "file": "themes/knightEndgame/puzzles-1100.csv.gz",
+     "count": 288,
+     "bytes": 16734
+    },
+    {
+     "band": 1200,
+     "file": "themes/knightEndgame/puzzles-1200.csv.gz",
+     "count": 273,
+     "bytes": 15854
+    },
+    {
+     "band": 1300,
+     "file": "themes/knightEndgame/puzzles-1300.csv.gz",
+     "count": 279,
+     "bytes": 16207
+    },
+    {
+     "band": 1400,
+     "file": "themes/knightEndgame/puzzles-1400.csv.gz",
+     "count": 283,
+     "bytes": 16588
+    },
+    {
+     "band": 1500,
+     "file": "themes/knightEndgame/puzzles-1500.csv.gz",
+     "count": 273,
+     "bytes": 15969
+    },
+    {
+     "band": 1600,
+     "file": "themes/knightEndgame/puzzles-1600.csv.gz",
+     "count": 280,
+     "bytes": 16436
+    },
+    {
+     "band": 1700,
+     "file": "themes/knightEndgame/puzzles-1700.csv.gz",
+     "count": 277,
+     "bytes": 16555
+    },
+    {
+     "band": 1800,
+     "file": "themes/knightEndgame/puzzles-1800.csv.gz",
+     "count": 272,
+     "bytes": 16102
+    },
+    {
+     "band": 1900,
+     "file": "themes/knightEndgame/puzzles-1900.csv.gz",
+     "count": 277,
+     "bytes": 16726
+    },
+    {
+     "band": 2000,
+     "file": "themes/knightEndgame/puzzles-2000.csv.gz",
+     "count": 268,
+     "bytes": 16201
+    },
+    {
+     "band": 2100,
+     "file": "themes/knightEndgame/puzzles-2100.csv.gz",
+     "count": 265,
+     "bytes": 16025
+    },
+    {
+     "band": 2200,
+     "file": "themes/knightEndgame/puzzles-2200.csv.gz",
+     "count": 261,
+     "bytes": 16149
+    },
+    {
+     "band": 2300,
+     "file": "themes/knightEndgame/puzzles-2300.csv.gz",
+     "count": 252,
+     "bytes": 15768
+    },
+    {
+     "band": 2400,
+     "file": "themes/knightEndgame/puzzles-2400.csv.gz",
+     "count": 240,
+     "bytes": 15071
+    },
+    {
+     "band": 2500,
+     "file": "themes/knightEndgame/puzzles-2500.csv.gz",
+     "count": 236,
+     "bytes": 14829
+    },
+    {
+     "band": 2600,
+     "file": "themes/knightEndgame/puzzles-2600.csv.gz",
+     "count": 234,
+     "bytes": 15008
+    },
+    {
+     "band": 2700,
+     "file": "themes/knightEndgame/puzzles-2700.csv.gz",
+     "count": 207,
+     "bytes": 13395
+    }
+   ],
+   "available": {
+    "400": 65,
+    "500": 147,
+    "600": 289,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 300,
+    "2600": 300,
+    "2700": 300,
+    "2800": 96,
+    "2900": 26,
+    "3000": 7
+   }
+  },
+  "mate": {
+   "packs": [
+    {
+     "band": 1900,
+     "file": "themes/mate/puzzles-1900.csv.gz",
+     "count": 8,
+     "bytes": 941
+    },
+    {
+     "band": 2000,
+     "file": "themes/mate/puzzles-2000.csv.gz",
+     "count": 75,
+     "bytes": 6207
+    },
+    {
+     "band": 2100,
+     "file": "themes/mate/puzzles-2100.csv.gz",
+     "count": 134,
+     "bytes": 10564
+    },
+    {
+     "band": 2200,
+     "file": "themes/mate/puzzles-2200.csv.gz",
+     "count": 126,
+     "bytes": 10199
+    },
+    {
+     "band": 2300,
+     "file": "themes/mate/puzzles-2300.csv.gz",
+     "count": 191,
+     "bytes": 15317
+    },
+    {
+     "band": 2400,
+     "file": "themes/mate/puzzles-2400.csv.gz",
+     "count": 189,
+     "bytes": 15415
+    },
+    {
+     "band": 2500,
+     "file": "themes/mate/puzzles-2500.csv.gz",
+     "count": 200,
+     "bytes": 16615
+    },
+    {
+     "band": 2600,
+     "file": "themes/mate/puzzles-2600.csv.gz",
+     "count": 239,
+     "bytes": 19943
+    },
+    {
+     "band": 2700,
+     "file": "themes/mate/puzzles-2700.csv.gz",
+     "count": 92,
+     "bytes": 8239
+    }
+   ],
+   "available": {
+    "400": 300,
+    "500": 300,
+    "600": 300,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 300,
+    "2600": 300,
+    "2700": 116,
+    "2800": 19,
+    "2900": 2
+   }
+  },
+  "mateIn1": {
+   "packs": [
+    {
+     "band": 1300,
+     "file": "themes/mateIn1/puzzles-1300.csv.gz",
+     "count": 69,
+     "bytes": 4910
+    },
+    {
+     "band": 1400,
+     "file": "themes/mateIn1/puzzles-1400.csv.gz",
+     "count": 92,
+     "bytes": 6313
+    },
+    {
+     "band": 1500,
+     "file": "themes/mateIn1/puzzles-1500.csv.gz",
+     "count": 147,
+     "bytes": 9726
+    },
+    {
+     "band": 1600,
+     "file": "themes/mateIn1/puzzles-1600.csv.gz",
+     "count": 194,
+     "bytes": 12637
+    },
+    {
+     "band": 1700,
+     "file": "themes/mateIn1/puzzles-1700.csv.gz",
+     "count": 229,
+     "bytes": 14633
+    },
+    {
+     "band": 1800,
+     "file": "themes/mateIn1/puzzles-1800.csv.gz",
+     "count": 259,
+     "bytes": 16353
+    },
+    {
+     "band": 1900,
+     "file": "themes/mateIn1/puzzles-1900.csv.gz",
+     "count": 283,
+     "bytes": 18035
+    },
+    {
+     "band": 2000,
+     "file": "themes/mateIn1/puzzles-2000.csv.gz",
+     "count": 298,
+     "bytes": 18679
+    },
+    {
+     "band": 2100,
+     "file": "themes/mateIn1/puzzles-2100.csv.gz",
+     "count": 79,
+     "bytes": 5488
+    },
+    {
+     "band": 2200,
+     "file": "themes/mateIn1/puzzles-2200.csv.gz",
+     "count": 27,
+     "bytes": 2104
+    },
+    {
+     "band": 2300,
+     "file": "themes/mateIn1/puzzles-2300.csv.gz",
+     "count": 9,
+     "bytes": 817
+    },
+    {
+     "band": 2500,
+     "file": "themes/mateIn1/puzzles-2500.csv.gz",
+     "count": 1,
+     "bytes": 225
+    }
+   ],
+   "available": {
+    "400": 300,
+    "500": 300,
+    "600": 300,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 82,
+    "2200": 28,
+    "2300": 9,
+    "2400": 2,
+    "2500": 1
+   }
+  },
+  "mateIn2": {
+   "packs": [
+    {
+     "band": 1600,
+     "file": "themes/mateIn2/puzzles-1600.csv.gz",
+     "count": 30,
+     "bytes": 2530
+    },
+    {
+     "band": 1700,
+     "file": "themes/mateIn2/puzzles-1700.csv.gz",
+     "count": 57,
+     "bytes": 4506
+    },
+    {
+     "band": 1800,
+     "file": "themes/mateIn2/puzzles-1800.csv.gz",
+     "count": 100,
+     "bytes": 7387
+    },
+    {
+     "band": 1900,
+     "file": "themes/mateIn2/puzzles-1900.csv.gz",
+     "count": 165,
+     "bytes": 11711
+    },
+    {
+     "band": 2000,
+     "file": "themes/mateIn2/puzzles-2000.csv.gz",
+     "count": 198,
+     "bytes": 13789
+    },
+    {
+     "band": 2100,
+     "file": "themes/mateIn2/puzzles-2100.csv.gz",
+     "count": 243,
+     "bytes": 16832
+    },
+    {
+     "band": 2200,
+     "file": "themes/mateIn2/puzzles-2200.csv.gz",
+     "count": 266,
+     "bytes": 18278
+    },
+    {
+     "band": 2300,
+     "file": "themes/mateIn2/puzzles-2300.csv.gz",
+     "count": 280,
+     "bytes": 19092
+    },
+    {
+     "band": 2400,
+     "file": "themes/mateIn2/puzzles-2400.csv.gz",
+     "count": 135,
+     "bytes": 9951
+    },
+    {
+     "band": 2500,
+     "file": "themes/mateIn2/puzzles-2500.csv.gz",
+     "count": 41,
+     "bytes": 3320
+    },
+    {
+     "band": 2600,
+     "file": "themes/mateIn2/puzzles-2600.csv.gz",
+     "count": 7,
+     "bytes": 800
+    }
+   ],
+   "available": {
+    "400": 300,
+    "500": 300,
+    "600": 300,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 147,
+    "2500": 49,
+    "2600": 8
+   }
+  },
+  "mateIn3": {
+   "packs": [
+    {
+     "band": 400,
+     "file": "themes/mateIn3/puzzles-400.csv.gz",
+     "count": 187,
+     "bytes": 11276
+    },
+    {
+     "band": 500,
+     "file": "themes/mateIn3/puzzles-500.csv.gz",
+     "count": 224,
+     "bytes": 14019
+    },
+    {
+     "band": 600,
+     "file": "themes/mateIn3/puzzles-600.csv.gz",
+     "count": 205,
+     "bytes": 13070
+    },
+    {
+     "band": 700,
+     "file": "themes/mateIn3/puzzles-700.csv.gz",
+     "count": 207,
+     "bytes": 13025
+    },
+    {
+     "band": 800,
+     "file": "themes/mateIn3/puzzles-800.csv.gz",
+     "count": 216,
+     "bytes": 13871
+    },
+    {
+     "band": 900,
+     "file": "themes/mateIn3/puzzles-900.csv.gz",
+     "count": 166,
+     "bytes": 11058
+    },
+    {
+     "band": 1000,
+     "file": "themes/mateIn3/puzzles-1000.csv.gz",
+     "count": 120,
+     "bytes": 8589
+    },
+    {
+     "band": 1100,
+     "file": "themes/mateIn3/puzzles-1100.csv.gz",
+     "count": 147,
+     "bytes": 10185
+    },
+    {
+     "band": 1200,
+     "file": "themes/mateIn3/puzzles-1200.csv.gz",
+     "count": 178,
+     "bytes": 12662
+    },
+    {
+     "band": 1300,
+     "file": "themes/mateIn3/puzzles-1300.csv.gz",
+     "count": 156,
+     "bytes": 11452
+    },
+    {
+     "band": 1400,
+     "file": "themes/mateIn3/puzzles-1400.csv.gz",
+     "count": 165,
+     "bytes": 11905
+    },
+    {
+     "band": 1500,
+     "file": "themes/mateIn3/puzzles-1500.csv.gz",
+     "count": 173,
+     "bytes": 13007
+    },
+    {
+     "band": 1600,
+     "file": "themes/mateIn3/puzzles-1600.csv.gz",
+     "count": 199,
+     "bytes": 14549
+    },
+    {
+     "band": 1700,
+     "file": "themes/mateIn3/puzzles-1700.csv.gz",
+     "count": 183,
+     "bytes": 13590
+    },
+    {
+     "band": 1800,
+     "file": "themes/mateIn3/puzzles-1800.csv.gz",
+     "count": 169,
+     "bytes": 12702
+    },
+    {
+     "band": 1900,
+     "file": "themes/mateIn3/puzzles-1900.csv.gz",
+     "count": 202,
+     "bytes": 15045
+    },
+    {
+     "band": 2000,
+     "file": "themes/mateIn3/puzzles-2000.csv.gz",
+     "count": 221,
+     "bytes": 16513
+    },
+    {
+     "band": 2100,
+     "file": "themes/mateIn3/puzzles-2100.csv.gz",
+     "count": 229,
+     "bytes": 17180
+    },
+    {
+     "band": 2200,
+     "file": "themes/mateIn3/puzzles-2200.csv.gz",
+     "count": 234,
+     "bytes": 17712
+    },
+    {
+     "band": 2300,
+     "file": "themes/mateIn3/puzzles-2300.csv.gz",
+     "count": 251,
+     "bytes": 18837
+    },
+    {
+     "band": 2400,
+     "file": "themes/mateIn3/puzzles-2400.csv.gz",
+     "count": 264,
+     "bytes": 19834
+    },
+    {
+     "band": 2500,
+     "file": "themes/mateIn3/puzzles-2500.csv.gz",
+     "count": 173,
+     "bytes": 13475
+    },
+    {
+     "band": 2600,
+     "file": "themes/mateIn3/puzzles-2600.csv.gz",
+     "count": 54,
+     "bytes": 4661
+    },
+    {
+     "band": 2700,
+     "file": "themes/mateIn3/puzzles-2700.csv.gz",
+     "count": 13,
+     "bytes": 1363
+    }
+   ],
+   "available": {
+    "400": 234,
+    "500": 300,
+    "600": 300,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 203,
+    "2600": 66,
+    "2700": 16,
+    "2800": 1
+   }
+  },
+  "mateIn4": {
+   "packs": [
+    {
+     "band": 500,
+     "file": "themes/mateIn4/puzzles-500.csv.gz",
+     "count": 5,
+     "bytes": 595
+    },
+    {
+     "band": 600,
+     "file": "themes/mateIn4/puzzles-600.csv.gz",
+     "count": 11,
+     "bytes": 1045
+    },
+    {
+     "band": 700,
+     "file": "themes/mateIn4/puzzles-700.csv.gz",
+     "count": 27,
+     "bytes": 2294
+    },
+    {
+     "band": 800,
+     "file": "themes/mateIn4/puzzles-800.csv.gz",
+     "count": 66,
+     "bytes": 5340
+    },
+    {
+     "band": 900,
+     "file": "themes/mateIn4/puzzles-900.csv.gz",
+     "count": 193,
+     "bytes": 14202
+    },
+    {
+     "band": 1000,
+     "file": "themes/mateIn4/puzzles-1000.csv.gz",
+     "count": 292,
+     "bytes": 20818
+    },
+    {
+     "band": 1100,
+     "file": "themes/mateIn4/puzzles-1100.csv.gz",
+     "count": 295,
+     "bytes": 21389
+    },
+    {
+     "band": 1200,
+     "file": "themes/mateIn4/puzzles-1200.csv.gz",
+     "count": 283,
+     "bytes": 20797
+    },
+    {
+     "band": 1300,
+     "file": "themes/mateIn4/puzzles-1300.csv.gz",
+     "count": 286,
+     "bytes": 20470
+    },
+    {
+     "band": 1400,
+     "file": "themes/mateIn4/puzzles-1400.csv.gz",
+     "count": 267,
+     "bytes": 19134
+    },
+    {
+     "band": 1500,
+     "file": "themes/mateIn4/puzzles-1500.csv.gz",
+     "count": 277,
+     "bytes": 20583
+    },
+    {
+     "band": 1600,
+     "file": "themes/mateIn4/puzzles-1600.csv.gz",
+     "count": 279,
+     "bytes": 21064
+    },
+    {
+     "band": 1700,
+     "file": "themes/mateIn4/puzzles-1700.csv.gz",
+     "count": 262,
+     "bytes": 19860
+    },
+    {
+     "band": 1800,
+     "file": "themes/mateIn4/puzzles-1800.csv.gz",
+     "count": 271,
+     "bytes": 20816
+    },
+    {
+     "band": 1900,
+     "file": "themes/mateIn4/puzzles-1900.csv.gz",
+     "count": 264,
+     "bytes": 20428
+    },
+    {
+     "band": 2000,
+     "file": "themes/mateIn4/puzzles-2000.csv.gz",
+     "count": 268,
+     "bytes": 20666
+    },
+    {
+     "band": 2100,
+     "file": "themes/mateIn4/puzzles-2100.csv.gz",
+     "count": 275,
+     "bytes": 21646
+    },
+    {
+     "band": 2200,
+     "file": "themes/mateIn4/puzzles-2200.csv.gz",
+     "count": 243,
+     "bytes": 19363
+    },
+    {
+     "band": 2300,
+     "file": "themes/mateIn4/puzzles-2300.csv.gz",
+     "count": 270,
+     "bytes": 21356
+    },
+    {
+     "band": 2400,
+     "file": "themes/mateIn4/puzzles-2400.csv.gz",
+     "count": 268,
+     "bytes": 21247
+    },
+    {
+     "band": 2500,
+     "file": "themes/mateIn4/puzzles-2500.csv.gz",
+     "count": 211,
+     "bytes": 16888
+    },
+    {
+     "band": 2600,
+     "file": "themes/mateIn4/puzzles-2600.csv.gz",
+     "count": 75,
+     "bytes": 6676
+    },
+    {
+     "band": 2700,
+     "file": "themes/mateIn4/puzzles-2700.csv.gz",
+     "count": 43,
+     "bytes": 3900
+    }
+   ],
+   "available": {
+    "500": 5,
+    "600": 14,
+    "700": 28,
+    "800": 67,
+    "900": 194,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 246,
+    "2600": 99,
+    "2700": 52,
+    "2800": 5,
+    "2900": 1
+   }
+  },
+  "middlegame": {
+   "packs": [],
+   "available": {
+    "400": 300,
+    "500": 300,
+    "600": 300,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 300,
+    "2600": 300,
+    "2700": 300,
+    "2800": 300,
+    "2900": 275,
+    "3000": 32
+   }
+  },
+  "opening": {
+   "packs": [
+    {
+     "band": 400,
+     "file": "themes/opening/puzzles-400.csv.gz",
+     "count": 117,
+     "bytes": 7829
+    },
+    {
+     "band": 500,
+     "file": "themes/opening/puzzles-500.csv.gz",
+     "count": 33,
+     "bytes": 2626
+    },
+    {
+     "band": 600,
+     "file": "themes/opening/puzzles-600.csv.gz",
+     "count": 120,
+     "bytes": 8223
+    },
+    {
+     "band": 700,
+     "file": "themes/opening/puzzles-700.csv.gz",
+     "count": 110,
+     "bytes": 7482
+    },
+    {
+     "band": 800,
+     "file": "themes/opening/puzzles-800.csv.gz",
+     "count": 89,
+     "bytes": 6705
+    },
+    {
+     "band": 900,
+     "file": "themes/opening/puzzles-900.csv.gz",
+     "count": 110,
+     "bytes": 8059
+    },
+    {
+     "band": 1000,
+     "file": "themes/opening/puzzles-1000.csv.gz",
+     "count": 94,
+     "bytes": 7246
+    },
+    {
+     "band": 1100,
+     "file": "themes/opening/puzzles-1100.csv.gz",
+     "count": 135,
+     "bytes": 10185
+    },
+    {
+     "band": 1200,
+     "file": "themes/opening/puzzles-1200.csv.gz",
+     "count": 116,
+     "bytes": 8815
+    },
+    {
+     "band": 1300,
+     "file": "themes/opening/puzzles-1300.csv.gz",
+     "count": 143,
+     "bytes": 10748
+    },
+    {
+     "band": 1400,
+     "file": "themes/opening/puzzles-1400.csv.gz",
+     "count": 96,
+     "bytes": 7578
+    },
+    {
+     "band": 1500,
+     "file": "themes/opening/puzzles-1500.csv.gz",
+     "count": 132,
+     "bytes": 10102
+    },
+    {
+     "band": 1600,
+     "file": "themes/opening/puzzles-1600.csv.gz",
+     "count": 134,
+     "bytes": 10450
+    },
+    {
+     "band": 1700,
+     "file": "themes/opening/puzzles-1700.csv.gz",
+     "count": 175,
+     "bytes": 13494
+    },
+    {
+     "band": 1800,
+     "file": "themes/opening/puzzles-1800.csv.gz",
+     "count": 158,
+     "bytes": 12253
+    },
+    {
+     "band": 1900,
+     "file": "themes/opening/puzzles-1900.csv.gz",
+     "count": 164,
+     "bytes": 12873
+    },
+    {
+     "band": 2000,
+     "file": "themes/opening/puzzles-2000.csv.gz",
+     "count": 187,
+     "bytes": 14527
+    },
+    {
+     "band": 2100,
+     "file": "themes/opening/puzzles-2100.csv.gz",
+     "count": 182,
+     "bytes": 14112
+    },
+    {
+     "band": 2200,
+     "file": "themes/opening/puzzles-2200.csv.gz",
+     "count": 178,
+     "bytes": 14009
+    },
+    {
+     "band": 2300,
+     "file": "themes/opening/puzzles-2300.csv.gz",
+     "count": 188,
+     "bytes": 14967
+    },
+    {
+     "band": 2400,
+     "file": "themes/opening/puzzles-2400.csv.gz",
+     "count": 212,
+     "bytes": 16581
+    },
+    {
+     "band": 2500,
+     "file": "themes/opening/puzzles-2500.csv.gz",
+     "count": 219,
+     "bytes": 17509
+    },
+    {
+     "band": 2600,
+     "file": "themes/opening/puzzles-2600.csv.gz",
+     "count": 247,
+     "bytes": 19723
+    },
+    {
+     "band": 2700,
+     "file": "themes/opening/puzzles-2700.csv.gz",
+     "count": 113,
+     "bytes": 9928
+    }
+   ],
+   "available": {
+    "400": 300,
+    "500": 300,
+    "600": 300,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 300,
+    "2600": 300,
+    "2700": 143,
+    "2800": 19,
+    "2900": 2
+   }
+  },
+  "pawnEndgame": {
+   "packs": [
+    {
+     "band": 400,
+     "file": "themes/pawnEndgame/puzzles-400.csv.gz",
+     "count": 167,
+     "bytes": 8254
+    },
+    {
+     "band": 500,
+     "file": "themes/pawnEndgame/puzzles-500.csv.gz",
+     "count": 251,
+     "bytes": 12660
+    },
+    {
+     "band": 600,
+     "file": "themes/pawnEndgame/puzzles-600.csv.gz",
+     "count": 237,
+     "bytes": 12465
+    },
+    {
+     "band": 700,
+     "file": "themes/pawnEndgame/puzzles-700.csv.gz",
+     "count": 254,
+     "bytes": 13515
+    },
+    {
+     "band": 800,
+     "file": "themes/pawnEndgame/puzzles-800.csv.gz",
+     "count": 262,
+     "bytes": 14073
+    },
+    {
+     "band": 900,
+     "file": "themes/pawnEndgame/puzzles-900.csv.gz",
+     "count": 248,
+     "bytes": 13613
+    },
+    {
+     "band": 1000,
+     "file": "themes/pawnEndgame/puzzles-1000.csv.gz",
+     "count": 231,
+     "bytes": 12730
+    },
+    {
+     "band": 1100,
+     "file": "themes/pawnEndgame/puzzles-1100.csv.gz",
+     "count": 223,
+     "bytes": 12494
+    },
+    {
+     "band": 1200,
+     "file": "themes/pawnEndgame/puzzles-1200.csv.gz",
+     "count": 237,
+     "bytes": 13250
+    },
+    {
+     "band": 1300,
+     "file": "themes/pawnEndgame/puzzles-1300.csv.gz",
+     "count": 237,
+     "bytes": 13311
+    },
+    {
+     "band": 1400,
+     "file": "themes/pawnEndgame/puzzles-1400.csv.gz",
+     "count": 201,
+     "bytes": 11534
+    },
+    {
+     "band": 1500,
+     "file": "themes/pawnEndgame/puzzles-1500.csv.gz",
+     "count": 219,
+     "bytes": 12554
+    },
+    {
+     "band": 1600,
+     "file": "themes/pawnEndgame/puzzles-1600.csv.gz",
+     "count": 216,
+     "bytes": 12416
+    },
+    {
+     "band": 1700,
+     "file": "themes/pawnEndgame/puzzles-1700.csv.gz",
+     "count": 181,
+     "bytes": 10397
+    },
+    {
+     "band": 1800,
+     "file": "themes/pawnEndgame/puzzles-1800.csv.gz",
+     "count": 158,
+     "bytes": 9179
+    },
+    {
+     "band": 1900,
+     "file": "themes/pawnEndgame/puzzles-1900.csv.gz",
+     "count": 138,
+     "bytes": 8225
+    },
+    {
+     "band": 2000,
+     "file": "themes/pawnEndgame/puzzles-2000.csv.gz",
+     "count": 109,
+     "bytes": 6685
+    },
+    {
+     "band": 2100,
+     "file": "themes/pawnEndgame/puzzles-2100.csv.gz",
+     "count": 62,
+     "bytes": 4040
+    },
+    {
+     "band": 2200,
+     "file": "themes/pawnEndgame/puzzles-2200.csv.gz",
+     "count": 74,
+     "bytes": 5048
+    },
+    {
+     "band": 2300,
+     "file": "themes/pawnEndgame/puzzles-2300.csv.gz",
+     "count": 11,
+     "bytes": 1038
+    },
+    {
+     "band": 2400,
+     "file": "themes/pawnEndgame/puzzles-2400.csv.gz",
+     "count": 2,
+     "bytes": 330
+    }
+   ],
+   "available": {
+    "400": 217,
+    "500": 300,
+    "600": 300,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 300,
+    "2600": 300,
+    "2700": 300,
+    "2800": 300,
+    "2900": 99,
+    "3000": 10,
+    "3100": 1
+   }
+  },
+  "pin": {
+   "packs": [
+    {
+     "band": 400,
+     "file": "themes/pin/puzzles-400.csv.gz",
+     "count": 4,
+     "bytes": 498
+    },
+    {
+     "band": 500,
+     "file": "themes/pin/puzzles-500.csv.gz",
+     "count": 52,
+     "bytes": 3567
+    },
+    {
+     "band": 600,
+     "file": "themes/pin/puzzles-600.csv.gz",
+     "count": 197,
+     "bytes": 12277
+    },
+    {
+     "band": 700,
+     "file": "themes/pin/puzzles-700.csv.gz",
+     "count": 254,
+     "bytes": 16313
+    },
+    {
+     "band": 800,
+     "file": "themes/pin/puzzles-800.csv.gz",
+     "count": 228,
+     "bytes": 15288
+    },
+    {
+     "band": 900,
+     "file": "themes/pin/puzzles-900.csv.gz",
+     "count": 214,
+     "bytes": 14625
+    },
+    {
+     "band": 1000,
+     "file": "themes/pin/puzzles-1000.csv.gz",
+     "count": 124,
+     "bytes": 9093
+    },
+    {
+     "band": 1100,
+     "file": "themes/pin/puzzles-1100.csv.gz",
+     "count": 121,
+     "bytes": 9222
+    },
+    {
+     "band": 1200,
+     "file": "themes/pin/puzzles-1200.csv.gz",
+     "count": 67,
+     "bytes": 5232
+    },
+    {
+     "band": 1300,
+     "file": "themes/pin/puzzles-1300.csv.gz",
+     "count": 54,
+     "bytes": 4399
+    },
+    {
+     "band": 1400,
+     "file": "themes/pin/puzzles-1400.csv.gz",
+     "count": 64,
+     "bytes": 5115
+    },
+    {
+     "band": 1500,
+     "file": "themes/pin/puzzles-1500.csv.gz",
+     "count": 26,
+     "bytes": 2398
+    },
+    {
+     "band": 1600,
+     "file": "themes/pin/puzzles-1600.csv.gz",
+     "count": 48,
+     "bytes": 4116
+    },
+    {
+     "band": 1700,
+     "file": "themes/pin/puzzles-1700.csv.gz",
+     "count": 70,
+     "bytes": 5812
+    },
+    {
+     "band": 1800,
+     "file": "themes/pin/puzzles-1800.csv.gz",
+     "count": 54,
+     "bytes": 4671
+    },
+    {
+     "band": 1900,
+     "file": "themes/pin/puzzles-1900.csv.gz",
+     "count": 61,
+     "bytes": 4906
+    },
+    {
+     "band": 2000,
+     "file": "themes/pin/puzzles-2000.csv.gz",
+     "count": 57,
+     "bytes": 5048
+    },
+    {
+     "band": 2100,
+     "file": "themes/pin/puzzles-2100.csv.gz",
+     "count": 69,
+     "bytes": 5938
+    },
+    {
+     "band": 2200,
+     "file": "themes/pin/puzzles-2200.csv.gz",
+     "count": 37,
+     "bytes": 3432
+    },
+    {
+     "band": 2300,
+     "file": "themes/pin/puzzles-2300.csv.gz",
+     "count": 56,
+     "bytes": 4993
+    },
+    {
+     "band": 2400,
+     "file": "themes/pin/puzzles-2400.csv.gz",
+     "count": 46,
+     "bytes": 4115
+    },
+    {
+     "band": 2500,
+     "file": "themes/pin/puzzles-2500.csv.gz",
+     "count": 54,
+     "bytes": 4905
+    },
+    {
+     "band": 2600,
+     "file": "themes/pin/puzzles-2600.csv.gz",
+     "count": 29,
+     "bytes": 2905
+    },
+    {
+     "band": 2700,
+     "file": "themes/pin/puzzles-2700.csv.gz",
+     "count": 34,
+     "bytes": 3153
+    }
+   ],
+   "available": {
+    "400": 6,
+    "500": 58,
+    "600": 213,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 300,
+    "2600": 300,
+    "2700": 300,
+    "2800": 218,
+    "2900": 73,
+    "3000": 7
+   }
+  },
+  "promotion": {
+   "packs": [
+    {
+     "band": 400,
+     "file": "themes/promotion/puzzles-400.csv.gz",
+     "count": 164,
+     "bytes": 8523
+    },
+    {
+     "band": 500,
+     "file": "themes/promotion/puzzles-500.csv.gz",
+     "count": 243,
+     "bytes": 13059
+    },
+    {
+     "band": 600,
+     "file": "themes/promotion/puzzles-600.csv.gz",
+     "count": 235,
+     "bytes": 13508
+    },
+    {
+     "band": 700,
+     "file": "themes/promotion/puzzles-700.csv.gz",
+     "count": 242,
+     "bytes": 14477
+    },
+    {
+     "band": 800,
+     "file": "themes/promotion/puzzles-800.csv.gz",
+     "count": 245,
+     "bytes": 15280
+    },
+    {
+     "band": 900,
+     "file": "themes/promotion/puzzles-900.csv.gz",
+     "count": 242,
+     "bytes": 15230
+    },
+    {
+     "band": 1000,
+     "file": "themes/promotion/puzzles-1000.csv.gz",
+     "count": 219,
+     "bytes": 14074
+    },
+    {
+     "band": 1100,
+     "file": "themes/promotion/puzzles-1100.csv.gz",
+     "count": 230,
+     "bytes": 14989
+    },
+    {
+     "band": 1200,
+     "file": "themes/promotion/puzzles-1200.csv.gz",
+     "count": 217,
+     "bytes": 14344
+    },
+    {
+     "band": 1300,
+     "file": "themes/promotion/puzzles-1300.csv.gz",
+     "count": 195,
+     "bytes": 12853
+    },
+    {
+     "band": 1400,
+     "file": "themes/promotion/puzzles-1400.csv.gz",
+     "count": 220,
+     "bytes": 14516
+    },
+    {
+     "band": 1500,
+     "file": "themes/promotion/puzzles-1500.csv.gz",
+     "count": 228,
+     "bytes": 15215
+    },
+    {
+     "band": 1600,
+     "file": "themes/promotion/puzzles-1600.csv.gz",
+     "count": 233,
+     "bytes": 15748
+    },
+    {
+     "band": 1700,
+     "file": "themes/promotion/puzzles-1700.csv.gz",
+     "count": 221,
+     "bytes": 14955
+    },
+    {
+     "band": 1800,
+     "file": "themes/promotion/puzzles-1800.csv.gz",
+     "count": 224,
+     "bytes": 15572
+    },
+    {
+     "band": 1900,
+     "file": "themes/promotion/puzzles-1900.csv.gz",
+     "count": 218,
+     "bytes": 14965
+    },
+    {
+     "band": 2000,
+     "file": "themes/promotion/puzzles-2000.csv.gz",
+     "count": 230,
+     "bytes": 16167
+    },
+    {
+     "band": 2100,
+     "file": "themes/promotion/puzzles-2100.csv.gz",
+     "count": 218,
+     "bytes": 15739
+    },
+    {
+     "band": 2200,
+     "file": "themes/promotion/puzzles-2200.csv.gz",
+     "count": 213,
+     "bytes": 15498
+    },
+    {
+     "band": 2300,
+     "file": "themes/promotion/puzzles-2300.csv.gz",
+     "count": 210,
+     "bytes": 15218
+    },
+    {
+     "band": 2400,
+     "file": "themes/promotion/puzzles-2400.csv.gz",
+     "count": 214,
+     "bytes": 15794
+    },
+    {
+     "band": 2500,
+     "file": "themes/promotion/puzzles-2500.csv.gz",
+     "count": 196,
+     "bytes": 14832
+    },
+    {
+     "band": 2600,
+     "file": "themes/promotion/puzzles-2600.csv.gz",
+     "count": 206,
+     "bytes": 15805
+    },
+    {
+     "band": 2700,
+     "file": "themes/promotion/puzzles-2700.csv.gz",
+     "count": 184,
+     "bytes": 14201
+    }
+   ],
+   "available": {
+    "400": 213,
+    "500": 300,
+    "600": 300,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 300,
+    "2600": 300,
+    "2700": 300,
+    "2800": 99,
+    "2900": 31,
+    "3000": 1,
+    "3100": 1
+   }
+  },
+  "queenEndgame": {
+   "packs": [
+    {
+     "band": 400,
+     "file": "themes/queenEndgame/puzzles-400.csv.gz",
+     "count": 70,
+     "bytes": 4026
+    },
+    {
+     "band": 500,
+     "file": "themes/queenEndgame/puzzles-500.csv.gz",
+     "count": 215,
+     "bytes": 11552
+    },
+    {
+     "band": 600,
+     "file": "themes/queenEndgame/puzzles-600.csv.gz",
+     "count": 284,
+     "bytes": 15400
+    },
+    {
+     "band": 700,
+     "file": "themes/queenEndgame/puzzles-700.csv.gz",
+     "count": 269,
+     "bytes": 14745
+    },
+    {
+     "band": 800,
+     "file": "themes/queenEndgame/puzzles-800.csv.gz",
+     "count": 270,
+     "bytes": 14900
+    },
+    {
+     "band": 900,
+     "file": "themes/queenEndgame/puzzles-900.csv.gz",
+     "count": 257,
+     "bytes": 14379
+    },
+    {
+     "band": 1000,
+     "file": "themes/queenEndgame/puzzles-1000.csv.gz",
+     "count": 251,
+     "bytes": 14002
+    },
+    {
+     "band": 1100,
+     "file": "themes/queenEndgame/puzzles-1100.csv.gz",
+     "count": 259,
+     "bytes": 14585
+    },
+    {
+     "band": 1200,
+     "file": "themes/queenEndgame/puzzles-1200.csv.gz",
+     "count": 263,
+     "bytes": 15139
+    },
+    {
+     "band": 1300,
+     "file": "themes/queenEndgame/puzzles-1300.csv.gz",
+     "count": 262,
+     "bytes": 15170
+    },
+    {
+     "band": 1400,
+     "file": "themes/queenEndgame/puzzles-1400.csv.gz",
+     "count": 259,
+     "bytes": 15120
+    },
+    {
+     "band": 1500,
+     "file": "themes/queenEndgame/puzzles-1500.csv.gz",
+     "count": 268,
+     "bytes": 15671
+    },
+    {
+     "band": 1600,
+     "file": "themes/queenEndgame/puzzles-1600.csv.gz",
+     "count": 256,
+     "bytes": 15274
+    },
+    {
+     "band": 1700,
+     "file": "themes/queenEndgame/puzzles-1700.csv.gz",
+     "count": 273,
+     "bytes": 16318
+    },
+    {
+     "band": 1800,
+     "file": "themes/queenEndgame/puzzles-1800.csv.gz",
+     "count": 267,
+     "bytes": 16226
+    },
+    {
+     "band": 1900,
+     "file": "themes/queenEndgame/puzzles-1900.csv.gz",
+     "count": 265,
+     "bytes": 16372
+    },
+    {
+     "band": 2000,
+     "file": "themes/queenEndgame/puzzles-2000.csv.gz",
+     "count": 271,
+     "bytes": 16918
+    },
+    {
+     "band": 2100,
+     "file": "themes/queenEndgame/puzzles-2100.csv.gz",
+     "count": 268,
+     "bytes": 16605
+    },
+    {
+     "band": 2200,
+     "file": "themes/queenEndgame/puzzles-2200.csv.gz",
+     "count": 269,
+     "bytes": 17048
+    },
+    {
+     "band": 2300,
+     "file": "themes/queenEndgame/puzzles-2300.csv.gz",
+     "count": 263,
+     "bytes": 16905
+    },
+    {
+     "band": 2400,
+     "file": "themes/queenEndgame/puzzles-2400.csv.gz",
+     "count": 273,
+     "bytes": 17503
+    },
+    {
+     "band": 2500,
+     "file": "themes/queenEndgame/puzzles-2500.csv.gz",
+     "count": 262,
+     "bytes": 17119
+    },
+    {
+     "band": 2600,
+     "file": "themes/queenEndgame/puzzles-2600.csv.gz",
+     "count": 254,
+     "bytes": 16599
+    },
+    {
+     "band": 2700,
+     "file": "themes/queenEndgame/puzzles-2700.csv.gz",
+     "count": 178,
+     "bytes": 12056
+    }
+   ],
+   "available": {
+    "400": 84,
+    "500": 247,
+    "600": 300,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 300,
+    "2600": 300,
+    "2700": 225,
+    "2800": 65,
+    "2900": 26,
+    "3000": 1
+   }
+  },
+  "queensideAttack": {
+   "packs": [
+    {
+     "band": 400,
+     "file": "themes/queensideAttack/puzzles-400.csv.gz",
+     "count": 229,
+     "bytes": 14297
+    },
+    {
+     "band": 500,
+     "file": "themes/queensideAttack/puzzles-500.csv.gz",
+     "count": 211,
+     "bytes": 13797
+    },
+    {
+     "band": 600,
+     "file": "themes/queensideAttack/puzzles-600.csv.gz",
+     "count": 223,
+     "bytes": 14659
+    },
+    {
+     "band": 700,
+     "file": "themes/queensideAttack/puzzles-700.csv.gz",
+     "count": 239,
+     "bytes": 15731
+    },
+    {
+     "band": 800,
+     "file": "themes/queensideAttack/puzzles-800.csv.gz",
+     "count": 246,
+     "bytes": 16452
+    },
+    {
+     "band": 900,
+     "file": "themes/queensideAttack/puzzles-900.csv.gz",
+     "count": 239,
+     "bytes": 16016
+    },
+    {
+     "band": 1000,
+     "file": "themes/queensideAttack/puzzles-1000.csv.gz",
+     "count": 248,
+     "bytes": 16905
+    },
+    {
+     "band": 1100,
+     "file": "themes/queensideAttack/puzzles-1100.csv.gz",
+     "count": 254,
+     "bytes": 17611
+    },
+    {
+     "band": 1200,
+     "file": "themes/queensideAttack/puzzles-1200.csv.gz",
+     "count": 256,
+     "bytes": 17955
+    },
+    {
+     "band": 1300,
+     "file": "themes/queensideAttack/puzzles-1300.csv.gz",
+     "count": 252,
+     "bytes": 17794
+    },
+    {
+     "band": 1400,
+     "file": "themes/queensideAttack/puzzles-1400.csv.gz",
+     "count": 254,
+     "bytes": 18022
+    },
+    {
+     "band": 1500,
+     "file": "themes/queensideAttack/puzzles-1500.csv.gz",
+     "count": 260,
+     "bytes": 18728
+    },
+    {
+     "band": 1600,
+     "file": "themes/queensideAttack/puzzles-1600.csv.gz",
+     "count": 269,
+     "bytes": 19397
+    },
+    {
+     "band": 1700,
+     "file": "themes/queensideAttack/puzzles-1700.csv.gz",
+     "count": 267,
+     "bytes": 19745
+    },
+    {
+     "band": 1800,
+     "file": "themes/queensideAttack/puzzles-1800.csv.gz",
+     "count": 263,
+     "bytes": 19402
+    },
+    {
+     "band": 1900,
+     "file": "themes/queensideAttack/puzzles-1900.csv.gz",
+     "count": 256,
+     "bytes": 19377
+    },
+    {
+     "band": 2000,
+     "file": "themes/queensideAttack/puzzles-2000.csv.gz",
+     "count": 268,
+     "bytes": 19972
+    },
+    {
+     "band": 2100,
+     "file": "themes/queensideAttack/puzzles-2100.csv.gz",
+     "count": 269,
+     "bytes": 20473
+    },
+    {
+     "band": 2200,
+     "file": "themes/queensideAttack/puzzles-2200.csv.gz",
+     "count": 256,
+     "bytes": 19872
+    },
+    {
+     "band": 2300,
+     "file": "themes/queensideAttack/puzzles-2300.csv.gz",
+     "count": 253,
+     "bytes": 19708
+    },
+    {
+     "band": 2400,
+     "file": "themes/queensideAttack/puzzles-2400.csv.gz",
+     "count": 258,
+     "bytes": 20092
+    },
+    {
+     "band": 2500,
+     "file": "themes/queensideAttack/puzzles-2500.csv.gz",
+     "count": 191,
+     "bytes": 15294
+    },
+    {
+     "band": 2600,
+     "file": "themes/queensideAttack/puzzles-2600.csv.gz",
+     "count": 129,
+     "bytes": 10715
+    },
+    {
+     "band": 2700,
+     "file": "themes/queensideAttack/puzzles-2700.csv.gz",
+     "count": 89,
+     "bytes": 7705
+    }
+   ],
+   "available": {
+    "400": 300,
+    "500": 300,
+    "600": 300,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 228,
+    "2600": 155,
+    "2700": 118,
+    "2800": 17,
+    "2900": 7,
+    "3000": 1
+   }
+  },
+  "quietMove": {
+   "packs": [
+    {
+     "band": 400,
+     "file": "themes/quietMove/puzzles-400.csv.gz",
+     "count": 83,
+     "bytes": 4372
+    },
+    {
+     "band": 500,
+     "file": "themes/quietMove/puzzles-500.csv.gz",
+     "count": 237,
+     "bytes": 11998
+    },
+    {
+     "band": 600,
+     "file": "themes/quietMove/puzzles-600.csv.gz",
+     "count": 272,
+     "bytes": 14777
+    },
+    {
+     "band": 700,
+     "file": "themes/quietMove/puzzles-700.csv.gz",
+     "count": 280,
+     "bytes": 15774
+    },
+    {
+     "band": 800,
+     "file": "themes/quietMove/puzzles-800.csv.gz",
+     "count": 286,
+     "bytes": 16716
+    },
+    {
+     "band": 900,
+     "file": "themes/quietMove/puzzles-900.csv.gz",
+     "count": 278,
+     "bytes": 16577
+    },
+    {
+     "band": 1000,
+     "file": "themes/quietMove/puzzles-1000.csv.gz",
+     "count": 277,
+     "bytes": 16658
+    },
+    {
+     "band": 1100,
+     "file": "themes/quietMove/puzzles-1100.csv.gz",
+     "count": 281,
+     "bytes": 17282
+    },
+    {
+     "band": 1200,
+     "file": "themes/quietMove/puzzles-1200.csv.gz",
+     "count": 264,
+     "bytes": 17173
+    },
+    {
+     "band": 1300,
+     "file": "themes/quietMove/puzzles-1300.csv.gz",
+     "count": 257,
+     "bytes": 17031
+    },
+    {
+     "band": 1400,
+     "file": "themes/quietMove/puzzles-1400.csv.gz",
+     "count": 222,
+     "bytes": 14974
+    },
+    {
+     "band": 1500,
+     "file": "themes/quietMove/puzzles-1500.csv.gz",
+     "count": 208,
+     "bytes": 14354
+    },
+    {
+     "band": 1600,
+     "file": "themes/quietMove/puzzles-1600.csv.gz",
+     "count": 206,
+     "bytes": 14112
+    },
+    {
+     "band": 1700,
+     "file": "themes/quietMove/puzzles-1700.csv.gz",
+     "count": 152,
+     "bytes": 10853
+    },
+    {
+     "band": 1800,
+     "file": "themes/quietMove/puzzles-1800.csv.gz",
+     "count": 141,
+     "bytes": 10170
+    },
+    {
+     "band": 1900,
+     "file": "themes/quietMove/puzzles-1900.csv.gz",
+     "count": 119,
+     "bytes": 8612
+    },
+    {
+     "band": 2000,
+     "file": "themes/quietMove/puzzles-2000.csv.gz",
+     "count": 92,
+     "bytes": 7089
+    },
+    {
+     "band": 2100,
+     "file": "themes/quietMove/puzzles-2100.csv.gz",
+     "count": 53,
+     "bytes": 4194
+    }
+   ],
+   "available": {
+    "400": 103,
+    "500": 266,
+    "600": 300,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 300,
+    "2600": 300,
+    "2700": 300,
+    "2800": 300,
+    "2900": 242,
+    "3000": 30
+   }
+  },
+  "rookEndgame": {
+   "packs": [
+    {
+     "band": 400,
+     "file": "themes/rookEndgame/puzzles-400.csv.gz",
+     "count": 85,
+     "bytes": 4762
+    },
+    {
+     "band": 500,
+     "file": "themes/rookEndgame/puzzles-500.csv.gz",
+     "count": 170,
+     "bytes": 9277
+    },
+    {
+     "band": 600,
+     "file": "themes/rookEndgame/puzzles-600.csv.gz",
+     "count": 139,
+     "bytes": 8088
+    },
+    {
+     "band": 700,
+     "file": "themes/rookEndgame/puzzles-700.csv.gz",
+     "count": 149,
+     "bytes": 8795
+    },
+    {
+     "band": 800,
+     "file": "themes/rookEndgame/puzzles-800.csv.gz",
+     "count": 151,
+     "bytes": 8920
+    },
+    {
+     "band": 900,
+     "file": "themes/rookEndgame/puzzles-900.csv.gz",
+     "count": 138,
+     "bytes": 8391
+    },
+    {
+     "band": 1000,
+     "file": "themes/rookEndgame/puzzles-1000.csv.gz",
+     "count": 144,
+     "bytes": 8885
+    },
+    {
+     "band": 1100,
+     "file": "themes/rookEndgame/puzzles-1100.csv.gz",
+     "count": 164,
+     "bytes": 10107
+    },
+    {
+     "band": 1200,
+     "file": "themes/rookEndgame/puzzles-1200.csv.gz",
+     "count": 131,
+     "bytes": 8114
+    },
+    {
+     "band": 1300,
+     "file": "themes/rookEndgame/puzzles-1300.csv.gz",
+     "count": 153,
+     "bytes": 9514
+    },
+    {
+     "band": 1400,
+     "file": "themes/rookEndgame/puzzles-1400.csv.gz",
+     "count": 155,
+     "bytes": 9842
+    },
+    {
+     "band": 1500,
+     "file": "themes/rookEndgame/puzzles-1500.csv.gz",
+     "count": 160,
+     "bytes": 10196
+    },
+    {
+     "band": 1600,
+     "file": "themes/rookEndgame/puzzles-1600.csv.gz",
+     "count": 172,
+     "bytes": 10895
+    },
+    {
+     "band": 1700,
+     "file": "themes/rookEndgame/puzzles-1700.csv.gz",
+     "count": 155,
+     "bytes": 9890
+    },
+    {
+     "band": 1800,
+     "file": "themes/rookEndgame/puzzles-1800.csv.gz",
+     "count": 151,
+     "bytes": 9876
+    },
+    {
+     "band": 1900,
+     "file": "themes/rookEndgame/puzzles-1900.csv.gz",
+     "count": 141,
+     "bytes": 9163
+    },
+    {
+     "band": 2000,
+     "file": "themes/rookEndgame/puzzles-2000.csv.gz",
+     "count": 142,
+     "bytes": 9290
+    },
+    {
+     "band": 2100,
+     "file": "themes/rookEndgame/puzzles-2100.csv.gz",
+     "count": 138,
+     "bytes": 8964
+    },
+    {
+     "band": 2200,
+     "file": "themes/rookEndgame/puzzles-2200.csv.gz",
+     "count": 131,
+     "bytes": 8903
+    },
+    {
+     "band": 2300,
+     "file": "themes/rookEndgame/puzzles-2300.csv.gz",
+     "count": 124,
+     "bytes": 8310
+    },
+    {
+     "band": 2400,
+     "file": "themes/rookEndgame/puzzles-2400.csv.gz",
+     "count": 112,
+     "bytes": 7614
+    },
+    {
+     "band": 2500,
+     "file": "themes/rookEndgame/puzzles-2500.csv.gz",
+     "count": 101,
+     "bytes": 7032
+    },
+    {
+     "band": 2600,
+     "file": "themes/rookEndgame/puzzles-2600.csv.gz",
+     "count": 77,
+     "bytes": 5534
+    },
+    {
+     "band": 2700,
+     "file": "themes/rookEndgame/puzzles-2700.csv.gz",
+     "count": 59,
+     "bytes": 4321
+    }
+   ],
+   "available": {
+    "400": 300,
+    "500": 300,
+    "600": 300,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 300,
+    "2600": 300,
+    "2700": 300,
+    "2800": 219,
+    "2900": 75,
+    "3000": 7
+   }
+  },
+  "sacrifice": {
+   "packs": [
+    {
+     "band": 400,
+     "file": "themes/sacrifice/puzzles-400.csv.gz",
+     "count": 204,
+     "bytes": 11804
+    },
+    {
+     "band": 500,
+     "file": "themes/sacrifice/puzzles-500.csv.gz",
+     "count": 194,
+     "bytes": 11833
+    },
+    {
+     "band": 600,
+     "file": "themes/sacrifice/puzzles-600.csv.gz",
+     "count": 182,
+     "bytes": 11132
+    },
+    {
+     "band": 700,
+     "file": "themes/sacrifice/puzzles-700.csv.gz",
+     "count": 182,
+     "bytes": 11299
+    },
+    {
+     "band": 800,
+     "file": "themes/sacrifice/puzzles-800.csv.gz",
+     "count": 220,
+     "bytes": 13827
+    },
+    {
+     "band": 900,
+     "file": "themes/sacrifice/puzzles-900.csv.gz",
+     "count": 180,
+     "bytes": 12005
+    },
+    {
+     "band": 1000,
+     "file": "themes/sacrifice/puzzles-1000.csv.gz",
+     "count": 119,
+     "bytes": 8408
+    },
+    {
+     "band": 1100,
+     "file": "themes/sacrifice/puzzles-1100.csv.gz",
+     "count": 130,
+     "bytes": 9259
+    },
+    {
+     "band": 1200,
+     "file": "themes/sacrifice/puzzles-1200.csv.gz",
+     "count": 121,
+     "bytes": 9127
+    },
+    {
+     "band": 1300,
+     "file": "themes/sacrifice/puzzles-1300.csv.gz",
+     "count": 65,
+     "bytes": 5218
+    },
+    {
+     "band": 1400,
+     "file": "themes/sacrifice/puzzles-1400.csv.gz",
+     "count": 1,
+     "bytes": 260
+    }
+   ],
+   "available": {
+    "400": 260,
+    "500": 300,
+    "600": 300,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 300,
+    "2600": 300,
+    "2700": 300,
+    "2800": 300,
+    "2900": 114,
+    "3000": 7
+   }
+  },
+  "skewer": {
+   "packs": [
+    {
+     "band": 400,
+     "file": "themes/skewer/puzzles-400.csv.gz",
+     "count": 2,
+     "bytes": 309
+    },
+    {
+     "band": 500,
+     "file": "themes/skewer/puzzles-500.csv.gz",
+     "count": 124,
+     "bytes": 7437
+    },
+    {
+     "band": 600,
+     "file": "themes/skewer/puzzles-600.csv.gz",
+     "count": 192,
+     "bytes": 11144
+    },
+    {
+     "band": 700,
+     "file": "themes/skewer/puzzles-700.csv.gz",
+     "count": 178,
+     "bytes": 10393
+    },
+    {
+     "band": 800,
+     "file": "themes/skewer/puzzles-800.csv.gz",
+     "count": 158,
+     "bytes": 9836
+    },
+    {
+     "band": 900,
+     "file": "themes/skewer/puzzles-900.csv.gz",
+     "count": 199,
+     "bytes": 12525
+    },
+    {
+     "band": 1000,
+     "file": "themes/skewer/puzzles-1000.csv.gz",
+     "count": 210,
+     "bytes": 13763
+    },
+    {
+     "band": 1100,
+     "file": "themes/skewer/puzzles-1100.csv.gz",
+     "count": 227,
+     "bytes": 14900
+    },
+    {
+     "band": 1200,
+     "file": "themes/skewer/puzzles-1200.csv.gz",
+     "count": 216,
+     "bytes": 14595
+    },
+    {
+     "band": 1300,
+     "file": "themes/skewer/puzzles-1300.csv.gz",
+     "count": 230,
+     "bytes": 16085
+    },
+    {
+     "band": 1400,
+     "file": "themes/skewer/puzzles-1400.csv.gz",
+     "count": 247,
+     "bytes": 16909
+    },
+    {
+     "band": 1500,
+     "file": "themes/skewer/puzzles-1500.csv.gz",
+     "count": 226,
+     "bytes": 16229
+    },
+    {
+     "band": 1600,
+     "file": "themes/skewer/puzzles-1600.csv.gz",
+     "count": 242,
+     "bytes": 17290
+    },
+    {
+     "band": 1700,
+     "file": "themes/skewer/puzzles-1700.csv.gz",
+     "count": 252,
+     "bytes": 18077
+    },
+    {
+     "band": 1800,
+     "file": "themes/skewer/puzzles-1800.csv.gz",
+     "count": 220,
+     "bytes": 16081
+    },
+    {
+     "band": 1900,
+     "file": "themes/skewer/puzzles-1900.csv.gz",
+     "count": 247,
+     "bytes": 18173
+    },
+    {
+     "band": 2000,
+     "file": "themes/skewer/puzzles-2000.csv.gz",
+     "count": 248,
+     "bytes": 18453
+    },
+    {
+     "band": 2100,
+     "file": "themes/skewer/puzzles-2100.csv.gz",
+     "count": 252,
+     "bytes": 19321
+    },
+    {
+     "band": 2200,
+     "file": "themes/skewer/puzzles-2200.csv.gz",
+     "count": 265,
+     "bytes": 20411
+    },
+    {
+     "band": 2300,
+     "file": "themes/skewer/puzzles-2300.csv.gz",
+     "count": 251,
+     "bytes": 19462
+    },
+    {
+     "band": 2400,
+     "file": "themes/skewer/puzzles-2400.csv.gz",
+     "count": 248,
+     "bytes": 19765
+    },
+    {
+     "band": 2500,
+     "file": "themes/skewer/puzzles-2500.csv.gz",
+     "count": 255,
+     "bytes": 20492
+    },
+    {
+     "band": 2600,
+     "file": "themes/skewer/puzzles-2600.csv.gz",
+     "count": 220,
+     "bytes": 18087
+    },
+    {
+     "band": 2700,
+     "file": "themes/skewer/puzzles-2700.csv.gz",
+     "count": 124,
+     "bytes": 10806
+    }
+   ],
+   "available": {
+    "400": 2,
+    "500": 145,
+    "600": 300,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 300,
+    "2600": 272,
+    "2700": 167,
+    "2800": 30,
+    "2900": 10,
+    "3000": 1
+   }
+  },
+  "smotheredMate": {
+   "packs": [
+    {
+     "band": 400,
+     "file": "themes/smotheredMate/puzzles-400.csv.gz",
+     "count": 3,
+     "bytes": 418
+    },
+    {
+     "band": 500,
+     "file": "themes/smotheredMate/puzzles-500.csv.gz",
+     "count": 64,
+     "bytes": 4511
+    },
+    {
+     "band": 600,
+     "file": "themes/smotheredMate/puzzles-600.csv.gz",
+     "count": 252,
+     "bytes": 14683
+    },
+    {
+     "band": 700,
+     "file": "themes/smotheredMate/puzzles-700.csv.gz",
+     "count": 267,
+     "bytes": 15624
+    },
+    {
+     "band": 800,
+     "file": "themes/smotheredMate/puzzles-800.csv.gz",
+     "count": 241,
+     "bytes": 13950
+    },
+    {
+     "band": 900,
+     "file": "themes/smotheredMate/puzzles-900.csv.gz",
+     "count": 270,
+     "bytes": 15552
+    },
+    {
+     "band": 1000,
+     "file": "themes/smotheredMate/puzzles-1000.csv.gz",
+     "count": 287,
+     "bytes": 17314
+    },
+    {
+     "band": 1100,
+     "file": "themes/smotheredMate/puzzles-1100.csv.gz",
+     "count": 287,
+     "bytes": 17696
+    },
+    {
+     "band": 1200,
+     "file": "themes/smotheredMate/puzzles-1200.csv.gz",
+     "count": 282,
+     "bytes": 17338
+    },
+    {
+     "band": 1300,
+     "file": "themes/smotheredMate/puzzles-1300.csv.gz",
+     "count": 273,
+     "bytes": 16531
+    },
+    {
+     "band": 1400,
+     "file": "themes/smotheredMate/puzzles-1400.csv.gz",
+     "count": 293,
+     "bytes": 18567
+    },
+    {
+     "band": 1500,
+     "file": "themes/smotheredMate/puzzles-1500.csv.gz",
+     "count": 292,
+     "bytes": 18859
+    },
+    {
+     "band": 1600,
+     "file": "themes/smotheredMate/puzzles-1600.csv.gz",
+     "count": 295,
+     "bytes": 18891
+    },
+    {
+     "band": 1700,
+     "file": "themes/smotheredMate/puzzles-1700.csv.gz",
+     "count": 168,
+     "bytes": 11577
+    },
+    {
+     "band": 1800,
+     "file": "themes/smotheredMate/puzzles-1800.csv.gz",
+     "count": 47,
+     "bytes": 3872
+    },
+    {
+     "band": 1900,
+     "file": "themes/smotheredMate/puzzles-1900.csv.gz",
+     "count": 17,
+     "bytes": 1657
+    },
+    {
+     "band": 2000,
+     "file": "themes/smotheredMate/puzzles-2000.csv.gz",
+     "count": 14,
+     "bytes": 1402
+    },
+    {
+     "band": 2100,
+     "file": "themes/smotheredMate/puzzles-2100.csv.gz",
+     "count": 9,
+     "bytes": 1093
+    },
+    {
+     "band": 2200,
+     "file": "themes/smotheredMate/puzzles-2200.csv.gz",
+     "count": 4,
+     "bytes": 555
+    },
+    {
+     "band": 2300,
+     "file": "themes/smotheredMate/puzzles-2300.csv.gz",
+     "count": 2,
+     "bytes": 442
+    },
+    {
+     "band": 2600,
+     "file": "themes/smotheredMate/puzzles-2600.csv.gz",
+     "count": 1,
+     "bytes": 278
+    }
+   ],
+   "available": {
+    "400": 4,
+    "500": 67,
+    "600": 300,
+    "700": 300,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 169,
+    "1800": 49,
+    "1900": 18,
+    "2000": 14,
+    "2100": 10,
+    "2200": 4,
+    "2300": 2,
+    "2600": 1
+   }
+  },
+  "trappedPiece": {
+   "packs": [
+    {
+     "band": 500,
+     "file": "themes/trappedPiece/puzzles-500.csv.gz",
+     "count": 1,
+     "bytes": 279
+    },
+    {
+     "band": 600,
+     "file": "themes/trappedPiece/puzzles-600.csv.gz",
+     "count": 13,
+     "bytes": 1207
+    },
+    {
+     "band": 700,
+     "file": "themes/trappedPiece/puzzles-700.csv.gz",
+     "count": 26,
+     "bytes": 2067
+    },
+    {
+     "band": 800,
+     "file": "themes/trappedPiece/puzzles-800.csv.gz",
+     "count": 91,
+     "bytes": 6577
+    },
+    {
+     "band": 900,
+     "file": "themes/trappedPiece/puzzles-900.csv.gz",
+     "count": 293,
+     "bytes": 20044
+    },
+    {
+     "band": 1000,
+     "file": "themes/trappedPiece/puzzles-1000.csv.gz",
+     "count": 284,
+     "bytes": 19918
+    },
+    {
+     "band": 1100,
+     "file": "themes/trappedPiece/puzzles-1100.csv.gz",
+     "count": 284,
+     "bytes": 19767
+    },
+    {
+     "band": 1200,
+     "file": "themes/trappedPiece/puzzles-1200.csv.gz",
+     "count": 267,
+     "bytes": 18855
+    },
+    {
+     "band": 1300,
+     "file": "themes/trappedPiece/puzzles-1300.csv.gz",
+     "count": 252,
+     "bytes": 17589
+    },
+    {
+     "band": 1400,
+     "file": "themes/trappedPiece/puzzles-1400.csv.gz",
+     "count": 252,
+     "bytes": 17743
+    },
+    {
+     "band": 1500,
+     "file": "themes/trappedPiece/puzzles-1500.csv.gz",
+     "count": 226,
+     "bytes": 16243
+    },
+    {
+     "band": 1600,
+     "file": "themes/trappedPiece/puzzles-1600.csv.gz",
+     "count": 233,
+     "bytes": 16800
+    },
+    {
+     "band": 1700,
+     "file": "themes/trappedPiece/puzzles-1700.csv.gz",
+     "count": 232,
+     "bytes": 16928
+    },
+    {
+     "band": 1800,
+     "file": "themes/trappedPiece/puzzles-1800.csv.gz",
+     "count": 242,
+     "bytes": 17648
+    },
+    {
+     "band": 1900,
+     "file": "themes/trappedPiece/puzzles-1900.csv.gz",
+     "count": 245,
+     "bytes": 18278
+    },
+    {
+     "band": 2000,
+     "file": "themes/trappedPiece/puzzles-2000.csv.gz",
+     "count": 259,
+     "bytes": 19354
+    },
+    {
+     "band": 2100,
+     "file": "themes/trappedPiece/puzzles-2100.csv.gz",
+     "count": 260,
+     "bytes": 19632
+    },
+    {
+     "band": 2200,
+     "file": "themes/trappedPiece/puzzles-2200.csv.gz",
+     "count": 255,
+     "bytes": 19557
+    },
+    {
+     "band": 2300,
+     "file": "themes/trappedPiece/puzzles-2300.csv.gz",
+     "count": 259,
+     "bytes": 19871
+    },
+    {
+     "band": 2400,
+     "file": "themes/trappedPiece/puzzles-2400.csv.gz",
+     "count": 270,
+     "bytes": 21070
+    },
+    {
+     "band": 2500,
+     "file": "themes/trappedPiece/puzzles-2500.csv.gz",
+     "count": 184,
+     "bytes": 14727
+    },
+    {
+     "band": 2600,
+     "file": "themes/trappedPiece/puzzles-2600.csv.gz",
+     "count": 110,
+     "bytes": 9331
+    },
+    {
+     "band": 2700,
+     "file": "themes/trappedPiece/puzzles-2700.csv.gz",
+     "count": 76,
+     "bytes": 6673
+    }
+   ],
+   "available": {
+    "500": 1,
+    "600": 14,
+    "700": 29,
+    "800": 96,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 216,
+    "2600": 127,
+    "2700": 96,
+    "2800": 18,
+    "2900": 3,
+    "3000": 1
+   }
+  },
+  "xRayAttack": {
+   "packs": [
+    {
+     "band": 500,
+     "file": "themes/xRayAttack/puzzles-500.csv.gz",
+     "count": 5,
+     "bytes": 533
+    },
+    {
+     "band": 600,
+     "file": "themes/xRayAttack/puzzles-600.csv.gz",
+     "count": 50,
+     "bytes": 3237
+    },
+    {
+     "band": 700,
+     "file": "themes/xRayAttack/puzzles-700.csv.gz",
+     "count": 180,
+     "bytes": 10557
+    },
+    {
+     "band": 800,
+     "file": "themes/xRayAttack/puzzles-800.csv.gz",
+     "count": 284,
+     "bytes": 16943
+    },
+    {
+     "band": 900,
+     "file": "themes/xRayAttack/puzzles-900.csv.gz",
+     "count": 283,
+     "bytes": 17516
+    },
+    {
+     "band": 1000,
+     "file": "themes/xRayAttack/puzzles-1000.csv.gz",
+     "count": 291,
+     "bytes": 18494
+    },
+    {
+     "band": 1100,
+     "file": "themes/xRayAttack/puzzles-1100.csv.gz",
+     "count": 287,
+     "bytes": 18240
+    },
+    {
+     "band": 1200,
+     "file": "themes/xRayAttack/puzzles-1200.csv.gz",
+     "count": 290,
+     "bytes": 18326
+    },
+    {
+     "band": 1300,
+     "file": "themes/xRayAttack/puzzles-1300.csv.gz",
+     "count": 288,
+     "bytes": 18564
+    },
+    {
+     "band": 1400,
+     "file": "themes/xRayAttack/puzzles-1400.csv.gz",
+     "count": 286,
+     "bytes": 18641
+    },
+    {
+     "band": 1500,
+     "file": "themes/xRayAttack/puzzles-1500.csv.gz",
+     "count": 286,
+     "bytes": 19122
+    },
+    {
+     "band": 1600,
+     "file": "themes/xRayAttack/puzzles-1600.csv.gz",
+     "count": 287,
+     "bytes": 19819
+    },
+    {
+     "band": 1700,
+     "file": "themes/xRayAttack/puzzles-1700.csv.gz",
+     "count": 288,
+     "bytes": 20383
+    },
+    {
+     "band": 1800,
+     "file": "themes/xRayAttack/puzzles-1800.csv.gz",
+     "count": 285,
+     "bytes": 20565
+    },
+    {
+     "band": 1900,
+     "file": "themes/xRayAttack/puzzles-1900.csv.gz",
+     "count": 289,
+     "bytes": 21039
+    },
+    {
+     "band": 2000,
+     "file": "themes/xRayAttack/puzzles-2000.csv.gz",
+     "count": 294,
+     "bytes": 21913
+    },
+    {
+     "band": 2100,
+     "file": "themes/xRayAttack/puzzles-2100.csv.gz",
+     "count": 289,
+     "bytes": 21801
+    },
+    {
+     "band": 2200,
+     "file": "themes/xRayAttack/puzzles-2200.csv.gz",
+     "count": 238,
+     "bytes": 18341
+    },
+    {
+     "band": 2300,
+     "file": "themes/xRayAttack/puzzles-2300.csv.gz",
+     "count": 182,
+     "bytes": 14381
+    },
+    {
+     "band": 2400,
+     "file": "themes/xRayAttack/puzzles-2400.csv.gz",
+     "count": 98,
+     "bytes": 8167
+    },
+    {
+     "band": 2500,
+     "file": "themes/xRayAttack/puzzles-2500.csv.gz",
+     "count": 41,
+     "bytes": 3783
+    },
+    {
+     "band": 2600,
+     "file": "themes/xRayAttack/puzzles-2600.csv.gz",
+     "count": 31,
+     "bytes": 3056
+    },
+    {
+     "band": 2700,
+     "file": "themes/xRayAttack/puzzles-2700.csv.gz",
+     "count": 17,
+     "bytes": 1861
+    }
+   ],
+   "available": {
+    "500": 8,
+    "600": 56,
+    "700": 190,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 246,
+    "2300": 193,
+    "2400": 104,
+    "2500": 48,
+    "2600": 38,
+    "2700": 27,
+    "2800": 6
+   }
+  },
+  "zugzwang": {
+   "packs": [
+    {
+     "band": 400,
+     "file": "themes/zugzwang/puzzles-400.csv.gz",
+     "count": 1,
+     "bytes": 228
+    },
+    {
+     "band": 500,
+     "file": "themes/zugzwang/puzzles-500.csv.gz",
+     "count": 9,
+     "bytes": 730
+    },
+    {
+     "band": 600,
+     "file": "themes/zugzwang/puzzles-600.csv.gz",
+     "count": 60,
+     "bytes": 3388
+    },
+    {
+     "band": 700,
+     "file": "themes/zugzwang/puzzles-700.csv.gz",
+     "count": 149,
+     "bytes": 7727
+    },
+    {
+     "band": 800,
+     "file": "themes/zugzwang/puzzles-800.csv.gz",
+     "count": 289,
+     "bytes": 14519
+    },
+    {
+     "band": 900,
+     "file": "themes/zugzwang/puzzles-900.csv.gz",
+     "count": 292,
+     "bytes": 15277
+    },
+    {
+     "band": 1000,
+     "file": "themes/zugzwang/puzzles-1000.csv.gz",
+     "count": 288,
+     "bytes": 15276
+    },
+    {
+     "band": 1100,
+     "file": "themes/zugzwang/puzzles-1100.csv.gz",
+     "count": 284,
+     "bytes": 15320
+    },
+    {
+     "band": 1200,
+     "file": "themes/zugzwang/puzzles-1200.csv.gz",
+     "count": 283,
+     "bytes": 15399
+    },
+    {
+     "band": 1300,
+     "file": "themes/zugzwang/puzzles-1300.csv.gz",
+     "count": 283,
+     "bytes": 15452
+    },
+    {
+     "band": 1400,
+     "file": "themes/zugzwang/puzzles-1400.csv.gz",
+     "count": 281,
+     "bytes": 15608
+    },
+    {
+     "band": 1500,
+     "file": "themes/zugzwang/puzzles-1500.csv.gz",
+     "count": 273,
+     "bytes": 15268
+    },
+    {
+     "band": 1600,
+     "file": "themes/zugzwang/puzzles-1600.csv.gz",
+     "count": 280,
+     "bytes": 15553
+    },
+    {
+     "band": 1700,
+     "file": "themes/zugzwang/puzzles-1700.csv.gz",
+     "count": 266,
+     "bytes": 14981
+    },
+    {
+     "band": 1800,
+     "file": "themes/zugzwang/puzzles-1800.csv.gz",
+     "count": 245,
+     "bytes": 13992
+    },
+    {
+     "band": 1900,
+     "file": "themes/zugzwang/puzzles-1900.csv.gz",
+     "count": 238,
+     "bytes": 13430
+    },
+    {
+     "band": 2000,
+     "file": "themes/zugzwang/puzzles-2000.csv.gz",
+     "count": 252,
+     "bytes": 14863
+    },
+    {
+     "band": 2100,
+     "file": "themes/zugzwang/puzzles-2100.csv.gz",
+     "count": 229,
+     "bytes": 13389
+    },
+    {
+     "band": 2200,
+     "file": "themes/zugzwang/puzzles-2200.csv.gz",
+     "count": 240,
+     "bytes": 14512
+    },
+    {
+     "band": 2300,
+     "file": "themes/zugzwang/puzzles-2300.csv.gz",
+     "count": 216,
+     "bytes": 13155
+    },
+    {
+     "band": 2400,
+     "file": "themes/zugzwang/puzzles-2400.csv.gz",
+     "count": 219,
+     "bytes": 13412
+    },
+    {
+     "band": 2500,
+     "file": "themes/zugzwang/puzzles-2500.csv.gz",
+     "count": 173,
+     "bytes": 11202
+    },
+    {
+     "band": 2600,
+     "file": "themes/zugzwang/puzzles-2600.csv.gz",
+     "count": 176,
+     "bytes": 11476
+    },
+    {
+     "band": 2700,
+     "file": "themes/zugzwang/puzzles-2700.csv.gz",
+     "count": 145,
+     "bytes": 9563
+    }
+   ],
+   "available": {
+    "400": 1,
+    "500": 11,
+    "600": 67,
+    "700": 157,
+    "800": 300,
+    "900": 300,
+    "1000": 300,
+    "1100": 300,
+    "1200": 300,
+    "1300": 300,
+    "1400": 300,
+    "1500": 300,
+    "1600": 300,
+    "1700": 300,
+    "1800": 300,
+    "1900": 300,
+    "2000": 300,
+    "2100": 300,
+    "2200": 300,
+    "2300": 300,
+    "2400": 300,
+    "2500": 300,
+    "2600": 300,
+    "2700": 300,
+    "2800": 167,
+    "2900": 51,
+    "3000": 4
+   }
+  }
+ }
+}

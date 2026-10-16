@@ -1,10 +1,11 @@
 // The core modules must give the Python prototype's answers on your real data.
-// Fixtures: tools/golden_core.py. The database is read from ~/Chess into an
-// in-memory copy — the file itself is never opened for writing.
+// Fixtures: tools/golden_core.py, both reading the frozen snapshot from
+// tools/snapshot.py (loaded into memory here — never written).
 // Skipped when the fixtures or the database aren't there.
 import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { puzzlesFromEvaluations } from '../src/core/analyzer';
 import * as db from '../src/core/db';
@@ -12,7 +13,7 @@ import { TIME_FILTERS, timeClass } from '../src/core/models';
 import { type Db, openMemoryDb } from '../src/core/sqlite';
 
 const FIXTURE = new URL('./golden/core.json', import.meta.url);
-const DB_FILE = join(process.env.CHESS_DIR ?? join(homedir(), 'Chess'), 'chessprep.db');
+const DB_FILE = fileURLToPath(new URL('./golden/chessprep.snapshot.db', import.meta.url));   // tools/snapshot.py
 const ready = existsSync(FIXTURE) && existsSync(DB_FILE);
 const golden = ready ? JSON.parse(readFileSync(FIXTURE, 'utf8')) : null;
 

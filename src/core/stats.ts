@@ -7,9 +7,7 @@
  *  - [%clk] comments in the PGN — clock left after each move
  *  - move_evaluations (the Stockfish cache) — only analyzed games
  */
-import { Board, type Role } from './chess';
 import { timeClass } from './models';
-import { readHeaders } from './pgn';
 import type { Db } from './sqlite';
 
 export const BLUNDER_CP = 300;
@@ -20,7 +18,17 @@ export const OPENING_MAX_MOVE = 12;
 export const ENDGAME_MATERIAL = 13;
 
 const CLK_RE = /%clk (\d+):(\d+):(\d+(?:\.\d+)?)/g;
-const PIECE_POINTS: { [role in Role]?: number } = { queen: 9, rook: 5, bishop: 3, knight: 3 };
+const HEADER_RE = /^\[([\p{L}\p{N}_]+) "((?:[^"\\]|\\.)*)"\]/gmu;
+
+/** A PGN's tag pairs, read with a regex (much faster than a full parse, which
+ *  matters over thousands of games). */
+export function pgnHeaders(pgn: string): Map<string, string> {
+  const i = pgn.indexOf('\n\n');
+  const head = i < 0 ? pgn : pgn.slice(0, i);
+  const out = new Map<string, string>();
+  for (const [, k, v] of head.matchAll(HEADER_RE)) out.set(k, v.replaceAll('\\"', '"').replaceAll('\\\\', '\\'));
+  return out;
+}
 
 export const CLOCK_BUCKETS: [number, string][] = [
   [10, '< 10 s'], [30, '10–30 s'], [60, '30–60 s'], [180, '1–3 min'], [Infinity, '> 3 min'],
@@ -105,9 +113,13 @@ export function clocks(pgn: string): number[] {
   return [...pgn.matchAll(CLK_RE)].map(([, h, m, s]) => +h * 3600 + +m * 60 + parseFloat(s));
 }
 
+const LETTER_POINTS: [string, number][] = [['q', 9], ['r', 5], ['b', 3], ['n', 3]];
+
+/** Non-pawn, non-king material of both sides, read straight from the FEN. */
 function material(fen: string): number {
+  const placement = fen.split(' ', 1)[0].toLowerCase();
   let total = 0;
-  for (const piece of Board.fromFen(fen).pieceMap().values()) total += PIECE_POINTS[piece.role] ?? 0;
+  for (const [letter, points] of LETTER_POINTS) total += (placement.split(letter).length - 1) * points;
   return total;
 }
 
@@ -139,7 +151,7 @@ export function compute(db: Db, timeClasses: Set<string> | null = null): Stats {
     const tc = timeClass(g.time_control);
     if (timeClasses && !timeClasses.has(tc)) continue;
     stats.total_games += 1;
-    const headers = readHeaders(g.pgn);
+    const headers = pgnHeaders(g.pgn);
     const key = openingKey(openingName(headers), g.my_color);
     if (!stats.openings.has(key)) stats.openings.set(key, new Record());
     stats.openings.get(key)!.add(g.result);

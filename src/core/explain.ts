@@ -291,4 +291,4 @@ export async function explainSolution(fen: string, best: string, gameMove: strin
 }
 
 /** Exposed for tests and the puzzle tab: what one move does. */
-export { moveFeatures, newlyHanging, scopeNotes, kingWeakening };
+export { kingWeakening, lineOutcome, materialWords, moveFeatures, newlyHanging, scopeNotes };

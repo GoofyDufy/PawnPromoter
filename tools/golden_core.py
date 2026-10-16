@@ -5,15 +5,14 @@ your real chessprep.db (opened read-only). Writes tests/golden/core.json
 Run:  ~/Chess/.venv/bin/python tools/golden_core.py
 """
 import json, os, pathlib, sqlite3, sys
+from golden_common import CHESS, COMMIT, PROTOTYPE, SNAPSHOT  # noqa: E402  (prototype at its last commit)
 
-CHESS = pathlib.Path(os.environ.get("CHESS_DIR", pathlib.Path.home() / "Chess"))
 OUT = pathlib.Path(__file__).resolve().parent.parent / "tests" / "golden" / "core.json"
-sys.path.insert(0, str(CHESS))
 import analyzer, db, models  # noqa: E402
 
-conn = sqlite3.connect(f"file:{CHESS / 'chessprep.db'}?mode=ro", uri=True)
+conn = sqlite3.connect(f"file:{SNAPSHOT}?mode=ro", uri=True)
 conn.row_factory = sqlite3.Row
-commit = os.popen(f"git -C {CHESS} rev-parse --short HEAD").read().strip()
+commit = COMMIT
 
 evals = db.all_evaluations_by_game(conn)
 puzzles = {}

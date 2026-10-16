@@ -4,10 +4,19 @@
  * chessprep.db from the desktop app opens here as-is (and vice versa).
  */
 import { EVAL_VERSION } from './analyzer';
+import * as amazing from './amazing';
+import * as lichessPuzzles from './lichessPuzzles';
+import * as myLines from './myLines';
+import * as openingCommentary from './openingCommentary';
+import * as openingLibrary from './openingLibrary';
+import * as practical from './practical';
+import * as sac from './sac';
+import * as threat from './threat';
 import { STARTING_FEN } from './chess';
 import {
   type Game, type MoveEvaluation, type OpeningLine, type Puzzle, ReviewState, inTimeFilter,
 } from './models';
+import * as puzzleTags from './puzzleTags';
 import type { Db, Row } from './sqlite';
 import { dateIso, fromIso, nowIso, todayIso, weekStart } from './time';
 
@@ -144,6 +153,15 @@ export function setSetting(db: Db, key: string, value: string): void {
  *  browser, memory in tests). */
 export function initDb(db: Db): Db {
   db.exec(SCHEMA);
+  lichessPuzzles.ensureSchema(db);       // its own table, kept apart from your games' puzzles
+  puzzleTags.ensureSchema(db);           // tags you add to puzzles
+  threat.ensureSchema(db);               // What's the threat? rounds
+  openingCommentary.ensureSchema(db);    // why your opening deviations are worse (cached)
+  practical.ensureSchema(db);            // what works at your level, per position (cached)
+  openingLibrary.ensureSchema(db);       // every named opening (Lichess's dataset)
+  myLines.ensureSchema(db);              // your games, matched to the library's named lines
+  amazing.ensureSchema(db);              // amazing moves / missed sacrifices, searched once per game
+  sac.ensureSchema(db);                  // Sacrifice!! rounds (Tactics & Threats)
   migrate(db);
   return db;
 }
@@ -174,7 +192,17 @@ function migrate(db: Db): void {
   const puzzleCols = columns(db, 'puzzles');
   if (!puzzleCols.has('eval_before_cp')) db.run('ALTER TABLE puzzles ADD COLUMN eval_before_cp INTEGER');
   if (!puzzleCols.has('eval_after_cp')) db.run('ALTER TABLE puzzles ADD COLUMN eval_after_cp INTEGER');
+  const gameCols2 = columns(db, 'games');
+  for (const col of ['my_accuracy', 'opp_accuracy']) {         // chess.com's accuracy, when reviewed there
+    if (!gameCols2.has(col)) db.run(`ALTER TABLE games ADD COLUMN ${col} REAL`);
+  }
   if (!puzzleCols.has('puzzle_type')) db.run('ALTER TABLE puzzles ADD COLUMN puzzle_type TEXT');
+  // what kind of puzzle (puzzleKind.ts): its solution, how many of your moves, attacking/defensive/positional
+  for (const [col, type] of [['solution_ucis', 'TEXT'], ['solution_moves', 'INTEGER'], ['kind', 'TEXT']]) {
+    if (!puzzleCols.has(col)) db.run(`ALTER TABLE puzzles ADD COLUMN ${col} ${type}`);
+  }
+  // renamed: "Hanging Piece" means winning a loose piece on Lichess; ours is leaving one
+  db.run("UPDATE puzzles SET puzzle_type = 'Left Hanging' WHERE puzzle_type = 'Hanging Piece'");
   const openingCols = columns(db, 'opening_lines');
   if (!openingCols.has('line_name')) db.run('ALTER TABLE opening_lines ADD COLUMN line_name TEXT');
   if (!openingCols.has('is_enabled')) db.run('ALTER TABLE opening_lines ADD COLUMN is_enabled INTEGER DEFAULT 1');
@@ -199,11 +227,18 @@ export function saveGame(db: Db, game: Game): void {
   db.run(
     `INSERT OR REPLACE INTO games
        (id, chess_com_url, pgn, played_at, time_control, my_color,
-        opponent_username, result, is_analyzed, analyzed_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        opponent_username, result, is_analyzed, analyzed_at, my_accuracy, opp_accuracy)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [game.id, game.chess_com_url, game.pgn, game.played_at, game.time_control, game.my_color,
-      game.opponent_username, game.result, game.is_analyzed ? 1 : 0, game.analyzed_at],
+      game.opponent_username, game.result, game.is_analyzed ? 1 : 0, game.analyzed_at,
+      game.my_accuracy ?? null, game.opp_accuracy ?? null],
   );
+}
+
+/** chess.com's accuracy for a game you already have (it may be reviewed after you imported it). */
+export function updateAccuracy(db: Db, chessComUrl: string, mine: number | null, theirs: number | null): void {
+  if (mine === null && theirs === null) return;
+  db.run('UPDATE games SET my_accuracy = ?, opp_accuracy = ? WHERE chess_com_url = ?', [mine, theirs, chessComUrl]);
 }
 
 export function gameExists(db: Db, chessComUrl: string): boolean {
@@ -249,6 +284,7 @@ export function rowToGame(r: Row): Game {
     id: r.id, chess_com_url: r.chess_com_url, pgn: r.pgn, played_at: r.played_at,
     time_control: r.time_control, my_color: r.my_color, opponent_username: r.opponent_username,
     result: r.result, is_analyzed: !!r.is_analyzed, analyzed_at: r.analyzed_at || null,
+    my_accuracy: r.my_accuracy ?? null, opp_accuracy: r.opp_accuracy ?? null,
   };
 }
 
@@ -305,7 +341,7 @@ export function allEvaluationsByGame(db: Db): Map<string, MoveEvaluation[]> {
 
 // ---------- Puzzles ----------
 
-function insertPuzzle(db: Db, p: Puzzle): void {
+export function insertPuzzle(db: Db, p: Puzzle): void {
   db.run(
     `INSERT OR REPLACE INTO puzzles
        (id, fen, correct_move_san, correct_move_uci, source,
@@ -345,6 +381,8 @@ export function rowToPuzzle(r: Row): Puzzle {
     eval_before_cp: r.eval_before_cp ?? null, eval_after_cp: r.eval_after_cp ?? null,
     puzzle_type: r.puzzle_type ?? null, source_game_id: r.source_game_id, opening_line_id: r.opening_line_id,
     created_at: r.created_at,
+    solution_ucis: r.solution_ucis ?? null, solution_moves: r.solution_moves ?? null, kind: r.kind ?? null,
+    rating: null, themes: null, game_url: null, opening: null, setup_fen: null, setup_uci: null,
   };
 }
 
@@ -417,10 +455,11 @@ export function setAttemptOutcome(db: Db, attemptId: number, outcome: string): v
 
 export type PuzzleRecord = { correct: number; near_best: number; missed: number };
 
-/** puzzle id -> counts over every first try ever made (revealed counts as missed). */
-export function puzzleRecords(db: Db): Map<string, PuzzleRecord> {
+/** puzzle id -> counts over every first try ever made (revealed counts as
+ *  missed). itemType 'lichess' for Lichess puzzles. */
+export function puzzleRecords(db: Db, itemType = 'puzzle'): Map<string, PuzzleRecord> {
   const records = new Map<string, PuzzleRecord>();
-  for (const r of db.all("SELECT item_id, correct, outcome FROM attempts WHERE item_type = 'puzzle'")) {
+  for (const r of db.all('SELECT item_id, correct, outcome FROM attempts WHERE item_type = ?', [itemType])) {
     const outcome = attemptOutcome(r);
     let rec = records.get(r.item_id);
     if (!rec) records.set(r.item_id, (rec = { correct: 0, near_best: 0, missed: 0 }));
@@ -651,4 +690,17 @@ export function setLineEnabled(db: Db, rootId: string, enabled: boolean): void {
   db.transaction(() => {
     for (const id of ids) db.run('UPDATE opening_lines SET is_enabled = ? WHERE id = ?', [enabled ? 1 : 0, id]);
   });
+}
+
+/** Cheap fingerprint of what the Stats / Progress pages are computed from
+ *  (games, analysis, puzzles, tries, repertoire): pages recompute only when it
+ *  changes, instead of on every visit. */
+export function dataSignature(db: Db): unknown[] {
+  return Object.values(db.get(
+    `SELECT (SELECT COUNT(*) FROM games) AS a, (SELECT MAX(rowid) FROM move_evaluations) AS b,
+            (SELECT COUNT(*) FROM puzzles) AS c, (SELECT MAX(rowid) FROM attempts) AS d,
+            (SELECT MAX(rowid) FROM spot_attempts) AS e, (SELECT MAX(rowid) FROM threat_attempts) AS f,
+            (SELECT MAX(rowid) FROM sac_attempts) AS g, (SELECT COUNT(*) FROM opening_lines) AS h,
+            (SELECT COUNT(*) FROM lichess_puzzles) AS i, (SELECT COUNT(*) FROM user_tags) AS j`,
+  )!);
 }

@@ -7,7 +7,9 @@
  * Callers notify() after recording an attempt; the level card listens.
  */
 import * as db from './db';
+import * as sac from './sac';
 import * as spot from './spot';
+import * as threat from './threat';
 import type { Db } from './sqlite';
 
 // ---- XP per first try ----
@@ -66,7 +68,7 @@ export function levelFor(totalXp: number): Level {
 }
 
 export function totalXp(conn: Db): number {
-  return attemptsXp(conn) + spot.xp(conn);    // + Spot the Tactic rounds (own table)
+  return attemptsXp(conn) + spot.xp(conn) + threat.xp(conn) + sac.xp(conn);   // + Tactics & Threats rounds (own tables)
 }
 
 function attemptsXp(conn: Db): number {
@@ -81,7 +83,7 @@ function attemptsXp(conn: Db): number {
     const outcome = db.attemptOutcome(r);
     if (!scoredToday.has(dayKey)) {
       scoredToday.add(dayKey);
-      if (r.item_type === 'puzzle') {
+      if (r.item_type === 'puzzle' || r.item_type === 'lichess') {      // your games' / Lichess puzzles
         xp += PUZZLE_XP[outcome] ?? 0;
         if (outcome === 'correct' && r.sharp) xp += SHARP_BONUS_XP;
       } else {

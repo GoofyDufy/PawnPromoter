@@ -47,6 +47,13 @@ export class Board {
     this.chess960 = chess960;
   }
 
+  /** chess.Board(fen).is_valid(): a legal setup (kings, pawns, no impossible
+   *  check — e.g. the side not to move can't be in check). */
+  static isValidFen(fen: string): boolean {
+    const setup = parseFen(fen);
+    return setup.isOk && Chess.fromSetup(setup.value).isOk;
+  }
+
   /** Like chess.Board(fen); throws on an invalid FEN. */
   static fromFen(fen: string = STARTING_FEN, chess960 = false): Board {
     const setup = parseFen(fen).unwrap();
@@ -69,6 +76,24 @@ export class Board {
 
   get fullmoveNumber(): number {
     return this.pos.fullmoves;
+  }
+
+  /** board.ply(): half-moves played since the game's start, from the move
+   *  counters (python-chess: 2 * (fullmove - 1) + 1 if Black is to move). */
+  ply(): number {
+    return 2 * (this.pos.fullmoves - 1) + (this.pos.turn === 'black' ? 1 : 0);
+  }
+
+  /** has_castling_rights(color): any castling right left for that side. */
+  hasCastlingRights(color: Color): boolean {
+    const backRank = color === 'white' ? 0 : 7;
+    for (const sq of this.pos.castles.castlingRights) if (squareRank(sq) === backRank) return true;
+    return false;
+  }
+
+  /** board.castling_rights, comparable between positions (the rook squares). */
+  castlingRights(): string {
+    return [...this.pos.castles.castlingRights].join(',');
   }
 
   /** UCI strings of every move pushed since this Board was made (move_stack). */
@@ -157,6 +182,13 @@ export class Board {
 
   san(uci: string): string {
     return makeSan(this.pos, this.internal(uci));
+  }
+
+  /** parse_uci(uci).uci(): the legal move in standard form (castling given as
+   *  king-takes-rook becomes e1g1 outside Chess960), or undefined if illegal. */
+  normalizeUci(uci: string): string | undefined {
+    if (!this.isLegal(uci)) return undefined;
+    return this.standard(this.internal(uci));
   }
 
   /** parse_san, returning standard UCI (or undefined if illegal). */

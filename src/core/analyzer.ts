@@ -18,9 +18,12 @@
  * (Running several engines side by side — evaluate_games_parallel — lives with
  * the Stockfish worker pool in the app, not here.)
  */
+import * as amazing from './amazing';
 import { BLACK, Board, type Color, type Role, SQUARES, WHITE, opposite } from './chess';
+import * as db from './db';
 import type { Engine, PovScore } from './engine';
 import { type Game, type MoveEvaluation, type Puzzle, makePuzzle } from './models';
+import type { Db } from './sqlite';
 import { readGame } from './pgn';
 
 /** Centipawn drop that counts as "worth turning into a puzzle". */
@@ -35,6 +38,25 @@ export const DECISIVE_EVAL_CP = 600;
 
 /** Mate scores are clamped to +/- this value so comparisons still work. */
 export const MATE_CP = 10000;
+
+/** A mistake has to cost you real winning chances to become a puzzle — Lichess's
+ *  move labels (winning chances on a -1..1 scale): a drop of 0.2+ is a mistake,
+ *  0.3+ a blunder. So -8 -> mated, or +10 -> +6, isn't a puzzle; +4 -> -5 is. */
+export const MIN_CHANCES_LOST = 0.2;
+export const BLUNDER_CHANCES_LOST = 0.3;
+export const RULES_VERSION = '1';       // settings 'puzzle_cost_version': 1 = the winning-chances rule
+
+/** Lichess's winning chances, -1 (lost) .. 1 (won), from centipawns. */
+export function winChances(cp: number): number {
+  return 2 / (1 + Math.exp(-0.00368208 * cp)) - 1;
+}
+
+export const MISSED_SACRIFICE = 'Missed Sacrifice';    // the best move was a sound piece sacrifice (amazing.ts)
+export const RULES_SAC_VERSION = '1';                    // settings 'puzzle_sac_version': missed sacrifices added
+
+export function chancesLost(cpBefore: number, cpAfter: number): number {
+  return winChances(cpBefore) - winChances(cpAfter);
+}
 
 /** How many top engine moves to record per position (best + 2nd + 3rd). */
 export const MULTI_PV = 3;
@@ -57,7 +79,12 @@ export function scoreToCp(score: PovScore, povColor: Color): number {
 // and a best move. This is our own lightweight heuristic classifier on top.
 const PIECE_VALUES: Record<Role, number> = { pawn: 1, knight: 3, bishop: 3, rook: 5, queen: 9, king: 0 };
 
-export function classifyPuzzleType(boardBefore: Board, move: string, myColor: Color, cpBefore: number, swing: number): string {
+/** your move left one of your pieces loose. Not Lichess's "Hanging piece",
+ *  which is the opposite: a puzzle where you win an undefended piece. */
+export const LEFT_HANGING = 'Left Hanging';
+
+export function classifyPuzzleType(boardBefore: Board, move: string, myColor: Color, cpBefore: number, swing: number,
+  lost = 1.0): string {
   // you had a forced mate available and didn't take it
   if (cpBefore >= MATE_CP) return 'Missed Mate';
 
@@ -75,12 +102,68 @@ export function classifyPuzzleType(boardBefore: Board, move: string, myColor: Co
       }
     }
   }
-  if (worstHangingValue >= 3) return 'Hanging Piece';   // minor piece or better left hanging
+  if (worstHangingValue >= 3) return LEFT_HANGING;     // minor piece or better left hanging
 
-  // fallback: severity tiers, as chess.com/lichess label move quality
-  if (swing >= 300) return 'Blunder';
-  if (swing >= 150) return 'Mistake';
+  // fallback: by severity, Lichess's tiers (winning chances lost)
+  if (lost >= BLUNDER_CHANCES_LOST) return 'Blunder';
+  if (lost >= MIN_CHANCES_LOST) return 'Mistake';
   return 'Inaccuracy';
+}
+
+/** One-off (RULES_VERSION 1) for saved puzzles: removes the ones that didn't
+ *  cost real winning chances and re-labels Blunder / Mistake by Lichess's tiers
+ *  — in place, so kinds, solutions and ids are kept. Returns [removed, relabelled]. */
+export function applyChancesRule(conn: Db): [number, number] {
+  const removed: string[] = [];
+  const relabel: [string, string][] = [];
+  for (const r of conn.all('SELECT id, eval_before_cp, eval_after_cp, puzzle_type FROM puzzles WHERE eval_after_cp IS NOT NULL')) {
+    if (r.puzzle_type === MISSED_SACRIFICE) continue;          // its own rule (amazing.missedSacrifice)
+    const lost = chancesLost(r.eval_before_cp || 0, r.eval_after_cp);
+    if (lost < MIN_CHANCES_LOST) {
+      removed.push(r.id);
+    } else if (['Blunder', 'Mistake', 'Inaccuracy'].includes(r.puzzle_type)) {
+      const label = lost >= BLUNDER_CHANCES_LOST ? 'Blunder' : 'Mistake';
+      if (label !== r.puzzle_type) relabel.push([label, r.id]);
+    }
+  }
+  conn.transaction(() => {
+    for (const id of removed) {
+      conn.run('DELETE FROM review_state WHERE puzzle_id = ?', [id]);
+      conn.run('DELETE FROM puzzles WHERE id = ?', [id]);
+    }
+    for (const [label, id] of relabel) conn.run('UPDATE puzzles SET puzzle_type = ? WHERE id = ?', [label, id]);
+  });
+  return [removed.length, relabel.length];
+}
+
+/** One-off (RULES_SAC_VERSION): saved puzzles whose answer is a sacrifice you
+ *  missed become Missed Sacrifice, and missed sacrifices below the blunder size
+ *  become new puzzles (their kind is worked out in the background). Returns
+ *  [relabelled, added]. */
+export function addMissedSacrifices(conn: Db): [number, number] {
+  const existing = new Map<string, [string, string]>();
+  for (const r of conn.all('SELECT source_game_id, fen, id, puzzle_type FROM puzzles WHERE source_game_id IS NOT NULL')) {
+    existing.set(`${r.source_game_id}\t${r.fen}`, [r.id, r.puzzle_type]);
+  }
+  const relabel: string[] = [];
+  const added: Puzzle[] = [];
+  for (const m of amazing.findMissed(conn, false)) {
+    const hit = existing.get(`${m.game_id}\t${m.fen}`);
+    if (hit) {
+      if (hit[1] !== MISSED_SACRIFICE && hit[1] !== 'Missed Mate') relabel.push(hit[0]);
+      continue;
+    }
+    added.push(makePuzzle({
+      fen: m.fen, correct_move_san: m.best_san, correct_move_uci: m.best_uci, source: 'own_game_mistake',
+      played_move_san: m.played_san, eval_swing_cp: m.cp_before - m.cp_after, eval_before_cp: m.cp_before,
+      eval_after_cp: m.cp_after, puzzle_type: MISSED_SACRIFICE, source_game_id: m.game_id,
+    }));
+  }
+  conn.transaction(() => {
+    for (const id of relabel) conn.run('UPDATE puzzles SET puzzle_type = ? WHERE id = ?', [MISSED_SACRIFICE, id]);
+    for (const p of added) db.insertPuzzle(conn, p);
+  });
+  return [relabel.length, added.length];
 }
 
 export function myChessColor(game: Pick<Game, 'my_color'>): Color {
@@ -174,7 +257,13 @@ export function puzzlesFromEvaluations(evaluations: MoveEvaluation[], thresholdC
     if (ev.cp_after === null || ev.best_move_uci === null) continue;
     if (ev.best_move_uci === ev.move_uci) continue;
     const swing = ev.cp_before - ev.cp_after;
-    if (swing < thresholdCp) continue;
+    const lost = chancesLost(ev.cp_before, ev.cp_after);
+    // a sound sacrifice you missed is a puzzle even below the blunder size (amazing.ts)
+    const missedSac = amazing.missedSacrifice(ev.fen_before, ev.move_uci, ev.best_move_uci, ev.cp_before, ev.cp_after);
+    if (!missedSac) {
+      if (swing < thresholdCp) continue;
+      if (lost < MIN_CHANCES_LOST) continue;           // the game was decided either way
+    }
 
     const board = Board.fromFen(ev.fen_before);
     puzzles.push(makePuzzle({
@@ -186,7 +275,8 @@ export function puzzlesFromEvaluations(evaluations: MoveEvaluation[], thresholdC
       eval_swing_cp: swing,
       eval_before_cp: ev.cp_before,
       eval_after_cp: ev.cp_after,
-      puzzle_type: classifyPuzzleType(board, ev.move_uci, board.turn, ev.cp_before, swing),
+      puzzle_type: missedSac && ev.cp_before < MATE_CP
+        ? MISSED_SACRIFICE : classifyPuzzleType(board, ev.move_uci, board.turn, ev.cp_before, swing, lost),
       source_game_id: ev.game_id,
     }));
   }

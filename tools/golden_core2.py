@@ -1,18 +1,17 @@
 """Golden fixtures, part 2: stats, style, progress, XP, sharpness, explanations
-and Spot the Tactic's forcing-move test — on your real chessprep.db (read-only).
+and Spot the Tactic's forcing-move test — on the snapshot of your chessprep.db (tools/snapshot.py).
 Writes tests/golden/core2.json (gitignored).
 
 Run:  ~/Chess/.venv/bin/python tools/golden_core2.py
 """
 import json, os, pathlib, sqlite3, sys
+from golden_common import CHESS, COMMIT, PROTOTYPE, SNAPSHOT  # noqa: E402  (prototype at its last commit)
 
-CHESS = pathlib.Path(os.environ.get("CHESS_DIR", pathlib.Path.home() / "Chess"))
 OUT = pathlib.Path(__file__).resolve().parent.parent / "tests" / "golden" / "core2.json"
-sys.path.insert(0, str(CHESS))
 import chess  # noqa: E402
 import db, explain, models, progress_data, progression, spot, stats, style  # noqa: E402
 
-conn = sqlite3.connect(f"file:{CHESS / 'chessprep.db'}?mode=ro", uri=True)
+conn = sqlite3.connect(f"file:{SNAPSHOT}?mode=ro", uri=True)
 conn.row_factory = sqlite3.Row
 
 rec = lambda r: [r.wins, r.draws, r.losses]
