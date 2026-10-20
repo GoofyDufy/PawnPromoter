@@ -231,8 +231,13 @@ export async function evaluateGame(
       let cpAfter: number | null = null;
       if (Math.abs(cpBefore) < DECISIVE_EVAL_CP) {
         board.push(move);
-        const [infoAfter] = await engine.analyse(board, limit);
-        cpAfter = scoreToCp(infoAfter.score, myColor);
+        if (board.isGameOver()) {
+          // Stockfish has no line for a finished game (python-chess reads "score mate 0" / "cp 0")
+          cpAfter = board.isCheckmate() ? MATE_CP : 0;
+        } else {
+          const [infoAfter] = await engine.analyse(board, limit);
+          cpAfter = infoAfter ? scoreToCp(infoAfter.score, myColor) : null;
+        }
         board.pop();
       }
 

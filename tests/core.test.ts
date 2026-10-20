@@ -67,6 +67,21 @@ describe('puzzle generation', () => {
     expect(analyzer.countMyMoves(game)).toBe(2);
   });
 
+  it('a move that mates needs no search afterwards (Stockfish has no line for a finished game)', async () => {
+    const moves = ['f2f3', 'e7e5', 'g2g4', 'd8h4'];
+    const fens: string[] = [];
+    const b = Board.fromFen();
+    for (const uci of moves) { fens.push(b.boardFen()); b.push(uci); }
+    const engine = new FakeEngine({
+      [fens[1]]: [[['e7e5'], 0], [['d7d5'], 0], [['c7c5'], 0]],
+      [fens[2]]: [[['d7d6'], 50]],
+      [fens[3]]: [[['d8h4'], 150], [['d7d5'], 150], [['b8c6'], 140]],   // (a shallow search that missed the mate)
+    });
+    const game = { id: 'g', pgn: '1. f3 e5 2. g4 Qh4# 0-1', my_color: 'black' } as any;
+    const evals = await analyzer.evaluateGame(game, engine);
+    expect(evals.map((e) => [e.move_uci, e.cp_after])).toEqual([['e7e5', -50], ['d8h4', analyzer.MATE_CP]]);
+  });
+
   it('stops when asked, keeping nothing half-done', async () => {
     const game = { id: 'g', pgn: '1. e4 e5 *', my_color: 'white' } as any;
     await expect(analyzer.evaluateGame(game, new FakeEngine({}), undefined, () => true))

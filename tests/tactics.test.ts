@@ -134,6 +134,10 @@ describe('Sacrifice!!', () => {
     expect(sac.xp(conn)).toBe(sac.CLEAN_XP + sac.DONE_XP);
     expect(progression.totalXp(conn)).toBe(sac.xp(conn));
     expect(sac.seen(conn).has(cands[0].key)).toBe(true);
+    sac.record(conn, cands[0], 2, 0, 'defend');                      // Defend rounds are kept apart
+    expect(sac.seen(conn, 'defend')).toEqual(new Set([cands[0].key]));
+    const other = new sac.Candidate(START, 'd2d4', 'lichess');
+    expect(sac.pick([cands[0], other], sac.seen(conn)).map((c) => c.key)).toEqual([other.key, cands[0].key]);   // new first, then done
   });
 
   it('judging your follow-up', async () => {
@@ -146,6 +150,47 @@ describe('Sacrifice!!', () => {
     after = board.copy(); after.push('a2a3');
     const poor = new FakeEngine({ [after.boardFen()]: [[['e7e5'], 150]] });    // you're −1.5: lets them off the hook
     expect((await sac.judge(poor, board, 'a2a3', s))[0]).toBe(false);
+  });
+});
+
+describe('Sacrifice!! endings (web rule)', () => {
+  const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+  const KNIGHT_DOWN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/R1BQKBNR w KQkq - 0 1';
+  const line = () => sac.Line.from(Board.fromFen(START_FEN));
+  const at = (fen: string, lines: [string[], number | ['mate', number]][]) => {
+    const board = Board.fromFen(fen);
+    return { board, engine: new FakeEngine({ [board.boardFen()]: lines }) };
+  };
+
+  it('a calm position ends it only once the material is back', async () => {
+    let { board, engine } = at(KNIGHT_DOWN, [[['e2e4'], 50], [['d2d4'], 45]]);
+    expect((await sac.step(engine, board, 'white', 2, line())).over).toBe(false);            // a knight down: go on
+    ({ board, engine } = at(START_FEN, [[['e2e4'], 50], [['d2d4'], 45]]));
+    expect((await sac.step(engine, board, 'white', 2, line())).reason).toBe('equal');        // back, level
+    ({ board, engine } = at(START_FEN, [[['e2e4'], 200], [['d2d4'], 190]]));
+    expect((await sac.step(engine, board, 'white', 2, line())).reason).toBe('material');     // back, and better
+    ({ board, engine } = at(KNIGHT_DOWN, [[['e2e4'], 400], [['d2d4'], 100]]));
+    expect((await sac.step(engine, board, 'white', 2, line())).over).toBe(false);            // +4 but still down
+    ({ board, engine } = at(KNIGHT_DOWN, [[['e2e4'], 700], [['d2d4'], 100]]));
+    expect((await sac.step(engine, board, 'white', 2, line())).reason).toBe('attack');       // crushing anyway
+  });
+
+  it('mate in N is kept, and the same position three times is a draw', async () => {
+    const { board, engine } = at(START_FEN, [[['e2e4'], ['mate', 2]], [['d2d4'], 30]]);
+    const s = await sac.step(engine, board, 'white', 2, line());
+    expect([s.over, s.mate]).toEqual([false, 2]);
+    expect((await sac.step(engine, board, 'white', sac.MAX_MOVES, line())).reason).toBe('mate');
+    const l = line();
+    const b = Board.fromFen(START_FEN);
+    for (const m of ['g1f3', 'g8f6', 'f3g1', 'f6g8', 'g1f3', 'g8f6', 'f3g1']) { b.push(m); l.add(b); }
+    b.push('f6g8');                                                      // the start position, a 3rd time
+    expect((await sac.step(new FakeEngine({}), b, 'white', 3, l)).reason).toBe('draw');
+  });
+
+  it('other defences: reasonable ones only', async () => {
+    const board = Board.fromFen(START_FEN);
+    const engine = new FakeEngine({ [board.boardFen()]: [[['e2e4'], -100], [['d2d4'], -150], [['a2a3'], -900]] });
+    expect(await sac.otherDefences(engine, board, 'e2e4')).toEqual(['d2d4']);
   });
 });
 

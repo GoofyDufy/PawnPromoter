@@ -6,11 +6,12 @@
  */
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { DbClient } from '../../data/client';
-import { IDEA_BRUSHES } from '../analysis';
+import { IDEA_BRUSHES, RANKS } from '../analysis';
 import { Board } from '../Board';
 import { EvalBar } from '../EvalBar';
 import type { TrainerBase } from '../trainer/base';
-import { LICHESS_BATCH, SacController } from '../trainer/sacController';
+import { PlayDialog } from '../PlayDialog';
+import { LICHESS_BATCH, SAC_SIDES, SAC_SOURCES, SacController } from '../trainer/sacController';
 import type { SpotController } from '../trainer/spotController';
 import type { ThreatController } from '../trainer/threatController';
 
@@ -50,7 +51,7 @@ export function TrainerScreen({ client, trainers, onReview }: {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (!t || tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || e.ctrlKey || e.altKey || e.metaKey) return;
-      if (['y', 'n', 'Enter', ' ', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+      if (['y', 'n', 'h', 'Enter', ' ', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
         if (e.key === ' ' || e.key === 'Enter') e.preventDefault();
         t.key(e.key);
       }
@@ -74,7 +75,8 @@ export function TrainerScreen({ client, trainers, onReview }: {
     void t.press(id);
   };
   const sac = t instanceof SacController ? t : null;
-  const arrows = sac ? sac.boardArrows() : t.arrows;
+  const live = t.liveAnalysis();
+  const lines = live ? null : t.stockfishLines();
 
   return (
     <section className="puzzle-screen">
@@ -86,6 +88,14 @@ export function TrainerScreen({ client, trainers, onReview }: {
             {MODES.map((m) => <button key={m} type="button" role="tab" aria-selected={mode === m} aria-checked={mode === m} onClick={() => choose(m)}>{m}</button>)}
           </div>
           <h2>{t.title}</h2>
+          {sac && <div className="sac-switches">
+            <div className="segmented" role="radiogroup" aria-label="Side">
+              {SAC_SIDES.map(([k, label]) => <button key={k} type="button" role="radio" aria-checked={sac.side === k} onClick={() => sac.setSide(k)}>{label}</button>)}
+            </div>
+            <div className="segmented" role="radiogroup" aria-label="Sacrifices from">
+              {SAC_SOURCES.map(([k, label]) => <button key={k} type="button" role="radio" aria-checked={sac.sourceFilter === k} onClick={() => sac.setSource(k)}>{label}</button>)}
+            </div>
+          </div>}
           <p className="note pre">{t.intro}</p>
           <div className="section">This session</div>
           <div className="stat-line">{t.sessionLine()}</div>
@@ -102,8 +112,8 @@ export function TrainerScreen({ client, trainers, onReview }: {
         <div className="card board-card">
           <div className="row puzzle-head"><span className="note game-label">{t.source}</span></div>
           <div className="board-row">
-            <EvalBar cpWhite={t.evalWhite} orientation={t.orientation} />
-            <Board fen={t.fen ?? '8/8/8/8/8/8/8/8 w - - 0 1'} orientation={t.orientation} lastMove={t.lastMove} arrows={arrows}
+            <EvalBar cpWhite={t.evalWhite} mate={t.evalWhite === null ? null : t.evalMate} orientation={t.orientation} blank={t.evalWhite === null} />
+            <Board fen={t.fen ?? '8/8/8/8/8/8/8/8 w - - 0 1'} orientation={t.orientation} lastMove={t.lastMove} arrows={t.arrows}
               movable={t.fen ? t.movable : null} onMove={(uci) => void t.onMove(uci)} />
           </div>
           <div className="row puzzle-buttons">
@@ -115,12 +125,12 @@ export function TrainerScreen({ client, trainers, onReview }: {
         </div>
 
         <div className="card commentary-card" aria-label="Commentary">
-          {sac?.analysing() ? (
+          {live ? (
             <div className="ideas">
-              <div className="row"><strong>{sac.analysis.panel.title}</strong><span className="note">{sac.analysis.panel.header}</span></div>
+              <div className="row"><strong>{live.panel.title}</strong><span className="note">{live.panel.header}</span></div>
               <div className="lines">
-                {sac.analysis.panel.rows.map((row, i) => (
-                  <button type="button" key={row + i} className="line" onClick={() => sac.analysis.follow(i)} title="Play this line">
+                {live.panel.rows.map((row, i) => (
+                  <button type="button" key={row + i} className="line" onClick={() => live.follow(i)} title="Play this line">
                     <span className="dot" style={{ background: DOT[IDEA_BRUSHES[i] ?? 'grey'] }} />
                     <span className="pv">{row}</span>
                   </button>
@@ -130,9 +140,33 @@ export function TrainerScreen({ client, trainers, onReview }: {
           ) : (<>
             <p className={`status ${t.status.tone}`} role="status">{t.status.text}</p>
             {t.detail && <p className="explanation">{t.detail}</p>}
+            {sac?.branchesNote && (
+              <div className="sac-branches">
+                <p className="note">{sac.branchesNote}</p>
+                {sac.branches.map((b, i) => (
+                  <button key={b.label} type="button" className="btn secondary" onClick={() => void sac.press(`branch${i}`)}>
+                    {b.result === 'clean' ? '✓ ' : b.result === 'helped' ? '✓ (with help) ' : ''}{b.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {lines && (
+              <div className="ideas stockfish-lines">
+                <div className="row"><strong>Stockfish</strong><span className="note">{lines.header}</span></div>
+                <div className="lines">
+                  {lines.rows.map((row, i) => (
+                    <button type="button" key={row + i} className="line" onClick={() => void t.press(`line${i}`)} title="Explore this line on the board">
+                      <span className="rank">{RANKS[i]}</span>
+                      <span className="pv">{row}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </>)}
         </div>
       </div>
+      {sac?.playing && <PlayDialog fen={sac.playing.fen} title={sac.playing.title} myColor={sac.playing.color} onClose={() => sac.closePlay()} />}
     </section>
   );
 }

@@ -153,10 +153,10 @@ function setInput(input: HTMLInputElement, value: string) {
 }
 
 /** A click on a square of the board, as chessground sees one (mouse down + up, no drag). */
-async function clickSquare(square: string) {
-  const board = document.querySelector('cg-board') as HTMLElement;
+async function clickSquare(square: string, root: ParentNode = document) {
+  const board = root.querySelector('cg-board') as HTMLElement;
   const r = board.getBoundingClientRect();
-  const white = !document.querySelector('.cg-wrap.orientation-black');
+  const white = !root.querySelector('.cg-wrap.orientation-black');
   const file = square.charCodeAt(0) - 97;
   const rank = Number(square[1]) - 1;
   const x = r.left + ((white ? file : 7 - file) + 0.5) * (r.width / 8);
@@ -274,6 +274,21 @@ async function phaseDrill(client: DbClient) {
     await waitFor('your turn', () => c.drill!.finished || (c.drill!.myTurn && c.board().movable), 10_000);
     if (c.drill.finished) break;
     const uci = c.drill.path[c.drill.index].uci;
+    if (moves === 0) {
+      // a wrong move first: it says so, and you can play again straight away (Show correct move offered)
+      const wrong = Board.fromFen(c.drill.fen).legalMoves().find((m) => m !== uci)!;
+      await clickSquare(wrong.slice(0, 2));
+      await clickSquare(wrong.slice(2, 4));
+      await waitFor('the miss', () => statusText().startsWith('Not'), 10_000);
+      results.drillMiss = { status: statusText(), movable: c.board().movable, reveal: !!button('Show correct move'), tryAgain: !!button('Try again'),
+        piecesBack: (window as unknown as { cg: { getFen(): string } }).cg.getFen() === c.drill.fen.split(' ')[0] };
+      button('Show full line').click();
+      await waitFor('the full line', () => document.querySelectorAll('.full-line .move-pair').length > 0, 5000);
+      results.drillFullLine = { pairs: document.querySelectorAll('.full-line .move-pair').length,
+        colours: [...new Set([...document.querySelectorAll('.full-line .move-pair')].slice(0, 3).map((p) => getComputedStyle(p).backgroundColor))].length };
+      button('Hide full line').click();
+      await waitFor('your turn again', () => c.board().movable, 5000);
+    }
     const cgs = () => { const st = (window as unknown as { cg: { state: any } }).cg.state;
       return { color: st.movable.color, turn: st.turnColor, dests: st.movable.dests?.size ?? null, selected: st.selected ?? null,
         orientation: st.orientation, fen: st.pieces.size }; };
@@ -291,6 +306,24 @@ async function phaseDrill(client: DbClient) {
   await waitFor('the end of the line', () => statusText().startsWith('End of line'), 10_000);
   results.drill = { line: c.drill!.lineName, myMoves: moves, statuses: statuses.slice(0, 6), end: statusText(),
     recap: document.querySelector('.commentary-card .explanation')?.textContent, plans: c.plans?.title ?? null };
+
+  // Play it out from the end of the line: the board is there, a move works, Stockfish answers
+  button('Play it out').click();
+  await waitFor('the game window', () => document.querySelector('dialog.play-dialog[open] cg-board piece'), 10_000);
+  const dlg = document.querySelector('dialog.play-dialog[open]')!;
+  const rect = dlg.querySelector('cg-board')!.getBoundingClientRect();
+  const dlgStatus = () => dlg.querySelector('.status')?.textContent ?? '';
+  results.drillPlay = { board: [Math.round(rect.width), Math.round(rect.height)], pieces: dlg.querySelectorAll('cg-board piece').length,
+    status: dlgStatus(), fen: (window as unknown as { cg: { getFen(): string } }).cg.getFen() };
+  await waitFor('your move in the game window', () => dlgStatus() === 'Your move.', 30_000);
+  const st = (dlg.querySelector('.cg-wrap') as unknown as { cg: { state: any } }).cg.state;   // the window's board, not the drill's
+  const [from, tos] = [...st.movable.dests.entries()][0] as [string, string[]];
+  await clickSquare(from, dlg);
+  await clickSquare(tos[0], dlg);
+  await waitFor('Stockfish to answer', () => (dlg.querySelector('.moves')?.textContent ?? '').trim().split(/\s+/).filter((w) => !/^\d+\./.test(w)).length >= 2, 30_000);
+  results.drillPlay = { ...(results.drillPlay as object), played: from + tos[0], moves: dlg.querySelector('.moves')?.textContent, after: dlgStatus() };
+  dlg.dispatchEvent(new Event('cancel', { cancelable: true }));
+  await waitFor('the window closed', () => !document.querySelector('dialog.play-dialog'), 5000);
 
   // the Tree: drawn, a click on a move shows it, a new branch, Discard
   button('Tree').click();
@@ -425,12 +458,49 @@ async function phaseTrainer(client: DbClient) {
     clearInterval(sampler);
   }
   results.spotFirst = { ms: ms(t0), source: tr.spot.source, status: statusText() };
+  const startFen = tr.spot.fen;
+  results.spotBarBlank = { question: !!document.querySelector('.eval-bar.blank') };
   button('No — nothing  (N)').click();
   await waitFor('your move', () => tr.spot.movable, 5000);
-  results.spotMove = await playAnyMove(tr.spot);
-  await waitFor('the verdict', () => /Your call|✗|Correct line/.test(statusText()) && !statusText().startsWith('✗ There IS'), 30_000);
-  results.spot = { status: statusText(), detail: document.querySelector('.commentary-card .explanation')?.textContent?.slice(0, 300),
-    buttons: tr.spot.buttons.map((b) => b.label), allTime: tr.spot.allTime };
+  (results.spotBarBlank as Record<string, boolean>).move = !!document.querySelector('.eval-bar.blank');
+  // every move with all three hints, then the hinted move (a multi-move tactic: each of your moves)
+  const hints: unknown[] = [];
+  results.spotHints = hints;
+  const startsWith = (text: string) => [...document.querySelectorAll('.board-card button')].find((b) => b.textContent?.startsWith(text)) as HTMLButtonElement | undefined;
+  for (let moves = 0; moves < 6; moves++) {
+    await waitFor('your move or the verdict', () => (tr.spot.movable && startsWith('Hint')) || /Your call/.test(statusText()), 30_000);
+    if (/Your call/.test(statusText())) break;
+    for (const label of ['Hint', 'Another hint', 'Show the move']) {
+      await waitFor(label, () => startsWith(label) && !startsWith(label)!.disabled, 5000);
+      startsWith(label)!.click();
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    const arrow = tr.spot.arrows[0];
+    hints.push({ detail: document.querySelector('.commentary-card .explanation')?.textContent, arrow, blank: !!document.querySelector('.eval-bar.blank') });
+    await waitFor('the board ready', () => { const st = (window as unknown as { cg: { state: any } }).cg.state; return st.movable.dests?.size > 0; }, 10_000);
+    await clickSquare(arrow.from);
+    await clickSquare(arrow.to);
+    await waitFor('the move taken', () => !tr.spot.movable || !startsWith('Hint'), 30_000);
+  }
+  await waitFor('the verdict', () => /Your call/.test(statusText()), 30_000);
+  results.spot = { status: statusText(), detail: document.querySelector('.commentary-card .explanation')?.textContent?.slice(0, 400),
+    buttons: tr.spot.buttons.map((b) => b.label), allTime: tr.spot.allTime,
+    stayed: tr.spot.fen !== startFen, arrows: tr.spot.arrows, barBlank: !!document.querySelector('.eval-bar.blank') };
+  // ◀ to the start: the arrows there
+  button('◀')?.click();
+  await new Promise((r) => setTimeout(r, 300));
+  results.spotBack = { status: statusText(), atStart: tr.spot.fen === startFen, arrows: tr.spot.arrows };
+  // Stockfish's lines, and one opened on the analysis board
+  t0 = performance.now();
+  await waitFor('Stockfish lines', () => document.querySelectorAll('.stockfish-lines .line').length >= 2, 60_000);
+  results.spotStockfish = { ms: ms(t0), rows: [...document.querySelectorAll('.stockfish-lines .line')].map((l) => l.textContent) };
+  const resultStatus = statusText();
+  (document.querySelector('.stockfish-lines .line') as HTMLButtonElement).click();
+  await waitFor('the analysis board', () => document.querySelector('.commentary-card .ideas strong')?.textContent?.startsWith('Analysis'), 10_000);
+  results.spotAnalysis = { title: document.querySelector('.commentary-card .ideas strong')?.textContent, buttons: tr.spot.buttons.map((b) => b.label),
+    lineMovePlayed: tr.spot.fen !== (tr.spot as unknown as { shownBoard: { fen(): string } }).shownBoard.fen(), lastMove: tr.spot.lastMove };
+  startsWith('Back')?.click();
+  await waitFor('back to the result', () => statusText() === resultStatus && document.querySelector('.stockfish-lines'), 10_000);
 
   // Threat?: name "No threat", then an answer
   button('Threat?').click();
@@ -438,11 +508,25 @@ async function phaseTrainer(client: DbClient) {
   await waitFor('a threat question', () => statusText().endsWith('What does it threaten?'), 180_000);
   results.threatFirst = { ms: ms(t0), status: statusText() };
   button('No threat  (N)').click();
+  await waitFor('the named verdict', () => button('Now answer it →  (Enter)'), 30_000);
+  await new Promise((r) => setTimeout(r, 1500));
+  results.threatNamed = { status: statusText(), stillWaiting: !!button('Now answer it →  (Enter)'), movable: tr.threat.movable, arrows: tr.threat.arrows };
+  button('Now answer it →  (Enter)').click();
   await waitFor('answer it', () => tr.threat.movable, 5000);
-  results.threatNamed = statusText();
-  await playAnyMove(tr.threat);
+  const answer = await playAnyMove(tr.threat);
   await waitFor('the verdict', () => statusText().includes('Threat ·'), 30_000);
-  results.threat = { status: statusText(), detail: document.querySelector('.commentary-card .explanation')?.textContent?.slice(0, 300) };
+  const explanation = () => document.querySelector('.commentary-card .explanation')?.textContent ?? '';
+  results.threatStayed = { onAnswer: tr.threat.lastMove === answer, fen: tr.threat.fen };
+  await waitFor('the explanation', () => !explanation().includes('working it out'), 60_000);
+  results.threat = { status: statusText(), detail: explanation(), buttons: tr.threat.buttons.map((b) => `${b.label}${b.disabled ? ' (off)' : ''}`) };
+  const fwd = button('▶');
+  if (fwd && !fwd.disabled) {
+    fwd.click();
+    await new Promise((r) => setTimeout(r, 300));
+    results.threatPunish = { lastMove: tr.threat.lastMove, arrows: tr.threat.arrows };
+  }
+  await waitFor('Stockfish lines (Threat?)', () => document.querySelectorAll('.stockfish-lines .line').length >= 1, 60_000);
+  results.threatStockfish = [...document.querySelectorAll('.stockfish-lines .line')].map((l) => l.textContent);
 
   // Sacrifice!!: find the sacrifice (we know it), see their defence
   button('Sacrifice!!').click();
@@ -455,6 +539,49 @@ async function phaseTrainer(client: DbClient) {
   await clickSquare(sacUci.slice(2, 4));
   await waitFor('their defence', () => statusText().includes('Your move — keep it going') || statusText().startsWith('✓ You made it work'), 60_000);
   results.sac = { status: statusText(), detail: document.querySelector('.commentary-card .explanation')?.textContent?.slice(0, 200) };
+
+  // play Stockfish's move each turn to the end of the round
+  type SacInside = { stepInfo: { best: string | null } | null; state: string };
+  const sacInside = tr.sac as unknown as SacInside;
+  const playToEnd = async (what: string) => {
+    for (let i = 0; i < 40; i++) {
+      await waitFor(`${what}: your move or the end`, () => sacInside.state === 'move' || sacInside.state === 'result', 120_000);
+      if (sacInside.state === 'result') break;
+      const best = sacInside.stepInfo!.best!;
+      await waitFor('the board ready', () => { const st = (window as unknown as { cg: { state: any } }).cg.state; return st.movable.dests?.size > 0; }, 10_000);
+      await clickSquare(best.slice(0, 2));
+      await clickSquare(best.slice(2, 4));
+      await waitFor('the move taken', () => sacInside.state !== 'move', 30_000);
+    }
+    return { status: statusText(), detail: document.querySelector('.commentary-card .explanation')?.textContent?.slice(0, 500),
+      bar: document.querySelector('.eval-bar')?.getAttribute('title') };
+  };
+  results.sacEnd = await playToEnd('attack');
+  await waitFor('other defences', () => tr.sac.branchesNote && !tr.sac.branchesNote.startsWith('Looking'), 120_000);
+  results.sacBranches = { note: tr.sac.branchesNote, branches: tr.sac.branches.map((b) => b.label) };
+  if (tr.sac.branches.length) {
+    (document.querySelector('.sac-branches .btn') as HTMLButtonElement).click();
+    await waitFor('the other defence', () => sacInside.state !== 'result', 10_000);
+    results.sacBranchPlayed = await playToEnd('branch');
+    results.sacBranchMark = document.querySelector('.sac-branches .btn')?.textContent;
+  }
+  button('Play it out').click();
+  await waitFor('the game window', () => document.querySelector('dialog.play-dialog[open] cg-board piece'), 10_000);
+  results.sacPlay = document.querySelector('dialog.play-dialog[open]')?.getAttribute('aria-label');
+  document.querySelector('dialog.play-dialog[open]')!.dispatchEvent(new Event('cancel', { cancelable: true }));
+  await waitFor('the window closed', () => !document.querySelector('dialog.play-dialog'), 5000);
+  // Defend: they sacrifice, you defend
+  (document.querySelector('.sac-switches [aria-label="Side"] button:nth-child(2)') as HTMLButtonElement).click();
+  t0 = performance.now();
+  await waitFor('their sacrifice', () => tr.sac.source.endsWith('you defend') && (statusText().startsWith('They sacrificed') || sacInside.state === 'result'), 300_000);
+  results.sacDefendStart = { ms: ms(t0), status: statusText(), detail: document.querySelector('.commentary-card .explanation')?.textContent, orientation: tr.sac.orientation };
+  results.sacDefendEnd = await playToEnd('defend');
+  // only Lichess sacrifices
+  (document.querySelector('.sac-switches [aria-label="Side"] button:nth-child(1)') as HTMLButtonElement).click();
+  (document.querySelector('.sac-switches [aria-label="Sacrifices from"] button:nth-child(3)') as HTMLButtonElement).click();
+  await waitFor('a Lichess sacrifice (or none)', () => statusText().includes('find the sacrifice!!') || statusText().startsWith('No Lichess'), 300_000);
+  results.sacLichess = { status: statusText(), source: tr.sac.source };
+  (document.querySelector('.sac-switches [aria-label="Sacrifices from"] button:nth-child(1)') as HTMLButtonElement).click();
 }
 
 /** Game Review on your games (run after phase=ui). */
@@ -475,6 +602,10 @@ async function phaseReview(client: DbClient) {
   await waitFor('the game', () => r.game && document.querySelectorAll('.moves-list li').length > 10, 30_000);
   results.reviewGame = { ms: ms(t0), title: r.game!.title, opening: r.game!.opening, accuracy: r.game!.accuracy,
     moves: r.game!.ucis.length, evals: Object.keys(r.game!.evals).length, graphDots: document.querySelectorAll('.eval-graph circle').length };
+  // the list folds away; the board grows
+  await waitFor('the list folded', () => document.querySelector('.games-rail'), 5000);
+  results.reviewFolded = { rail: !!document.querySelector('.games-rail'), board: Math.round(document.querySelector('.review cg-board')!.getBoundingClientRect().width),
+    noteBox: !!document.querySelector('.board-card .note-box textarea') };
   button('Next mistake').click();
   await new Promise((res) => setTimeout(res, 300));
   results.reviewMistake = { ply: r.ply, status: statusText(), detail: document.querySelector('.review-side .explanation')?.textContent,
@@ -500,7 +631,9 @@ async function phaseReview(client: DbClient) {
   await waitFor('Stockfish lines', () => r.analysis.panel.rows.length > 0, 30_000);
   results.reviewAnalysis = { ms: ms(t0), title: r.analysis.panel.title, rows: r.analysis.panel.rows };
   button('Back to game').click();
-  // only losses
+  // only losses (the list is folded while a game is open: open it)
+  (document.querySelector('.games-rail button') as HTMLButtonElement | null)?.click();
+  await waitFor('the result filter', () => button('Losses'), 5000);
   button('Losses').click();
   await waitFor('losses only', () => r.result === 'Losses' && r.games.length > 0 && r.games.every((g) => g.label.includes('LOSS')), 30_000);
   results.reviewLosses = { count: r.games.length, first: r.games[0].label };
@@ -526,14 +659,14 @@ async function phaseReview(client: DbClient) {
     results.reviewFlagNext = document.querySelector('.review-head .puzzle-flag')?.textContent;
     r.step(-1);
     // a note on this position: saved as you type, listed under Your notes
-    const box = await waitFor('the notes box', () => document.querySelector('textarea[aria-label="Your notes on this position"]') as HTMLTextAreaElement | null, 5000);
+    const box = await waitFor('the notes box', () => document.querySelector('textarea[aria-label="Your note on this position"]') as HTMLTextAreaElement | null, 5000);
     Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(box, 'Should have castled first.');
     box.dispatchEvent(new Event('input', { bubbles: true }));
-    await waitFor('the Save button', () => { const b = button('Save note'); return b && !b.disabled; }, 5000);
-    button('Save note').click();
+    await waitFor('the Save button', () => { const b = button('Save'); return b && !b.disabled; }, 5000);
+    button('Save').click();
     await waitFor('the note saved', () => r.game!.notes[myPly] === 'Should have castled first.', 10_000);
     await waitFor('Saved shown', () => document.querySelector('.note-box .ok')?.textContent === 'Saved ✓', 5000);
-    button('📝 Your notes').click();
+    ((document.querySelector('.games-rail button[title="Your notes"]') ?? button('📝 Your notes')) as HTMLButtonElement).click();
     await waitFor('the notes list', () => document.querySelector('.notes-list li button'), 10_000);
     results.reviewNotes = [...document.querySelectorAll('.notes-list li button')].map((b) => b.textContent).slice(0, 3);
     button('Close').click();
@@ -546,6 +679,18 @@ async function phaseReview(client: DbClient) {
     results.reviewTryIt = { type: pz.puzzle!.puzzle_type, status: statusText(), note: pz.details!.note,
       tags: [...pz.details!.userTags, ...pz.details!.autoTags] };
     nav('Game Review');
+    // the list again: search an opponent, then only games with notes
+    (document.querySelector('.games-rail button') as HTMLButtonElement | null)?.click();   // folded or not
+    const search = await waitFor('the search box', () => document.querySelector('input[aria-label="Search games"]') as HTMLInputElement | null, 5000);
+    const opp = r.games.find((x) => x.id === r.game!.id)!.opponent;
+    setInput(search, opp.slice(0, 5));
+    await new Promise((res) => setTimeout(res, 200));
+    const searched = document.querySelectorAll('.review .queue-card .queue li button').length;
+    setInput(search, '');
+    (document.querySelector('.games-search input[type="checkbox"]') as HTMLInputElement).click();
+    await new Promise((res) => setTimeout(res, 200));
+    results.reviewSearch = { opponent: opp, matching: searched, of: r.games.length,
+      withNotes: [...document.querySelectorAll('.review .queue-card .queue li button')].map((b) => b.textContent) };
   }
   // from Tactics & Threats: Review game opens it here, at the position
   nav('Tactics & Threats');
@@ -554,6 +699,8 @@ async function phaseReview(client: DbClient) {
   button('Threat?').click();
   await waitFor('a threat question', () => statusText().endsWith('What does it threaten?'), 180_000);
   button('No threat  (N)').click();
+  await waitFor('the named verdict', () => button('Now answer it →  (Enter)'), 30_000);
+  button('Now answer it →  (Enter)').click();
   await waitFor('answer it', () => tr.threat.movable, 5000);
   const fenBefore = tr.threat.gameAt()!.fen;
   const b = Board.fromFen(tr.threat.fen!);
@@ -580,7 +727,8 @@ async function phaseStats(client: DbClient) {
   let t0 = performance.now();
   await waitFor('the overview', () => document.querySelectorAll('.data-table tbody tr').length > 5, 120_000);
   results.statsOverview = { ms: ms(t0), summary: document.querySelector('.stats-screen > p.note')?.textContent, tables: tables(),
-    firstOpening: document.querySelector('.data-table tbody tr')?.textContent };
+    firstOpening: document.querySelector('.data-table tbody tr')?.textContent,
+    practiceButtons: document.querySelectorAll('.data-table td.row-action button').length };
   button('Playing style').click();
   await waitFor('the style', () => document.querySelector('.style-verdict h2')?.textContent, 60_000);
   results.statsStyle = { verdict: document.querySelector('.style-verdict h2')!.textContent, tables: tables() };
@@ -624,6 +772,15 @@ async function phaseStats(client: DbClient) {
   button('Scout player').click();
   await waitFor('their lines', () => document.querySelectorAll('.stats-card').length === 2 || document.querySelector('.stats-screen p.error'), 120_000);
   results.scout = { ms: ms(t0), status: document.querySelector('.stats-screen > p')?.textContent, tables: tables() };
+
+  // Stats → Results by opening → Practice: the drill opens on that opening as you play it
+  nav('Stats');
+  await waitFor('the practice buttons', () => document.querySelector('.data-table td.row-action button'), 120_000);
+  const opening = document.querySelector('.data-table tbody tr td')!.textContent;
+  (document.querySelector('.data-table td.row-action button') as HTMLButtonElement).click();
+  const dc = (window as unknown as { drill: DrillController }).drill;
+  await waitFor('the drill on it', () => dc.drill && dc.lineTitle().includes('as you play it') && /Your move|Opponent played/.test(dc.status.text), 60_000);
+  results.statsPractice = { opening, title: dc.lineTitle(), status: dc.status.text, moves: dc.drill!.path.map((n) => n.san).join(' ') };
 }
 
 async function phase2(client: DbClient) {

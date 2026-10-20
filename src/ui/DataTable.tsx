@@ -11,8 +11,10 @@ function sortValue(text: string): [number, number | string] {
   return text !== '' && Number.isFinite(n) ? [0, n] : [1, text.toLowerCase()];
 }
 
-export function DataTable({ table, selected, onSelect, onOpen, maxRows, wide = [0] }: {
+export function DataTable({ table, selected, onSelect, onOpen, maxRows, wide = [0], action }: {
   table: Table;
+  /** A button at the end of each row (rows with an id). */
+  action?: { label: string; onClick: (id: string) => void };
   selected?: string | null;
   onSelect?: (id: string) => void;
   onOpen?: (id: string) => void;
@@ -41,6 +43,7 @@ export function DataTable({ table, selected, onSelect, onOpen, maxRows, wide = [
                 {c}{sort?.col === i ? (sort.reverse ? ' ▾' : ' ▴') : ''}
               </th>
             ))}
+            {action && <th />}
           </tr>
         </thead>
         <tbody>
@@ -48,9 +51,12 @@ export function DataTable({ table, selected, onSelect, onOpen, maxRows, wide = [
             <tr key={r.id ?? i} className={`${r.tone ?? ''} ${r.id && r.id === selected ? 'selected' : ''} ${onSelect && r.id ? 'clickable' : ''}`}
               onClick={() => r.id && onSelect?.(r.id)} onDoubleClick={() => r.id && onOpen?.(r.id)}>
               {r.cells.map((c, j) => <td key={j} className={wide.includes(j) ? 'wide' : c.startsWith('▰') || c.startsWith('▱') ? 'bar' : ''}>{c}</td>)}
+              {action && <td className="row-action">{r.id && (
+                <button type="button" className="btn secondary small" onClick={(e) => { e.stopPropagation(); action.onClick(r.id!); }}>{action.label}</button>
+              )}</td>}
             </tr>
           ))}
-          {!rows.length && <tr><td colSpan={table.columns.length} className="note">Nothing here yet.</td></tr>}
+          {!rows.length && <tr><td colSpan={table.columns.length + (action ? 1 : 0)} className="note">Nothing here yet.</td></tr>}
         </tbody>
       </table>
     </div>

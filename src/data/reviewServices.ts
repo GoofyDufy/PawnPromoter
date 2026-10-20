@@ -17,7 +17,13 @@ import * as openingLibrary from '../core/openingLibrary';
 import { readGame } from '../core/pgn';
 import type { Db } from '../core/sqlite';
 
-export interface ReviewGameRow { id: string; label: string }
+export interface ReviewGameRow {
+  id: string;
+  label: string;
+  opponent: string;
+  notes: number;             // notes you wrote in it
+  noteText: string;          // their text, for the search box
+}
 
 export const RESULTS: Record<string, string | null> = { 'All results': null, Wins: 'win', Losses: 'loss', Draws: 'draw' };
 
@@ -27,13 +33,17 @@ export function reviewGames(conn: Db, filter: string, result = 'All results'): R
   const want = RESULTS[result] ?? null;
   const blunders = new Map(conn.all(`SELECT game_id, SUM(cp_after IS NOT NULL AND cp_before - cp_after >= 300) AS n
     FROM move_evaluations GROUP BY game_id`).map((r) => [r.game_id, r.n as number]));
+  const notes = new Map<string, string[]>();
+  for (const n of conn.all('SELECT game_id, text FROM game_notes')) notes.set(n.game_id, [...(notes.get(n.game_id) ?? []), n.text]);
   const classes = TIME_FILTERS[filter] ?? null;
   return conn.all('SELECT * FROM games WHERE evaluated_at IS NOT NULL ORDER BY played_at DESC LIMIT 1500')
     .filter((g) => inTimeFilter(g.time_control, classes) && (want === null || g.result === want))
     .map((g) => {
       const n = blunders.get(g.id) ?? 0;
       const tag = n ? ` · ${n} blunder${n !== 1 ? 's' : ''}` : '';
-      return { id: g.id, label: `${String(g.played_at).slice(0, 10)}  ${String(g.result).toUpperCase().padEnd(4)} vs ${g.opponent_username} · ${timeClass(g.time_control)}${tag}` };
+      const mine = notes.get(g.id) ?? [];
+      return { id: g.id, label: `${String(g.played_at).slice(0, 10)}  ${String(g.result).toUpperCase().padEnd(4)} vs ${g.opponent_username} · ${timeClass(g.time_control)}${tag}${mine.length ? ` · 📝${mine.length}` : ''}`,
+        opponent: String(g.opponent_username ?? ''), notes: mine.length, noteText: mine.join('\n') };
     });
 }
 

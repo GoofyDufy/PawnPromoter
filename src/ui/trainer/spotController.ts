@@ -4,8 +4,13 @@
  * line for a tactic (the opponent's replies played for you), one sensible
  * move for a quiet position. Scored, with streaks. The next round is prepared
  * while you play this one.
+ *
+ * Web-app additions: Hint (what to look for → the piece → the move; a hinted
+ * move isn't scored), the board stays where you finished, arrows for your moves
+ * (blue) and your game's move (yellow), and Stockfish's top lines after the
+ * round, each opening the analysis board.
  */
-import { Board, WHITE } from '../../core/chess';
+import { Board, parseSquare, WHITE } from '../../core/chess';
 import * as spot from '../../core/spot';
 import { pyFixed } from '../../core/format';
 import type { Arrow } from '../Board';
@@ -18,6 +23,7 @@ const GIVE_UP_TRIES = 120;
 const REPLY_DELAY_MS = 600;
 
 type State = 'idle' | 'loading' | 'question' | 'move' | 'judging' | 'missed' | 'reply' | 'result';
+const HINT_LABELS = ['Hint  (H)', 'Another hint  (H)', 'Show the move  (H)'];
 
 export class SpotController extends TrainerBase {
   title = 'Spot the Tactic';
@@ -45,7 +51,11 @@ export class SpotController extends TrainerBase {
   private lastTry: { before: Board; move: string; loss: number | null } | null = null;
   private line: string[] = [];
   private lineEvals: number[] = [];
-  private lineIndex: number | null = null;
+  private lineIndex: number | null = null;     // null: where you finished
+  private played: string[] = [];               // the moves on the board this round (yours and the replies)
+  private tried = new Map<number, string>();   // ply -> your latest try there (right or wrong)
+  private hint = 0;                            // hints shown for the current move (0–3)
+  private hinted = false;
   private session = { rounds: 0, calls: 0, moves: 0, streak: 0, best: 0 };
 
   sessionLine(): string {
@@ -78,12 +88,15 @@ export class SpotController extends TrainerBase {
   override key(k: string): void {
     if (k === 'y') void this.answer(true);
     else if (k === 'n') void this.answer(false);
+    else if (k === 'h') this.giveHint();
     else if (k === 'Enter' || k === ' ') void this.nextRound();
+    else if (this.exploreKey(k)) return;
     else if (k === 'ArrowLeft') this.step(-1);
     else if (k === 'ArrowRight') this.step(1);
   }
 
   press(id: string): Promise<void> | void {
+    if (this.explorePress(id, () => this.redrawResult())) return;
     if (id === 'yes') return this.answer(true);
     if (id === 'no') return this.answer(false);
     if (id === 'retry') return this.tryAgain();
@@ -91,6 +104,7 @@ export class SpotController extends TrainerBase {
     if (id === 'back') return this.step(-1);
     if (id === 'fwd') return this.step(1);
     if (id === 'next') return this.nextRound();
+    if (id === 'hint') return this.giveHint();
   }
 
   /** The game, for Review game. */
@@ -102,6 +116,7 @@ export class SpotController extends TrainerBase {
 
   async nextRound(): Promise<void> {
     if (!['idle', 'result', 'loading'].includes(this.state)) return;
+    this.endExplore();
     if (!this.ready) {
       this.state = 'loading';
       this.waiting = true;
@@ -126,6 +141,10 @@ export class SpotController extends TrainerBase {
     this.lineIndex = null;
     this.tries = 0;
     this.missedAny = false;
+    this.played = [];
+    this.tried = new Map();
+    this.hint = 0;
+    this.hinted = false;
     this.ply = 0;
     this.state = 'question';
     this.seen.add(this.cand.fen);
@@ -148,15 +167,18 @@ export class SpotController extends TrainerBase {
         : saidTactic ? '✗ Not this time — nothing special here. Play a good, sensible move.'
           : "✗ There IS a tactic here — you'd have missed it. Try to find it!";
     this.setStatus(text, right ? 'success' : 'error', 'Make your move on the board.');
-    this.buttons = [];
     this.state = 'move';
+    this.moveButtons();
     this.movable = this.cur.turn;
     this.changed();
   }
 
   /** Quiet: one move, judged by Stockfish. Tactics: the whole forcing line, move by move. */
   async onMove(uci: string): Promise<void> {
+    if (this.exploreMove(uci)) return;
     if (this.state !== 'move' || !this.verdict) return;
+    this.tried.set(this.ply, uci);
+    this.buttons = [];
     const before = this.cur.copy();
     const shown = before.copy();
     shown.push(uci);
@@ -196,6 +218,7 @@ export class SpotController extends TrainerBase {
       return;
     }
     this.cur.push(move);
+    this.played.push(move);
     const finished = !v.is_tactic || this.cur.isCheckmate() || this.ply + 1 >= v.solution.length;
     if (finished) {
       await this.showResult(move, true, loss ?? 0);
@@ -215,20 +238,69 @@ export class SpotController extends TrainerBase {
     const reply = this.verdict!.solution[this.ply + 1];
     const san = this.cur.san(reply);
     this.cur.push(reply);
+    this.played.push(reply);
     this.ply += 2;
+    this.hint = 0;
     this.state = 'move';
     this.show(this.cur, { lastMove: reply, movable: this.cur.turn });
     this.setStatus(`Opponent played ${san}. Your move.`, 'normal', '');
+    this.moveButtons();
     this.changed();
   }
 
   private tryAgain(): void {
     if (this.state !== 'missed') return;
     this.state = 'move';
-    this.show(this.cur, { movable: this.cur.turn, lastMove: this.cur.moveStack.at(-1) ?? null });
-    this.setStatus(`Try again — ${this.cur.turn === WHITE ? 'White' : 'Black'} to move.`, 'normal', 'Make your move on the board.');
-    this.buttons = [];
+    this.show(this.cur, { movable: this.cur.turn, lastMove: this.played.at(-1) ?? null, arrows: this.hintArrows() });
+    this.setStatus(`Try again — ${this.cur.turn === WHITE ? 'White' : 'Black'} to move.`, 'normal', this.hint ? this.hintText() : 'Make your move on the board.');
+    this.moveButtons();
     this.changed();
+  }
+
+  // ---------- hints ----------
+
+  private moveButtons(): void {
+    this.buttons = [{ id: 'hint', label: HINT_LABELS[Math.min(this.hint, HINT_LABELS.length - 1)], disabled: this.hint >= HINT_LABELS.length }];
+  }
+
+  /** The move a hint points at: the tactic's next move, or the engine's pick in a quiet position. */
+  private hintMove(): string {
+    const v = this.verdict!;
+    return v.is_tactic ? v.solution[this.ply] : v.best;
+  }
+
+  /** Each press shows more: what to look for, then the piece (a circle), then the move (an arrow). */
+  private giveHint(): void {
+    if (this.state !== 'move' || !this.verdict || this.hint >= HINT_LABELS.length) return;
+    this.hint += 1;
+    this.hinted = true;
+    this.arrows = this.hintArrows();
+    this.detail = this.hintText();
+    this.moveButtons();
+    this.changed();
+  }
+
+  private hintArrows(): Arrow[] {
+    if (this.hint < 2) return [];
+    const m = this.hintMove();
+    return [{ from: m.slice(0, 2), to: this.hint >= 3 ? m.slice(2, 4) : m.slice(0, 2), brush: 'green' }];
+  }
+
+  private hintText(): string {
+    const v = this.verdict!;
+    const m = this.hintMove();
+    const lines: string[] = [];
+    if (!v.is_tactic) lines.push('💡 Nothing forcing here — look for a safe, useful move: improve your worst piece, or stop what your opponent wants.');
+    else if (this.ply > 0) lines.push('💡 Keep forcing — checks and captures first.');
+    else if (v.reason === 'mate') lines.push(`💡 You can force mate${v.mate_in ? ` in ${v.mate_in}` : ''}. Start with checks.`);
+    else lines.push('💡 You can win material by force. Look at checks, captures and threats — and anything left undefended.');
+    if (this.hint >= 2) {
+      const piece = this.cur.pieceAt(parseSquare(m.slice(0, 2))!);
+      lines.push(`💡 Move your ${piece?.role ?? 'piece'} on ${m.slice(0, 2)} (circled).`);
+    }
+    if (this.hint >= 3) lines.push(`💡 The move: ${this.cur.san(m)} (arrow).`);
+    lines.push('A move found with a hint isn\'t scored.');
+    return lines.join('\n');
   }
 
   private async reveal(): Promise<void> {
@@ -242,7 +314,7 @@ export class SpotController extends TrainerBase {
     const cand = this.cand!;
     this.state = 'result';
     const callRight = this.saidTactic === v.is_tactic;
-    const scoredGood = !this.missedAny;
+    const scoredGood = !this.missedAny && !this.hinted;
     this.onLevel(await this.client.service('spotRecord', cand.fen, v.is_tactic, v.reason, !!this.saidTactic, scoredGood));
     const s = this.session;
     s.rounds += 1;
@@ -256,11 +328,11 @@ export class SpotController extends TrainerBase {
     let verdictMove: string;
     if (multi) {
       verdictMove = good && scoredGood ? `✓ Solved — all ${v.my_moves} moves right.`
-        : good ? '✓ Solved, with retries (only a clean run scores the moves).' : `✗ Not solved. The line: ${lineText}.`;
+        : good ? `✓ Solved, with ${this.hinted ? 'a hint' : 'retries'} (only a clean run scores the moves).` : `✗ Not solved. The line: ${lineText}.`;
     } else {
       const san = (before ?? this.board).san(move);
       const l = loss ?? 0;
-      verdictMove = good && !scoredGood ? `✓ ${san} — found it on try ${this.tries} (only the first try scores the move).`
+      verdictMove = good && !scoredGood ? `✓ ${san} — found it ${this.hinted ? 'with a hint' : `on try ${this.tries}`} (only a clean first try scores the move).`
         : good && move === v.best ? `✓ ${san} — the best move.`
           : good ? `✓ ${san} — a good move (only ${pyFixed(l / 100, 1)} pawns off the best).`
             : v.is_tactic && l <= spot.MOVE_OK_CP ? `✗ ${san} is decent (${pyFixed(l / 100, 1)} pawns off), but not the tactic: ${this.board.san(v.best)}.`
@@ -270,18 +342,17 @@ export class SpotController extends TrainerBase {
       callRight && scoredGood ? 'success' : callRight || good ? 'warning' : 'error');
     let detail = v.describe(this.board);
     if (multi) detail += `\nThe whole line: ${lineText}.`;
-    this.detail = `${detail}\nGreen arrow: the best move. Blue arrow: what you played in the game.`;
-    const arrows: Arrow[] = [{ from: v.best.slice(0, 2), to: v.best.slice(2, 4), brush: 'green' }];
-    if (cand.played_uci !== v.best && this.board.isLegal(cand.played_uci)) {
-      arrows.push({ from: cand.played_uci.slice(0, 2), to: cand.played_uci.slice(2, 4), brush: 'blue' });
-    }
+    this.detail = `${detail}\nOn the starting position (◀): green — the best move · blue — your move · yellow — what you played in the game.`;
+    const first = this.tried.get(0) ?? move;
+    const arrows: Arrow[] = [];
+    if (cand.played_uci !== v.best && cand.played_uci !== first && this.board.isLegal(cand.played_uci)) arrows.push(arrowOf(cand.played_uci, 'yellow'));
+    if (first !== v.best) arrows.push(arrowOf(first, 'blue'));
+    arrows.push(arrowOf(v.best, 'green'));
     this.resultArrows = arrows;
-    if (multi) this.show(this.board, { arrows });           // back to the start, where the arrows point
-    else this.arrows = arrows;
-    this.movable = null;
-    this.setBar(multi ? v.best_cp : v.best_cp - (loss ?? 0), this.board.turn);
     this.line = v.pv.length ? [...v.pv] : [v.best];          // replaced by a deeper line in a moment
-    this.lineIndex = null;
+    this.setBar(multi ? v.best_cp : v.best_cp - (loss ?? 0), this.board.turn);
+    if (good) this.showFinished();                           // stay where you finished
+    else this.showStep(0);                                   // missed: the start, with the arrows
     this.updateButtons();
     this.changed();
     void this.refreshScores();
@@ -292,12 +363,15 @@ export class SpotController extends TrainerBase {
         if (token !== this.token) return;
         this.line = line;
         if (this.lineIndex !== null && this.lineIndex > line.length) this.lineIndex = line.length;
-        this.updateButtons();
+        if (!this.liveAnalysis()) {                          // not while the analysis board is open
+          if (this.state === 'result' && this.lineIndex !== null) this.showStep(this.lineIndex);
+          this.updateButtons();
+        }
         this.changed();
         const evals = await spot.lineEvals(this.engine, this.board, line);
         if (token !== this.token) return;
         this.lineEvals = evals;
-        if (this.lineIndex !== null) this.evalWhite = evals[Math.min(this.lineIndex, evals.length - 1)];
+        if (this.lineIndex !== null && !this.liveAnalysis()) this.evalWhite = evals[Math.min(this.lineIndex, evals.length - 1)];
         this.changed();
       } catch {
         /* the saved line stays */
@@ -307,24 +381,63 @@ export class SpotController extends TrainerBase {
 
   private resultArrows: Arrow[] = [];
 
+
   private updateButtons(): void {
     const at = this.lineIndex;
     this.buttons = [
       { id: 'back', label: '◀', disabled: !(at === null || at > 0) },
       { id: 'fwd', label: '▶', disabled: !(at === null || at < this.line.length) },
       { id: 'next', label: 'Next position →', primary: true },
+      { id: 'analyze', label: 'Analyze' },
       { id: 'review', label: 'Review game' },
     ];
   }
 
-  /** ◀ / ▶ after your move: from your move, ◀ goes to the start and ▶ to the best move; then along the line. */
-  private step(delta: number): void {
-    if (this.state !== 'result' || !this.line.length) return;
-    const index = this.lineIndex === null ? (delta < 0 ? 0 : 1) : Math.max(0, Math.min(this.line.length, this.lineIndex + delta));
+  /** How far along the correct line you finished, if your moves are its start. */
+  private finishedOnLine(): number | null {
+    return this.played.every((m, i) => this.line[i] === m) ? this.played.length : null;
+  }
+
+  /** The position you finished on: your last move highlighted, and as a blue arrow. */
+  private showFinished(): void {
+    this.lineIndex = null;
+    const b = this.board.copy();
+    for (const m of this.played) b.push(m);
+    const last = this.played.at(-1) ?? null;
+    const mine = this.played.length % 2 === 1 ? last : this.played.at(-2) ?? null;
+    this.show(b, { lastMove: last, arrows: mine && last === mine ? [arrowOf(mine, 'blue')] : [] });
+    this.peekAt(b);
+  }
+
+  /** The correct line after `index` moves; your move there (if different) in blue, the right one in green. */
+  private showStep(index: number): void {
     this.lineIndex = index;
     const b = this.board.copy();
     for (const m of this.line.slice(0, index)) b.push(m);
-    this.show(b, { lastMove: index ? this.line[index - 1] : null, arrows: index === 0 ? this.resultArrows : [] });
+    let arrows: Arrow[] = [];
+    if (index === 0) arrows = this.resultArrows;
+    else {
+      const mine = this.tried.get(index);
+      if (mine && mine !== this.line[index] && this.line[index] && b.isLegal(mine)) arrows = [arrowOf(mine, 'blue'), arrowOf(this.line[index], 'green')];
+    }
+    this.show(b, { lastMove: index ? this.line[index - 1] : null, arrows });
+    this.peekAt(b);
+  }
+
+  /** Back from the analysis board: the result as it was. */
+  private redrawResult(): void {
+    if (this.lineIndex === null) this.showFinished();
+    else this.showStep(this.lineIndex);
+  }
+
+  /** ◀ / ▶ after the round: from where you finished, one move back / on along the correct
+   *  line (or to the start / the best move if you left it); then along the line. */
+  private step(delta: number): void {
+    if (this.state !== 'result' || !this.line.length) return;
+    const at = this.finishedOnLine();
+    const index = this.lineIndex === null ? Math.max(0, Math.min(this.line.length, at === null ? (delta < 0 ? 0 : 1) : at + delta))
+      : Math.max(0, Math.min(this.line.length, this.lineIndex + delta));
+    this.showStep(index);
     if (index < this.lineEvals.length) this.evalWhite = this.lineEvals[index];
     else this.setBar(this.verdict!.best_cp, this.board.turn);    // until the line's evaluations arrive
     const text = index ? numbered(this.board, this.line.slice(0, index)) : 'the starting position';
@@ -387,3 +500,5 @@ export class SpotController extends TrainerBase {
     }
   }
 }
+
+const arrowOf = (uci: string, brush: Arrow['brush']): Arrow => ({ from: uci.slice(0, 2), to: uci.slice(2, 4), brush });

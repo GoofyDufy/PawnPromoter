@@ -42,19 +42,19 @@ describe('Opening Drill', () => {
     expect(c.plans?.title).toMatch(/London/);
   });
 
-  it('drills a line: right moves, the reply, a miss, retry, and the end-of-line recap', async () => {
+  it('drills a line: right moves, the reply, a miss (just play again), and the end-of-line recap', async () => {
     const { c, levels } = await setup();
     await c.importPgn(LONDON, 'London', 'white');
     await c.start();
     expect(c.view).toBe('Plans');
-    expect(c.lineTitle()).toBe('Drilling: London - Main');
+    expect(c.lineTitle()).toBe('Drilling: Main · London');          // the variation first, then its opening
     expect(c.status.text).toBe('Your move.');
     expect(c.board().movable).toBe('white');
     await c.onMove('e2e4');                                  // not the line
-    expect(c.status).toEqual({ text: 'Not correct — you played e4.', tone: 'error' });
-    expect(c.buttons().retry).toBe(true);
-    expect(c.board().movable).toBe(null);
-    c.retry();
+    expect(c.status).toEqual({ text: 'Not correct — you played e4. Try again.', tone: 'error' });
+    expect(c.buttons().retry).toBe(true);                   // Show correct move is offered
+    expect(c.board().movable).toBe('white');                // ...but you can just play again
+    expect(c.misses).toBe(1);                               // (the board puts e4 back)
     await c.onMove('d2d4');
     expect(c.status.text).toBe('Correct — d4.');
     await sleep(AFTER_CORRECT_MS + 50);
@@ -78,7 +78,12 @@ describe('Opening Drill', () => {
     await c.importPgn(LONDON, 'London', 'white');
     await c.start();
     c.toggleFullLine();
-    expect(c.recap).toMatch(/^Full line: 1\. d4 d5 2\. Bf4/);
+    const full = c.fullLine()!;                               // move pairs, coloured by the screen
+    expect(full.pairs.slice(0, 2).map((p) => [p.n, p.moves.map((m) => m.san)])).toEqual([[1, ['d4', 'd5']], [2, ['Bf4', full.pairs[1].moves[1].san]]]);
+    expect([full.played, full.at]).toEqual([0, 0]);
+    c.previewTo(1);                                          // a move clicked
+    expect(c.fullLine()!.at).toBe(1);
+    c.previewTo(0);
     c.stepPreview(1);
     expect(c.status.text).toBe('Viewing the line: after 1. d4 (1/5). Step back to where you were, or Hide full line, to keep drilling.');
     expect(c.board().movable).toBe(null);

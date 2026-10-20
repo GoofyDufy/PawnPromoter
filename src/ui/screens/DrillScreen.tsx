@@ -5,7 +5,7 @@
  * the small dialogs (save to repertoire, paste a line, turn lines on/off,
  * delete, connect Lichess).
  */
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { Fragment, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import * as explorer from '../../core/explorer';
 import type { PlayerColor } from '../../core/models';
 import type { DbClient } from '../../data/client';
@@ -18,7 +18,7 @@ import { ADD_LINES, type DrillController, MY_GAMES, TREE, VIEWS } from '../drill
 import { ALL } from '../myGamesController';
 import { TreeMoves } from '../TreeMoves';
 import { TreeView } from '../TreeView';
-import { moveLabel } from '../treeHelpers';
+import { headOf, moveLabel, variationName } from '../treeHelpers';
 import { LibraryDialog } from '../LibraryDialog';
 import { Modal } from '../Modal';
 import { PlayDialog } from '../PlayDialog';
@@ -31,7 +31,7 @@ type Dialog =
   | { kind: 'delete'; label: string; detail: string }
   | { kind: 'lichess' }
   | { kind: 'disconnect' }
-  | { kind: 'play' }
+  | { kind: 'play'; fen: string; myColor: 'white' | 'black'; title: string }
   | { kind: 'analyze'; fen: string; title: string }
   | { kind: 'games'; d: MyDeviationView }
   | { kind: 'library' }
@@ -372,6 +372,7 @@ export function DrillScreen({ c, client, onReview }: { c: DrillController; clien
 
   const board = c.board();
   const buttons = c.buttons();
+  const full = c.fullLine();
   const d = c.drill;
   const lichessText = !c.lichess ? '' : !c.lichess.connected
     ? "Not connected: when your lines branch, the computer picks the opponent's reply at random. Connect Lichess to have it reply as often as real players at your level do."
@@ -396,13 +397,21 @@ export function DrillScreen({ c, client, onReview }: { c: DrillController; clien
                 {c.repertoires.map((r) => <option key={r.label}>{r.label}</option>)}
               </select>
               <div className="section" style={{ marginTop: 10 }}>Variation</div>
-              <ol className="queue" aria-label="Variations">
-                {c.variations.map((v, i) => (
-                  <li key={`${v.kind}${v.rootId}`}>
-                    <button type="button" aria-current={i === c.variation ? 'true' : undefined}
-                      onClick={() => void c.selectVariation(i)} onDoubleClick={() => void c.start()}>{v.label}</button>
-                  </li>
-                ))}
+              <ol className="queue variations" aria-label="Variations">
+                {c.variations.map((v, i) => {
+                  // grouped under the opening's name, each line by its variation alone (the full name on hover)
+                  const head = v.kind === 'line' ? headOf(v.label) : null;
+                  const prev = i > 0 && c.variations[i - 1].kind === 'line' ? headOf(c.variations[i - 1].label) : null;
+                  return (
+                    <Fragment key={`${v.kind}${v.rootId}`}>
+                      {head && head !== prev && <li className="family" aria-hidden="true">{head}</li>}
+                      <li className={head ? 'in-family' : undefined}>
+                        <button type="button" aria-current={i === c.variation ? 'true' : undefined} title={v.label}
+                          onClick={() => void c.selectVariation(i)} onDoubleClick={() => void c.start()}>{head ? variationName(v.label) : v.label}</button>
+                      </li>
+                    </Fragment>
+                  );
+                })}
               </ol>
               {c.preview && <p className="note">{c.preview}</p>}
               <div className="row" style={{ marginTop: 8 }}>
@@ -459,7 +468,7 @@ export function DrillScreen({ c, client, onReview }: { c: DrillController; clien
 
         <div className="card board-card">
           <div className="row puzzle-head">
-            <strong className="game-label">{c.lineTitle()}</strong>
+            <strong className="game-label line-title" title={c.drill?.lineName}>{c.lineTitle()}</strong>
             <span style={{ flex: 1 }} />
             {buttons.steps && <>
               <button type="button" className="btn secondary small" aria-label="Back" onClick={() => c.stepPreview(-1)}>◀</button>
@@ -468,19 +477,16 @@ export function DrillScreen({ c, client, onReview }: { c: DrillController; clien
           </div>
           <div className="board-row">
             <Board fen={board.fen} orientation={board.orientation} lastMove={board.lastMove} movable={board.movable}
-              arrows={board.arrows} onMove={(uci) => void c.onMove(uci)} />
+              arrows={board.arrows} snapBack={c.misses} onMove={(uci) => void c.onMove(uci)} />
           </div>
           <div className="row puzzle-buttons">
             {buttons.toggle && <button type="button" className="btn secondary" onClick={() => c.toggleFullLine()}>{c.showFullLine ? 'Hide full line' : 'Show full line'}</button>}
-            {buttons.retry && <>
-              <button type="button" className="btn secondary" onClick={() => c.retry()}>Try again</button>
-              <button type="button" className="btn secondary" onClick={() => void c.reveal()}>Show correct move</button>
-            </>}
+            {buttons.retry && <button type="button" className="btn secondary" onClick={() => void c.reveal()}>Show correct move</button>}
             {(buttons.restart || buttons.end) && <>
               <button type="button" className="btn secondary" onClick={() => void c.sameLine()}>Same line</button>
               <button type="button" className="btn" onClick={() => void c.newRandomLine()}>New random line</button>
             </>}
-            {buttons.end && <button type="button" className="btn secondary" onClick={() => setDialog({ kind: 'play' })}>Play it out</button>}
+            {buttons.end && <button type="button" className="btn secondary" onClick={() => d && setDialog({ kind: 'play', fen: d.fen, myColor: d.myColor, title: `Play it out — ${d.lineName}` })}>Play it out</button>}
           </div>
         </div>
 
@@ -494,6 +500,20 @@ export function DrillScreen({ c, client, onReview }: { c: DrillController; clien
           <p className={`status ${c.statusLine().tone}`} role="status">{c.statusLine().text}</p>
           {c.moveNote && <p className="move-note">{c.moveNote}</p>}
           {c.recap && <p className="explanation">{c.recap}</p>}
+          {full && (
+            <div className="full-line" aria-label="Full line">
+              <div className="note">Full line — click a move to see it:</div>
+              {full.pairs.map((p) => (
+                <span key={p.n} className="move-pair">
+                  <span className="num">{p.n}.</span>
+                  {p.moves.map((m) => (
+                    <button key={m.i} type="button" className={`mv${m.i < full.played ? ' played' : ''}${m.i + 1 === full.at ? ' at' : ''}`}
+                      onClick={() => c.previewTo(m.i + 1)}>{m.san}</button>
+                  ))}
+                </span>
+              ))}
+            </div>
+          )}
           {c.view === TREE && c.tree.showsIdeas() && (
             <div className="ideas">
               <div className="note">{c.tree.ideasHeader}</div>
@@ -550,8 +570,9 @@ export function DrillScreen({ c, client, onReview }: { c: DrillController; clien
         onReview={(id, fen) => { setDialog(null); onReview(id, fen); }} />}
       {dialog?.kind === 'games' && <GamesDialog c={c} d={dialog.d} onClose={() => setDialog(null)} onReview={onReview} />}
       {dialog?.kind === 'analyze' && <PlayDialog fen={dialog.fen} title={dialog.title} analyze onClose={() => setDialog(null)} />}
-      {dialog?.kind === 'play' && d && (
-        <PlayDialog fen={d.fen} myColor={d.myColor} title={`Play it out — ${d.lineName}`} onClose={() => setDialog(null)} />
+      {dialog?.kind === 'play' && (
+        // the position when you opened it: the drill may move on behind the window
+        <PlayDialog fen={dialog.fen} myColor={dialog.myColor} title={dialog.title} onClose={() => setDialog(null)} />
       )}
     </section>
   );

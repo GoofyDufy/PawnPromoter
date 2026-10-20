@@ -236,7 +236,9 @@ export async function explainAttempt(fen: string, attempt: string, engine: Engin
 
 /** What the best move achieves, and why the move actually played in your game went wrong. */
 export async function explainSolution(fen: string, best: string, gameMove: string | null,
-  engine: Engine | null = null): Promise<string> {
+  engine: Engine | null = null, inGame = true): Promise<string> {
+  // inGame false (the drills): "Nf3 ran into …" instead of "In the game, Nf3 ran into …"
+  const lead = inGame ? 'In the game, ' : '';
   const before = Board.fromFen(fen);
   const me = before.turn;
   const bestSan = before.san(best);
@@ -268,9 +270,9 @@ export async function explainSolution(fen: string, best: string, gameMove: strin
     const gchange = gpv.length ? lineOutcome(afterGame, gpv, me) : 0;
     const opp = side(opposite(me));
     if (mateFor(gscore, opposite(me))) {
-      sentences.push(`Your game move ${gameSan} allowed a forced mate: ${line(afterGame, gpv, 4)}.`);
+      sentences.push(`${inGame ? 'Your game move ' : ''}${gameSan} allowed a forced mate: ${line(afterGame, gpv, 4)}.`);
     } else if (gpv.length && gchange <= -1) {
-      sentences.push(`In the game, ${gameSan} ran into ${lineNoted(afterGame, gpv, 4, true)}, `
+      sentences.push(`${lead}${gameSan} ran into ${lineNoted(afterGame, gpv, 4, true)}, `
         + `losing ${materialWords(-gchange)}.`);
     } else {
       const notes = newlyHanging(before, afterGame, me);
@@ -279,11 +281,11 @@ export async function explainSolution(fen: string, best: string, gameMove: strin
       if (weak) why.push(weak);
       why.push(...scopeNotes(before, afterGame, me, sq(gameMove, 2)));
       if (why.length) {
-        sentences.push(`In the game, ${gameSan} ${why[0].replace('it ', '')}.`);
+        sentences.push(`${lead}${gameSan} ${why[0].replace('it ', '')}.`);
       } else if (gpv.length) {
         const cp = gscore ? gscore.pov(me).score(MATE_CP) : null;
         const evaluation = cp !== null ? `, leaving you at ${pySigned(cp / 100, 1)}` : '';
-        sentences.push(`In the game, ${gameSan} let ${opp} play ${line(afterGame, gpv, 3)}${evaluation}.`);
+        sentences.push(`${lead}${gameSan} let ${opp} play ${line(afterGame, gpv, 3)}${evaluation}.`);
       }
     }
   }

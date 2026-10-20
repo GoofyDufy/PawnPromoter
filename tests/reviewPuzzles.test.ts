@@ -97,4 +97,38 @@ describe('Game Review: results, puzzles', () => {
     services.saveNote(conn, win.id, 4, fenAt4, '   ');
     expect(services.reviewGame(conn, win.id)!.notes).toEqual({});
   });
+
+  it('the games list knows its notes and opponents (for the search box)', async () => {
+    const { conn, win } = await setup();
+    services.saveNote(conn, win.id, 2, Board.fromFen().fen(), 'Forgot about the pin');
+    const rows = services.reviewGames(conn, 'All games');
+    const row = rows.find((r) => r.id === win.id)!;
+    expect([row.opponent, row.notes, row.noteText]).toEqual(['them', 1, 'Forgot about the pin']);
+    expect(row.label.endsWith('· 📝1')).toBe(true);
+    expect(rows.find((r) => r.id !== win.id)!.notes).toBe(0);
+  });
+});
+
+describe('practising an opening from Stats', () => {
+  it('the moves your games in it share, added to "From your games"', async () => {
+    const conn = db.initDb(await openMemoryDb());
+    const game = (n: number, moves: string, url = 'https://www.chess.com/openings/Ruy-Lopez-Opening-Morphy-Defense') => makeGame({
+      chess_com_url: `https://www.chess.com/game/live/${n}`, pgn: `[Event "x"]\n[ECOUrl "${url}"]\n\n${moves} *`,
+      played_at: `2026-10-0${n}T10:00:00`, time_control: '600', my_color: 'white', opponent_username: 'x', result: 'win' });
+    db.saveGame(conn, game(1, '1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O Be7'));
+    db.saveGame(conn, game(2, '1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Ba4 Nf6 5. O-O b5'));
+    db.saveGame(conn, game(3, '1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Bxc6 dxc6'));
+    db.saveGame(conn, game(4, '1. d4 d5', 'https://www.chess.com/openings/Queens-Pawn-Opening'));
+    const found = services.openingPractice(conn, 'Ruy Lopez Opening Morphy\twhite')!;
+    expect(found).toEqual({ repertoire: 'From your games', color: 'white', lineName: 'Ruy Lopez Opening Morphy (as you play it)' });
+    const root = db.allRootLines(conn, 'From your games', 'white').find((r) => r.line_name === found.lineName)!;
+    expect(services.linePreview(conn, root.id)).toMatch(/^1\. e4 e5 2\. Nf3 Nc6 3\. Bb5 a6 4\. Ba4 Nf6 5\. O-O/);   // 2 of 3 games
+    db.saveGame(conn, game(5, '1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Bxc6 dxc6 5. O-O f6'));
+    db.saveGame(conn, game(6, '1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 4. Bxc6 bxc6'));
+    services.openingPractice(conn, 'Ruy Lopez Opening Morphy\twhite');          // more games: rebuilt, not kept
+    const roots = db.allRootLines(conn, 'From your games', 'white').filter((r) => r.line_name === found.lineName);
+    expect(roots.length).toBe(1);
+    expect(services.linePreview(conn, roots[0].id)).toMatch(/^1\. e4 e5 2\. Nf3 Nc6 3\. Bb5 a6 4\. Bxc6$/);   // 3 of 5 now
+    expect(services.openingPractice(conn, 'Nothing Like This\twhite')).toBe(null);
+  });
 });

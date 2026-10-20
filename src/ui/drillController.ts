@@ -21,6 +21,7 @@ import type { Arrow } from './Board';
 import { MyGamesController } from './myGamesController';
 import type { OpeningData } from './openingData';
 import { TreeController } from './treeController';
+import { headOf, variationName } from './treeHelpers';
 
 export const ADD_LINES = 'Add lines';
 export const TREE = 'Tree';
@@ -66,7 +67,8 @@ export class DrillController {
   recap = '';
   showFullLine = false;
   previewIndex: number | null = null;    // stepping through the full line (null: the board follows the drill)
-  awaitingRetry = false;                 // a miss waits for Try again / Show correct move
+  awaitingRetry = false;                 // after a miss: Show correct move is offered (you can just play again)
+  misses = 0;                            // bumped on each miss: the board puts the piece back
   offerRestart = false;                  // after Show correct move: Same line / New random line
   startLabel = 'Start drill';
   version = 0;
@@ -272,7 +274,22 @@ export class DrillController {
   /** From Stats' "Openings that fit your style": the opening into "Style suggestions"
    *  (once), selected, and a drill started (drill_tab.drill_suggestion). */
   async drillSuggestion(catalogIndex: number): Promise<void> {
-    const { repertoire, color, lineName } = await this.client.service('drillSuggestion', catalogIndex);
+    await this.drillNamed(await this.client.service('drillSuggestion', catalogIndex));
+  }
+
+  /** Stats → Results by opening → Practice: the opening as you play it (see openingPractice). */
+  async practiceOpening(key: string): Promise<void> {
+    const found = await this.client.service('openingPractice', key);
+    if (!found) {
+      this.setStatus("Couldn't find that opening's moves in your games.", 'muted');
+      this.changed();
+      return;
+    }
+    await this.drillNamed(found);
+  }
+
+  /** Select a repertoire's line by name and drill it. */
+  private async drillNamed({ repertoire, color, lineName }: { repertoire: string; color: PlayerColor; lineName: string }): Promise<void> {
     await this.refreshRepertoires();
     await this.setRepertoire(`${repertoire} (${color})`);
     const i = this.variations.findIndex((v) => v.kind === 'line' && v.label === lineName);
@@ -372,15 +389,10 @@ export class DrillController {
     this.lineMissed = true;
     const played = result.played_san ? `you played ${result.played_san}` : "that's not the move here";
     this.setStatus(result.in_book
-      ? `Not this line — ${played}. That's book theory in a different line, but not the one you're drilling.`
-      : `Not correct — ${played}.`, 'error');
+      ? `Not this line — ${played}. That's book theory in a different line, but not the one you're drilling. Try again.`
+      : `Not correct — ${played}. Try again.`, 'error');
     this.awaitingRetry = true;
-    this.changed();
-  }
-
-  retry(): void {
-    this.awaitingRetry = false;
-    this.setStatus('Your move — try again.');
+    this.misses += 1;
     this.changed();
   }
 
@@ -416,7 +428,7 @@ export class DrillController {
   private updateLineLabel(): void {
     const d = this.drill;
     if (!d || d.finished) return;          // the recap owns it then
-    if (this.showFullLine) this.recap = `Full line: ${formatMoveList(d.path.map((n) => n.san))}`;
+    if (this.showFullLine) this.recap = '';           // drawn as move pairs (fullLine())
     else this.recap = d.index ? `Moves: ${formatMoveList(d.path.slice(0, d.index).map((n) => n.san))}` : '';
   }
 
@@ -425,6 +437,26 @@ export class DrillController {
     this.previewIndex = null;
     this.updateLineLabel();
     this.changed();
+  }
+
+  /** Show full line, as move pairs (the screen colours each pair): how far you've played,
+   *  and the position on the board when you're stepping through it. */
+  fullLine(): { pairs: { n: number; moves: { san: string; i: number }[] }[]; played: number; at: number } | null {
+    const d = this.drill;
+    if (!d || d.finished || !this.showFullLine) return null;
+    const pairs: { n: number; moves: { san: string; i: number }[] }[] = [];
+    d.path.forEach((node, i) => {
+      if (i % 2 === 0) pairs.push({ n: i / 2 + 1, moves: [] });
+      pairs[pairs.length - 1].moves.push({ san: node.san, i });
+    });
+    return { pairs, played: d.index, at: this.previewIndex ?? d.index };
+  }
+
+  /** A move clicked in the full line: the board after it (after `index` moves). */
+  previewTo(index: number): void {
+    const d = this.drill;
+    if (!d || !this.showFullLine) return;
+    this.stepPreview(index - (this.previewIndex ?? d.index));
   }
 
   /** ◀ / ▶ through the full line (shown with Show full line). */
@@ -464,7 +496,7 @@ export class DrillController {
       for (const n of d.path.slice(0, this.previewIndex)) b.push(n.uci);
       return { fen: b.fen(), lastMove: this.previewIndex ? d.path[this.previewIndex - 1].uci : null, orientation, movable: null, arrows: [] };
     }
-    const movable = !d.finished && d.myTurn && !this.awaitingRetry ? d.myColor : null;
+    const movable = !d.finished && d.myTurn ? d.myColor : null;     // after a miss too: just play again
     return { fen: d.fen, lastMove: d.moves.at(-1) ?? null, orientation, movable, arrows: [] };
   }
 
@@ -485,7 +517,11 @@ export class DrillController {
   lineTitle(): string {
     if (this.view === TREE && this.tree.exploring()) return this.title;
     if (this.showingDeviation && this.myGames.board && !(this.drill && !this.drill.finished)) return this.myGames.board.title;
-    return this.drill ? `Drilling: ${this.drill.lineName}` : '';
+    if (!this.drill) return '';
+    // the opening's name is long and the same for all its lines: the variation first
+    const name = this.drill.lineName;
+    const head = headOf(name);
+    return `Drilling: ${head ? `${variationName(name)} · ${head}` : name}`;
   }
 
   /** The commentary's status line: the deviation's while one is on the board. */

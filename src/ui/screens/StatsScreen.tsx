@@ -38,13 +38,15 @@ function Section({ title, help, children }: { title: string; help: string; child
 
 export type PracticeAction = Improvement['practice'][number]['action'];
 
-export function StatsScreen({ client, openingData, onReview, onDrill, onRepertoireChanged, onPractice }: {
+export function StatsScreen({ client, openingData, onReview, onDrill, onRepertoireChanged, onPractice, onPracticeOpening }: {
   client: DbClient;
   openingData: OpeningData;
   onReview: (gameId: string, fen: string) => void;
   onDrill: (catalogIndex: number) => void;
   onRepertoireChanged: () => void;
   onPractice: (action: PracticeAction) => void;
+  /** Practise an opening from Results by opening (its stats key: name + colour). */
+  onPracticeOpening: (key: string) => void;
 }) {
   const [page, setPage] = useState<(typeof PAGES)[number]>('Overview');
   const [filter, setFilter] = useState<string | null>(null);
@@ -162,8 +164,8 @@ export function StatsScreen({ client, openingData, onReview, onDrill, onRepertoi
 
       {page === 'Overview' && overview && (
         <div className="stats-column">
-          <Section title="Results by opening" help="Openings with 3+ games. Click a column to sort.">
-            <DataTable table={overview.openings} maxRows={12} />
+          <Section title="Results by opening" help="Openings with 3+ games. Click a column to sort. Practice drills the opening as you play it.">
+            <DataTable table={overview.openings} maxRows={12} action={{ label: 'Practice', onClick: onPracticeOpening }} />
           </Section>
           <Section title="How you lose" help="Lots of timeouts means clock trouble, not chess trouble.">
             <DataTable table={overview.losses} />

@@ -124,6 +124,37 @@ etc. are UI — Phases 2-5.
   a move, 2 engines side by side). It picks the desktop's best move about 70%
   of the time, so puzzles made in the browser differ a little from desktop
   ones; a desktop database imported into the app keeps its own.
+- **Tactic? additions** (web only): a Hint button (what to look for → the
+  piece → the move; a hinted move isn't scored); the board stays where you
+  finished instead of jumping back to the start; arrows on the start position
+  for the best move (green), your move (blue) and your game's move (yellow);
+  Stockfish's top 3 lines after each round, each opening the analysis board.
+  The evaluation bar is plain grey until the answer in all three drills.
+- **Threat? additions** (web only): after naming the threat the board waits
+  for "Now answer it →"; after your answer it stays on your move, a "Why"
+  (explain.ts, worded for a drill move) says what's wrong with a weak answer
+  and ▶ steps through the punishing line; Stockfish's lines and the analysis
+  board as in Tactic? (shared in trainer/base.ts).
+- **Sacrifice!! additions** (web only): the line ends when the sacrifice has
+  paid off — mate, a forced draw (the same position 3 times), the material
+  back (and better), or crushing while still down; a calm position no longer
+  ends it while you're down material; MAX_MOVES 15 (desktop 10). Results say
+  how it ended (Forced mate / Forced draw / Wins material …); mate scores show
+  as M2 (also on every evaluation bar, instead of #2). Attack / Defend (the
+  computer sacrifices, you defend; recorded with key "…|defend"), a source
+  filter (All / My games / Lichess), your game's moves as you go, Play it out
+  from the end, and Try other defences (replay against Stockfish's other
+  reasonable defences, unscored).
+- **Game Review layout** (web only): the games list folds into a rail once a
+  game is open (☰ Games opens it); a search box (opponent, or words in your
+  notes) and a "📝 with notes" filter; the notes box sits under the board.
+- **Opening Drill** (web only): after a wrong move you can play again at once
+  (Show correct move stays offered — no Try again click); variations are
+  grouped under their opening's name in the list and the title; Show full
+  line draws colour-coded move pairs you can click.
+- **Stats → Results by opening → Practice** (web only): the opening as you
+  play it (the moves at least half your games in it share) goes into a
+  "From your games" repertoire and the drill opens on it.
 - **Engine strength** (Your data → Engine, a web-app addition): "Strong" uses
   the full-network single-threaded build (95 MB, downloaded once and cached)
   for the interactive engine and Play it out; analyzing games stays on the

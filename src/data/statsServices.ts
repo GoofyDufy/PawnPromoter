@@ -4,7 +4,9 @@
  * them (show the games behind a line, add a line to your repertoire). The
  * Repertoire report is kept here between calls, so a row can be acted on.
  */
-import { Board } from '../core/chess';
+import { Board, STARTING_FEN } from '../core/chess';
+import { formatMoveList } from '../core/drill';
+import { readGame } from '../core/pgn';
 import * as db from '../core/db';
 import * as explorer from '../core/explorer';
 import { pyFixed } from '../core/format';
@@ -45,7 +47,7 @@ export function statsOverview(conn: Db, filter: string): { summary: string; open
   const openings = [...s.openings].filter(([, r]) => r.games >= MIN_OPENING_GAMES).sort((a, b) => b[1].games - a[1].games)
     .map(([key, r]): TableRow => {
       const [name, color] = stats.splitOpeningKey(key);
-      return { cells: [name, cap(color), String(r.games), `${r.wins} / ${r.draws} / ${r.losses}`, `${Math.round(100 * r.score)}%`, bar(r.score)],
+      return { id: key, cells: [name, cap(color), String(r.games), `${r.wins} / ${r.draws} / ${r.losses}`, `${Math.round(100 * r.score)}%`, bar(r.score)],
         tone: r.score < 0.4 ? 'weak' : undefined };
     });
   const order = ['Bullet', 'Blitz', 'Rapid', 'Daily', 'Other'];
@@ -118,6 +120,46 @@ export function drillSuggestion(conn: Db, index: number): { repertoire: string; 
   if (!root) openingImporter.importPgnText(`[Event "${o.name}"]\n\n${o.moves} *\n`, SUGGESTIONS_REPERTOIRE, o.color, conn);
   else if (!root.is_enabled) db.setLineEnabled(conn, root.id, true);
   return { repertoire: SUGGESTIONS_REPERTOIRE, color: o.color, lineName: o.name };
+}
+
+// ---------- practising an opening from Results by opening (a web-app addition) ----------
+
+export const PRACTICE_REPERTOIRE = 'From your games';
+const PRACTICE_MAX_PLIES = 16;
+const PRACTICE_MIN_PLIES = 4;
+const PRACTICE_MIN_SHARE = 0.5;            // past the first few moves, a move half your games in it share
+
+/** An opening as you've played it (Stats → Results by opening → Practice): the moves your games
+ *  in it share — at each move the most common one, while at least half of them still follow —
+ *  added to the "From your games" repertoire for the drill. key: openingKey(name, color). */
+export function openingPractice(conn: Db, key: string): { repertoire: string; color: PlayerColor; lineName: string } | null {
+  const [name, color] = stats.splitOpeningKey(key) as [string, PlayerColor];
+  const lines: string[][] = [];
+  for (const g of conn.all('SELECT pgn FROM games WHERE my_color = ?', [color])) {
+    if (stats.openingName(stats.pgnHeaders(g.pgn)) !== name) continue;     // the headers first: only this opening's games are parsed
+    const p = readGame(g.pgn);
+    if (p && p.startFen === STARTING_FEN) lines.push(p.mainline.slice(0, PRACTICE_MAX_PLIES));
+  }
+  if (!lines.length) return null;
+  const line: string[] = [];
+  let following = lines;
+  while (line.length < PRACTICE_MAX_PLIES) {
+    const counts = new Map<string, number>();
+    for (const l of following) if (l[line.length]) counts.set(l[line.length], (counts.get(l[line.length]) ?? 0) + 1);
+    const [move, n] = [...counts].sort((a, b) => b[1] - a[1])[0] ?? [null, 0];
+    if (!move || (line.length >= PRACTICE_MIN_PLIES && (n < 2 || n < lines.length * PRACTICE_MIN_SHARE))) break;
+    line.push(move);
+    following = following.filter((l) => l[line.length - 1] === move);
+  }
+  if (!line.length) return null;
+  const board = Board.fromFen();
+  const sans = line.map((uci) => { const san = board.san(uci); board.push(uci); return san; });
+  const lineName = `${name} (as you play it)`;
+  // rebuilt each time, so it follows your latest games (each named line is its own tree: nothing else is touched)
+  const root = db.allRootLines(conn, PRACTICE_REPERTOIRE, color).find((r) => r.line_name === lineName);
+  if (root) db.deleteBranch(conn, [root.id]);
+  openingImporter.importPgnText(`[Event "${lineName}"]\n\n${formatMoveList(sans)} *\n`, PRACTICE_REPERTOIRE, color, conn);
+  return { repertoire: PRACTICE_REPERTOIRE, color, lineName };
 }
 
 // ---------- Repertoire ----------
@@ -259,7 +301,7 @@ export function statsImprovement(conn: Db, filter: string): improvement.Improvem
 }
 
 export const statsServices = {
-  scoutLines, statsImprovement,
+  scoutLines, statsImprovement, openingPractice,
   statsOverview, statsStyle, drillSuggestion, statsRepertoire, statsRepertoireRender, statsPopular, statsGames, statsAdd,
   explorerMissing,
 };

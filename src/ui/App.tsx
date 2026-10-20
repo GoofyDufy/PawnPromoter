@@ -186,6 +186,7 @@ export function App({ client }: { client: DbClient }) {
             }} />)
             : screen === 'stats' ? (profiles && <StatsScreen client={client} openingData={openingData} onReview={reviewGame}
               onDrill={(i) => { setScreen('drill'); void drill?.drillSuggestion(i); }} onRepertoireChanged={() => void drill?.refreshRepertoires()}
+              onPracticeOpening={(key) => { setScreen('drill'); void drill?.practiceOpening(key); }}
               onPractice={(action) => {
                 if (action === 'tactics' || action === 'threats') {
                   void client.service('setSettings', { trainer_mode: action === 'tactics' ? 'Tactic?' : 'Threat?' }).then(() => setScreen('tactics'));

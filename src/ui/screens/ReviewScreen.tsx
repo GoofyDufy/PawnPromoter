@@ -128,16 +128,18 @@ function NoteBox({ r }: { r: ReviewController }) {
     : state.kind === 'typing' ? 'Not saved yet' : saved ? 'Saved ✓' : '';
   return (
     <div className="note-box">
-      <div className="row"><div className="section" style={{ flex: 1 }}>📝 Your notes on this position</div>
-        <span className={`note ${state.kind === 'saved' ? 'ok' : ''}`}>{status}</span></div>
-      <textarea aria-label="Your notes on this position" rows={3} placeholder="What were you thinking here? What should you remember?" value={text}
-        onChange={(e) => { setText(e.target.value); current.current.text = e.target.value; current.current.dirty = true; setState({ kind: 'typing' }); }}
-        onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void save(); } }} />
-      <div className="row">
-        <button type="button" className="btn small" disabled={state.kind === 'saving' || (text === saved && state.kind !== 'error')} onClick={() => void save()}>Save note</button>
-        {saved && <button type="button" className="btn ghost small" onClick={() => { setText(''); current.current.text = ''; void save(current.current.place, ''); }}>Delete note</button>}
-        {state.kind === 'error' && <span className="error">Couldn't save the note: {state.message}</span>}
+      <div className="row note-head"><span className="section" style={{ flex: 1 }}>📝 Your note on this position{r.ply ? '' : ' (the start)'}</span>
+        <span className={`note ${state.kind === 'saved' || (saved && state.kind === 'idle') ? 'ok' : ''}`}>{status}</span></div>
+      <div className="row note-edit">
+        <textarea aria-label="Your note on this position" rows={2} placeholder="What were you thinking here? What should you remember? (saves by itself)" value={text}
+          onChange={(e) => { setText(e.target.value); current.current.text = e.target.value; current.current.dirty = true; setState({ kind: 'typing' }); }}
+          onKeyDown={(e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void save(); } }} />
+        <div className="note-buttons">
+          <button type="button" className="btn small" disabled={state.kind === 'saving' || (text === saved && state.kind !== 'error')} onClick={() => void save()}>Save</button>
+          {saved && <button type="button" className="btn ghost small" onClick={() => { setText(''); current.current.text = ''; void save(current.current.place, ''); }}>Delete</button>}
+        </div>
       </div>
+      {state.kind === 'error' && <span className="error">Couldn't save the note: {state.message}</span>}
     </div>
   );
 }
@@ -176,6 +178,8 @@ export function ReviewScreen({ r, client, onOpenPuzzle, onPuzzlesChanged }: {
   const [amazingOpen, setAmazingOpen] = useState(false);
   const [makeOpen, setMakeOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
+  // the games list folds away once a game is open (more room for the board); ☰ Games opens it again
+  const [listOpen, setListOpen] = useState(true);
   const movesBox = useRef<HTMLOListElement>(null);
 
   useEffect(() => { if (!r.gamesLoaded) void r.refreshGames(); }, [r]);
@@ -207,7 +211,13 @@ export function ReviewScreen({ r, client, onOpenPuzzle, onPuzzlesChanged }: {
     <section className="puzzle-screen">
       <h1>Game Review</h1>
       <p className="lede">Step through your analyzed games: what each move was, where you left your prep, and Stockfish's better moves.</p>
-      <div className="puzzles review">
+      <div className={`puzzles review${g && !listOpen ? ' list-closed' : ''}`}>
+        {g && !listOpen ? (
+          <div className="card games-rail">
+            <button type="button" className="btn secondary" onClick={() => setListOpen(true)} title="Show the games list">☰<span>Games</span></button>
+            <button type="button" className="btn ghost" onClick={() => setNotesOpen(true)} title="Your notes">📝</button>
+          </div>
+        ) : (
         <div className="card queue-card">
           <div className="row" style={{ marginBottom: 6 }}>
             <h2 style={{ margin: 0, flex: 1 }}>Analyzed games</h2>
@@ -219,17 +229,25 @@ export function ReviewScreen({ r, client, onOpenPuzzle, onPuzzlesChanged }: {
             {['All results', 'Wins', 'Losses', 'Draws'].map((x) => <button key={x} type="button" role="tab" aria-selected={r.result === x} aria-checked={r.result === x}
               onClick={() => void r.setResult(x)}>{x === 'All results' ? 'All' : x}</button>)}
           </div>
+          <div className="row games-search">
+            <input aria-label="Search games" placeholder="Opponent, or words in your notes…" value={r.search} onChange={(e) => r.setSearch(e.target.value)} />
+            <label className="check" title="Only games you wrote notes in"><input type="checkbox" checked={r.withNotes} onChange={(e) => r.setWithNotes(e.target.checked)} /> 📝</label>
+          </div>
           <ol className="queue" aria-label="Analyzed games">
-            {r.games.map((row) => (
-              <li key={row.id}><button type="button" aria-current={g?.id === row.id ? 'true' : undefined} onClick={() => void r.loadGame(row.id)}>{row.label}</button></li>
+            {r.shownGames().map((row) => (
+              <li key={row.id}><button type="button" aria-current={g?.id === row.id ? 'true' : undefined}
+                onClick={async () => { await r.loadGame(row.id); setListOpen(false); }}>{row.label}</button></li>
             ))}
             {r.gamesLoaded && !r.games.length && <li className="note">No analyzed games in this filter yet.</li>}
+            {r.gamesLoaded && r.games.length > 0 && !r.shownGames().length && <li className="note">No games match.</li>}
           </ol>
+          {g && <button type="button" className="btn ghost small" style={{ marginTop: 6 }} onClick={() => setListOpen(false)}>Hide the list ◀</button>}
           <button type="button" className="btn secondary amazing-button" style={{ marginTop: 8 }}
             onClick={() => { setAmazingOpen(true); void r.loadAmazing(); }}>
             {r.amazing ? `!! Your amazing moves (${r.amazing.length})` : '!! Your amazing moves'}</button>
           <button type="button" className="btn secondary" style={{ marginTop: 6 }} onClick={() => setNotesOpen(true)}>📝 Your notes</button>
         </div>
+        )}
 
         <div className="card board-card">
           <div className="review-head">
@@ -273,6 +291,7 @@ export function ReviewScreen({ r, client, onOpenPuzzle, onPuzzlesChanged }: {
             <span style={{ flex: 1 }} />
             {!r.analysis.active && <button type="button" className="btn" onClick={() => r.nextMistake()} disabled={!g}>Next mistake</button>}
           </div>
+          <NoteBox r={r} />
         </div>
 
         <div className="card commentary-card review-side" aria-label="Commentary">
@@ -295,7 +314,6 @@ export function ReviewScreen({ r, client, onOpenPuzzle, onPuzzlesChanged }: {
             {r.detail && <p className="explanation">{r.detail}</p>}
             {r.why && <p className={`why ${r.why.startsWith('Working') ? 'note' : ''}`}>{r.why}</p>}
             {r.notice && <p className="ok">{r.notice}</p>}
-            <NoteBox r={r} />
             {g?.accuracy && <p className="note">{g.accuracy}</p>}
             {chips.length > 0 && (
               <div className="row top-moves">

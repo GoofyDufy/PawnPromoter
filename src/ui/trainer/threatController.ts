@@ -2,8 +2,15 @@
  * Threat? — What's the threat? (threat_tab.py, rules in threat.ts): right after
  * your opponent moved, name their threat (play the move THEY want to make
  * next, or No threat), then answer it with your move.
+ *
+ * Web-app additions: after you name the threat the board waits (Now answer it →)
+ * so you can see whether you were right; after your answer it stays on your
+ * move, says why a weak answer is weak (explain.ts, as in Game Review), and ▶
+ * steps through how your opponent punishes it; then Stockfish's top lines and
+ * the analysis board.
  */
 import { Board, WHITE } from '../../core/chess';
+import * as explain from '../../core/explain';
 import { pyFixed } from '../../core/format';
 import * as threat from '../../core/threat';
 import type { Arrow } from '../Board';
@@ -12,7 +19,9 @@ import { pct, TrainerBase } from './base';
 const MAX_TRIES = 30;                    // candidates checked before taking either kind
 const GIVE_UP_TRIES = 80;
 
-type State = 'idle' | 'loading' | 'naming' | 'judging_threat' | 'answering' | 'judging_answer' | 'result';
+type State = 'idle' | 'loading' | 'naming' | 'judging_threat' | 'named' | 'answering' | 'judging_answer' | 'result';
+const PUNISH_DEPTH = 14;
+const PUNISH_PLIES = 5;
 
 export class ThreatController extends TrainerBase {
   title = "What's the threat?";
@@ -36,6 +45,12 @@ export class ThreatController extends TrainerBase {
   private previous: string | null = null;
   private found = false;
   private shownThreat: threat.Threat | null = null;
+  private named: { board: Board; arrows: Arrow[]; lastMove: string | null } | null = null;
+  // the result: [your answer, then how they punish it]; 0 = the start (with the arrows), 1 = after your answer
+  private resultLine: string[] = [];
+  private view = 1;
+  private resultArrows: Arrow[] = [];
+  private answerGood = true;
   private session = { rounds: 0, found: 0, answers: 0, streak: 0, best: 0 };
 
   sessionLine(): string {
@@ -67,11 +82,19 @@ export class ThreatController extends TrainerBase {
 
   override key(k: string): void {
     if (k === 'n') void this.noThreat();
+    else if ((k === 'Enter' || k === ' ') && this.state === 'named') this.startAnswer();
     else if (k === 'Enter' || k === ' ') void this.nextRound();
+    else if (this.exploreKey(k)) return;
+    else if (k === 'ArrowLeft') this.step(-1);
+    else if (k === 'ArrowRight') this.step(1);
   }
 
   press(id: string): Promise<void> | void {
+    if (this.explorePress(id, () => this.showView(this.view))) return;
     if (id === 'none') return this.noThreat();
+    if (id === 'answer') return this.startAnswer();
+    if (id === 'back') return this.step(-1);
+    if (id === 'fwd') return this.step(1);
     if (id === 'next') return this.nextRound();
   }
 
@@ -88,6 +111,7 @@ export class ThreatController extends TrainerBase {
 
   async nextRound(): Promise<void> {
     if (!['idle', 'result', 'loading'].includes(this.state)) return;
+    this.endExplore();
     if (!this.ready) {
       this.state = 'loading';
       this.waiting = true;
@@ -132,6 +156,7 @@ export class ThreatController extends TrainerBase {
   }
 
   async onMove(uci: string): Promise<void> {
+    if (this.exploreMove(uci)) return;
     const a = this.assessment;
     if (!a) return;
     if (this.state === 'naming') {
@@ -177,9 +202,30 @@ export class ThreatController extends TrainerBase {
       text = a.has_threat ? `✗ ${san} isn't much of a threat. The real one: ${threat.describe(this.board, a.threats[0])}.`
         : `✗ No real threat here — ${san} wouldn't gain them much.`;
     }
+    // stay on it so you can see: your move kept if it was the threat, else your guess (blue) and theirs (red)
+    const passed = threat.passed(this.board);
+    if (move !== null && real) {
+      const after = passed.copy();
+      after.push(move);
+      this.named = { board: after, lastMove: move, arrows: [] };
+    } else {
+      const arrows: Arrow[] = move !== null ? [arrowOf(move, 'blue')] : [];
+      this.named = { board: passed, lastMove: this.previous, arrows: [...arrows, ...this.threatArrows()] };
+    }
     this.setStatus(text, this.found ? 'success' : 'error',
-      this.shownThreat ? 'Now deal with it — your move. Red arrow: their threat.' : 'Now play a good move.');
+      move !== null && !real ? 'Blue: your guess' + (this.shownThreat ? ' · red: their real threat.' : '.') : '');
+    this.state = 'named';
+    this.show(this.named.board, { lastMove: this.named.lastMove, arrows: this.named.arrows });
+    this.buttons = [{ id: 'answer', label: 'Now answer it →  (Enter)', primary: true }];
+    this.changed();
+  }
+
+  /** Step 2: back to the position, your move. */
+  private startAnswer(): void {
+    if (this.state !== 'named') return;
     this.state = 'answering';
+    this.setStatus(this.shownThreat ? `Now deal with it: ${threat.describe(this.board, this.shownThreat)}.` : 'Now play a good move.', 'normal',
+      this.shownThreat ? 'Your move. Red arrow: their threat.' : 'Your move.');
     this.show(this.board, { lastMove: this.previous, arrows: this.threatArrows(), movable: this.board.turn });
     this.buttons = [];
     this.changed();
@@ -210,15 +256,77 @@ export class ThreatController extends TrainerBase {
       detail.push(`In your game you played ${this.board.san(played)}`
         + (played === move ? ' — the same.' : cand.expect_threat ? ' — the mistake this position comes from.' : '.'));
     }
-    detail.push('Green: the best answer · red: their threat · blue: your game move.');
-    this.detail = detail.join('\n');
-    const arrows: Arrow[] = [...this.threatArrows(), { from: a.best.slice(0, 2), to: a.best.slice(2, 4), brush: 'green' }];
-    if (played !== a.best && this.board.isLegal(played)) arrows.push({ from: played.slice(0, 2), to: played.slice(2, 4), brush: 'blue' });
-    this.show(this.board, { lastMove: this.previous, arrows });
-    this.setBar(a.best_cp, this.board.turn);
-    this.buttons = [{ id: 'next', label: 'Next position →', primary: true }, { id: 'review', label: 'Review game' }];
+    detail.push('On the starting position (◀): green — the best answer · red — their threat · blue — your answer · yellow — your game move.');
+    const arrows: Arrow[] = [...this.threatArrows()];
+    if (played !== a.best && played !== move && this.board.isLegal(played)) arrows.push(arrowOf(played, 'yellow'));
+    if (move !== a.best) arrows.push(arrowOf(move, 'blue'));
+    arrows.push(arrowOf(a.best, 'green'));
+    this.resultArrows = arrows;
+    this.resultLine = [move];
+    this.answerGood = good;
+    this.detail = `${detail.join('\n')}\n\n${good && move === a.best ? 'Why it works' : 'Why'}: working it out…`;
+    this.setBar(a.best_cp - loss, this.board.turn);
+    this.showView(1);                                     // stay on your answer
     this.changed();
     void this.refreshScores();
+    void this.explainAnswer(move, good, detail);
+  }
+
+  /** Why your answer was weak (or why the best one works), and the line that punishes a weak one. */
+  private async explainAnswer(move: string, good: boolean, detail: string[]): Promise<void> {
+    const a = this.assessment!;
+    const token = this.token;
+    let why: string;
+    let punish: string[] = [];
+    try {
+      why = await explain.explainSolution(this.board.fen(), a.best, move === a.best ? null : move, this.engine, false);
+    } catch (e) {
+      why = `(Couldn't work it out: ${e instanceof Error ? e.message : e})`;
+    }
+    if (!good && this.engine) {
+      try {
+        const after = this.board.copy();
+        after.push(move);
+        if (!after.isGameOver()) punish = (await this.engine.analyse(after, { depth: PUNISH_DEPTH }))[0]?.pv.slice(0, PUNISH_PLIES) ?? [];
+      } catch {
+        /* no line to step through; the explanation stays */
+      }
+    }
+    if (token !== this.token || this.state !== 'result') return;
+    this.resultLine = [move, ...punish];
+    const steps = punish.length ? `\n▶ steps through how ${this.board.turn === WHITE ? 'Black' : 'White'} punishes ${this.board.san(move)}.` : '';
+    this.setResultDetail(`${detail.join('\n')}\n\n${good && move === a.best ? 'Why it works' : 'Why'}: ${why}${steps}`);
+    if (!this.isExploring) this.updateButtons();
+    this.changed();
+  }
+
+  private updateButtons(): void {
+    this.buttons = [
+      { id: 'back', label: '◀', disabled: this.view <= 0 },
+      { id: 'fwd', label: '▶', disabled: this.view >= this.resultLine.length },
+      { id: 'next', label: 'Next position →', primary: true },
+      { id: 'analyze', label: 'Analyze' },
+      { id: 'review', label: 'Review game' },
+    ];
+  }
+
+  private step(delta: number): void {
+    if (this.state !== 'result') return;
+    this.showView(Math.max(0, Math.min(this.resultLine.length, this.view + delta)));
+    this.changed();
+  }
+
+  /** 0: the start with the arrows; 1: after your answer (their punishing reply in red); then along that line. */
+  private showView(i: number): void {
+    this.view = i;
+    const b = this.board.copy();
+    for (const m of this.resultLine.slice(0, i)) b.push(m);
+    let arrows: Arrow[] = [];
+    if (i === 0) arrows = this.resultArrows;
+    else if (i < this.resultLine.length && !this.answerGood) arrows = [arrowOf(this.resultLine[i], 'red')];
+    this.show(b, { lastMove: i === 0 ? this.previous : this.resultLine[i - 1], arrows });
+    this.updateButtons();
+    this.peekAt(b);
   }
 
   // ---------- preparing rounds ----------
@@ -270,3 +378,5 @@ export class ThreatController extends TrainerBase {
     }
   }
 }
+
+const arrowOf = (uci: string, brush: Arrow['brush']): Arrow => ({ from: uci.slice(0, 2), to: uci.slice(2, 4), brush });

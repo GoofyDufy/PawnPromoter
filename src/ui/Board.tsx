@@ -25,7 +25,7 @@ import 'chessground/assets/chessground.cburnett.css';
 
 export interface Arrow {
   from: string;          // square name, e.g. "e2"
-  to: string;
+  to: string;            // the same square as from: a circle on it
   brush?: 'green' | 'blue' | 'grey' | 'red' | 'yellow';
 }
 
@@ -36,6 +36,8 @@ export interface BoardProps {
   movable?: Color | 'both' | null;
   onMove?: (uci: string) => void;
   lastMove?: string | null;          // UCI, highlighted
+  /** Bump it to put the pieces back on `fen` (a wrong move the position didn't take). */
+  snapBack?: number;
   arrows?: Arrow[];
   /** A move badge in a square's corner (Game Review's !!, !, ✓, ?!, ?, ??, ≡, ⚑). */
   badges?: { square: string; text: string; color: string }[];
@@ -71,7 +73,7 @@ function destsOf(board: ChessBoard): Map<Key, Key[]> {
   return dests;
 }
 
-export function Board({ fen, orientation = 'white', movable = null, onMove, lastMove, arrows = [], badges = [] }: BoardProps) {
+export function Board({ fen, orientation = 'white', movable = null, onMove, lastMove, arrows = [], badges = [], snapBack = 0 }: BoardProps) {
   const el = useRef<HTMLDivElement>(null);
   const api = useRef<Api | null>(null);
   const [promotion, setPromotion] = useState<{ from: string; to: string } | null>(null);
@@ -83,7 +85,10 @@ export function Board({ fen, orientation = 'white', movable = null, onMove, last
       coordinates: true, animation: { duration: 150 },
       trustAllEvents: import.meta.env.MODE === 'e2e',      // tests/e2e clicks the board with scripted events
     });
-    if (import.meta.env.MODE === 'e2e') (window as unknown as { cg: Api }).cg = api.current;   // tests/e2e looks inside
+    if (import.meta.env.MODE === 'e2e') {                  // tests/e2e looks inside (window.cg, or this board's element)
+      (window as unknown as { cg: Api }).cg = api.current;
+      (el.current as unknown as { cg: Api }).cg = api.current;
+    }
     // chessground remembers where the board is on the page and re-measures only on
     // resize / scroll; when something above it changes height the board moves and
     // clicks land on the wrong square. Re-measure as each click or touch starts.
@@ -103,6 +108,7 @@ export function Board({ fen, orientation = 'white', movable = null, onMove, last
       api.current?.set({ fen, lastMove: undefined, check: false, movable: { color: undefined, dests: new Map() }, drawable: { autoShapes: [] } });
       return;
     }
+    if (import.meta.env.MODE === 'e2e' && api.current) (window as unknown as { cg: Api }).cg = api.current;   // the board updated last
     const board = ChessBoard.fromFen(fen);
     const turn = board.turn;
     const canMove = movable === 'both' || movable === turn;
@@ -130,11 +136,11 @@ export function Board({ fen, orientation = 'white', movable = null, onMove, last
         },
       },
       drawable: { autoShapes: [
-        ...arrows.map((a): DrawShape => ({ orig: a.from as Key, dest: a.to as Key, brush: BRUSHES[a.brush ?? 'green'] })),
+        ...arrows.map((a): DrawShape => ({ orig: a.from as Key, dest: a.to === a.from ? undefined : a.to as Key, brush: BRUSHES[a.brush ?? 'green'] })),
         ...badges.map((b): DrawShape => ({ orig: b.square as Key, customSvg: { html: badgeSvg(b.text, b.color) } })),
       ] },
     });
-  }, [fen, orientation, movable, lastMove, arrows, badges]);
+  }, [fen, orientation, movable, lastMove, arrows, badges, snapBack]);
 
   const choose = (letter: string | null) => {
     const p = promotion;

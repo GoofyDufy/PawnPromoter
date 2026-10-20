@@ -159,6 +159,26 @@ export class ReviewController {
     await this.refreshGames();
   }
 
+  /** The games list after the search box (an opponent's name, or words in your notes) and "With notes". */
+  search = '';
+  withNotes = false;
+
+  shownGames(): ReviewGameRow[] {
+    const q = this.search.trim().toLowerCase();
+    return this.games.filter((g) => (!this.withNotes || g.notes > 0)
+      && (!q || g.opponent.toLowerCase().includes(q) || g.noteText.toLowerCase().includes(q)));
+  }
+
+  setSearch(q: string): void {
+    this.search = q;
+    this.changed();
+  }
+
+  setWithNotes(on: boolean): void {
+    this.withNotes = on;
+    this.changed();
+  }
+
   /** From elsewhere ("Review game"): load that game and jump to the position. */
   async openGame(gameId: string, fen: string | null = null, ply: number | null = null): Promise<void> {
     if (!this.gamesLoaded) await this.refreshGames();
@@ -574,10 +594,12 @@ export class ReviewController {
    *  even if you've moved on since. */
   async saveNote(place: { gameId: string; ply: number; fen: string }, text: string): Promise<void> {
     const notes = await this.client.service('saveNote', place.gameId, place.ply, place.fen, text);
-    if (this.game?.id === place.gameId) {
-      this.game = { ...this.game, notes };
-      this.changed();
-    }
+    if (this.game?.id === place.gameId) this.game = { ...this.game, notes };
+    // the games list: its 📝 count and the text the search box looks in
+    const texts = Object.values(notes as Record<string, string>);
+    this.games = this.games.map((g) => (g.id !== place.gameId ? g : { ...g, notes: texts.length, noteText: texts.join('\n'),
+      label: g.label.replace(/ · 📝\d+$/, '') + (texts.length ? ` · 📝${texts.length}` : '') }));
+    this.changed();
   }
 
   clearNotice(): void {

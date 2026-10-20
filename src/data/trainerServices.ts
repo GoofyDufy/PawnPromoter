@@ -96,7 +96,7 @@ const view = (c: sac.Candidate, label = c.label): SacCandidateView =>
   ({ fen: c.fen, sacUci: c.sac_uci, source: c.source, gameId: c.game_id, ply: c.ply, label, key: c.key });
 
 /** Your amazing sacrifices, the ones you missed, and Lichess sacrifice puzzles — not done yet first, shuffled. */
-export function sacPool(conn: Db): { pool: SacCandidateView[]; own: number; missed: number; lichess: number } {
+export function sacPool(conn: Db, side: 'attack' | 'defend' = 'attack'): { pool: SacCandidateView[]; own: number; missed: number; lichess: number } {
   let found: amazing.Amazing[] = [];
   let missedFound: amazing.Missed[] = [];
   try {
@@ -115,7 +115,7 @@ export function sacPool(conn: Db): { pool: SacCandidateView[]; own: number; miss
   });
   const all = [...labelled, ...theirs.map((c) => view(c))];
   const keyed = new Map(all.map((v) => [v.key, v]));
-  const picked = sac.pick([...own, ...missed, ...theirs], sac.seen(conn)).map((c) => keyed.get(c.key)!);
+  const picked = sac.pick([...own, ...missed, ...theirs], sac.seen(conn, side)).map((c) => keyed.get(c.key)!);
   return { pool: picked, own: own.length, missed: missed.length, lichess: theirs.length };
 }
 
@@ -125,9 +125,17 @@ export function sacLichess(conn: Db): SacCandidateView[] {
 
 const toCand = (v: SacCandidateView) => new sac.Candidate(v.fen, v.sacUci, v.source, v.gameId, v.ply, v.label);
 
-export function sacRecord(conn: Db, cand: SacCandidateView, moves: number, misses: number): LevelView {
-  sac.record(conn, toCand(cand), moves, misses);
+export function sacRecord(conn: Db, cand: SacCandidateView, moves: number, misses: number, side: 'attack' | 'defend' = 'attack'): LevelView {
+  sac.record(conn, toCand(cand), moves, misses, side);
   return level(conn);
+}
+
+/** Your game's moves from the sacrifice position on (Sacrifice!! shows them as you play). */
+export function sacGameMoves(conn: Db, cand: SacCandidateView): string[] {
+  if (cand.gameId === null || cand.ply === null) return [];
+  const row = conn.get('SELECT pgn FROM games WHERE id = ?', [cand.gameId]);
+  const game = row ? readGame(row.pgn) : null;
+  return game ? game.mainline.slice(cand.ply, cand.ply + 2 * sac.MAX_MOVES + 4) : [];
 }
 
 export function sacSummary(conn: Db): [number, number] {
@@ -214,6 +222,6 @@ function missedText(conn: Db, cand: SacCandidateView, start: Board, moves: strin
 
 export const trainerServices = {
   gameSource, lastMoveOf, spotSeen, spotCandidates, spotRecord, spotSummary, threatSeen, threatCandidates, threatRecord,
-  threatSummary, sacPool, sacLichess, sacRecord, sacSummary, sacGameComparison,
+  threatSummary, sacPool, sacLichess, sacRecord, sacSummary, sacGameComparison, sacGameMoves,
 };
 

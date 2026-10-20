@@ -64,8 +64,14 @@ export function PlayDialog({ fen, title, onClose, myColor: mine, analyze = false
   const dialog = useRef<HTMLDialogElement>(null);
   const generation = useRef(0);              // bumped on undo / restart: a stale reply is dropped
 
+  // a new starting position (shouldn't happen while open): start over rather than replay moves onto it
+  const [startFen, setStartFen] = useState(fen);
+  if (startFen !== fen) {
+    setStartFen(fen);
+    setMoves([]);
+  }
   const board = ChessBoard.fromFen(fen);
-  for (const m of moves) board.push(m);
+  for (const m of startFen === fen ? moves : []) if (board.isLegal(m)) board.push(m);
   const analyzing = mode === ANALYZE_MODE;
   const over = board.isGameOver();
 
