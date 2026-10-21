@@ -136,6 +136,7 @@ async function phase1(client: DbClient) {
   results.lichess = { ms: ms(t), text: [...document.querySelectorAll('.note')].find((n) => n.textContent?.startsWith('Added '))!.textContent };
 }
 
+const pawnsText = (cp: number | null) => (cp === null ? '?' : (cp / 100).toFixed(1));
 const statusText = () => document.querySelector('.status')?.textContent ?? '';
 
 function button(label: string): HTMLButtonElement {
@@ -605,7 +606,7 @@ async function phaseReview(client: DbClient) {
   // the list folds away; the board grows
   await waitFor('the list folded', () => document.querySelector('.games-rail'), 5000);
   results.reviewFolded = { rail: !!document.querySelector('.games-rail'), board: Math.round(document.querySelector('.review cg-board')!.getBoundingClientRect().width),
-    noteBox: !!document.querySelector('.board-card .note-box textarea') };
+    noteBox: !!document.querySelector('.review-side .note-box textarea') };
   button('Next mistake').click();
   await new Promise((res) => setTimeout(res, 300));
   results.reviewMistake = { ply: r.ply, status: statusText(), detail: document.querySelector('.review-side .explanation')?.textContent,
@@ -622,6 +623,18 @@ async function phaseReview(client: DbClient) {
     r.go(goodPly + 1);
     await waitFor('the good why', () => r.why && !r.why.startsWith('Working'), 30_000);
     results.reviewWhyGood = r.why;
+    // the Coach on every marked move of this game (and a few good ones)
+    const coachTexts: string[] = [];
+    results.coach = coachTexts;
+    const plies = Object.keys(r.game!.evals).map(Number).sort((x, y) => x - y);
+    const marked = plies.filter((p) => { const e = r.game!.evals[p]; return e.cp_after !== null && e.cp_before - e.cp_after >= 80; });
+    const good = plies.filter((p) => r.game!.evals[p].move_uci === r.game!.evals[p].best_move_uci).slice(3, 6);
+    for (const p of [...marked.slice(0, 8), ...good]) {
+      r.go(p + 1);
+      await waitFor('the coach', () => r.why && !r.why.startsWith('Working'), 30_000).catch(() => null);
+      const e = r.game!.evals[p];
+      coachTexts.push(`[ply ${p} ${pawnsText(e.cp_before)}→${pawnsText(e.cp_after)}] ${r.why}`);
+    }
     r.go(keep);
   }
   results.reviewAfter = { status: statusText(), badge: r.view().badges[0] ?? null,

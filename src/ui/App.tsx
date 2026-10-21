@@ -170,7 +170,7 @@ export function App({ client }: { client: DbClient }) {
           </p>
         )}
         {shown.phase ? <Placeholder title={shown.label} phase={shown.phase} about={shown.about!} />
-          : screen === 'analysis' ? <AnalysisScreen />
+          : screen === 'analysis' ? <AnalysisScreen client={client} />
             : screen === 'puzzles' ? (puzzles && <PuzzleScreen c={puzzles} onReview={reviewGame} />)
             : screen === 'review' ? (review && <ReviewScreen r={review} client={client}
               onOpenPuzzle={(id) => { setScreen('puzzles'); void puzzles?.openPuzzle(id); }}

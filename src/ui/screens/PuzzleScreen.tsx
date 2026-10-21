@@ -16,12 +16,14 @@ import { Board } from '../Board';
 import { EvalBar } from '../EvalBar';
 import { PlayDialog } from '../PlayDialog';
 import { type Filters, PuzzleController } from '../puzzleController';
+import { IdeasPanel } from '../SquareText';
 
 const SOURCE_OPTIONS = [MY_GAMES, LICHESS, BOTH_SOURCES];
 const KIND_OPTIONS = [ALL_KINDS, ...KINDS, MULTI_STEP];
 const POSITION_OPTIONS = [ALL_POSITIONS, SHARP_ONLY, QUIET_ONLY];
 const EMPTY_BOARD = '8/8/8/8/8/8/8/8 w - - 0 1';   // no puzzle: an empty board (not a position the chess rules accept)
 const DOT = { green: '#15781b', blue: '#003088', grey: '#8d8d8d' };
+const NO_SQUARES: string[] = [];
 
 function useController(c: PuzzleController): number {
   // the controller bumps its version on every change: React re-renders and reads its fields
@@ -99,6 +101,11 @@ export function PuzzleScreen({ c, onReview }: { c: PuzzleController; onReview: (
     else if (p.source_game_id) onReview(p.source_game_id, p.fen);
   };
   const done = c.state === 'done';
+  // the Coach's ideas follow the board once the puzzle is over; squares light while you point at them
+  const [lit, setLit] = useState<string[] | null>(null);
+  const shownFen = p ? c.board.fen() : '';
+  useEffect(() => { void c.coachIdeas.load(); }, [c]);
+  useEffect(() => { setLit(null); c.explainIdeas(); }, [c, done, shownFen]);
   const analysing = c.analysis.active;
   const last = c.board.moveStack.at(-1) ?? null;
   const auto = c.details?.autoTags ?? [];
@@ -159,7 +166,7 @@ export function PuzzleScreen({ c, onReview }: { c: PuzzleController; onReview: (
             <EvalBar cpWhite={evalWhite} mate={analysing ? c.analysis.evalMate : null} orientation={c.orientation} />
             <Board fen={p ? c.board.fen() : EMPTY_BOARD} orientation={c.orientation} lastMove={last} arrows={c.boardArrows()}
               movable={analysing ? 'both' : p && c.state === 'solving' ? c.board.turn : null}
-              onMove={(uci) => void c.onMove(uci)} />
+              onMove={(uci) => void c.onMove(uci)} highlights={lit ?? NO_SQUARES} />
           </div>
           <div className="row puzzle-buttons">
             <button type="button" className="btn secondary" onClick={() => void c.previous()} disabled={!c.queue.length}>← Prev</button>
@@ -182,6 +189,7 @@ export function PuzzleScreen({ c, onReview }: { c: PuzzleController; onReview: (
         <div className="card commentary-card" aria-label="Commentary">
           <p className={`status ${c.status.tone}`} role="status">{c.status.text}</p>
           {c.explanation && <p className="explanation">{c.explanation}</p>}
+          {done && !analysing && <IdeasPanel ideas={c.coachIdeas} onToggle={(on) => void c.coachIdeas.set(on)} onSquares={setLit} />}
           {c.details?.note && <div className="puzzle-note"><div className="section">📝 Your note on this position</div><p className="pre">{c.details.note}</p></div>}
           {analysing && (
             <div className="ideas">

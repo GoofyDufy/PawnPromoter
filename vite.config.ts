@@ -32,6 +32,8 @@ export default defineConfig(({ mode }) => ({
   plugins: [react(), kingCoachDb()],
   worker: { format: 'es' },
   optimizeDeps: { exclude: ['@sqlite.org/sqlite-wasm'] },   // it loads its .wasm next to itself
+  // builds and test results aren't source: rebuilding them mustn't reload an open app tab
+  server: { watch: { ignored: ['**/dist/**', '**/dist-e2e/**', '**/tests/e2e/results/**'] } },
   build: {
     target: 'es2022',
     // `vite build --mode e2e`: also the end-to-end test page, into its own folder (never shipped)

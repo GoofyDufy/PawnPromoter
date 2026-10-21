@@ -23,6 +23,7 @@ import { LibraryDialog } from '../LibraryDialog';
 import { Modal } from '../Modal';
 import { PlayDialog } from '../PlayDialog';
 import { SaveDialog } from '../SaveDialog';
+import { IdeasPanel } from '../SquareText';
 
 type Dialog =
   | { kind: 'save'; text: string; source: 'file' | 'paste' }
@@ -38,6 +39,7 @@ type Dialog =
   | null;
 
 const DOT: Record<string, string> = { green: '#15781b', blue: '#003088', grey: '#8d8d8d' };
+const NO_SQUARES: string[] = [];
 
 function PasteDialog({ onNext, onClose }: { onNext: (text: string) => void; onClose: () => void }) {
   const [text, setText] = useState('');
@@ -374,6 +376,11 @@ export function DrillScreen({ c, client, onReview }: { c: DrillController; clien
   const buttons = c.buttons();
   const full = c.fullLine();
   const d = c.drill;
+  // the Coach's ideas once a line is finished; squares light while you point at them
+  const [lit, setLit] = useState<string[] | null>(null);
+  const lineOver = !!d?.finished;
+  useEffect(() => { void c.coachIdeas.load(); }, [c]);
+  useEffect(() => { setLit(null); c.explainIdeas(); }, [c, lineOver, board.fen, c.view]);
   const lichessText = !c.lichess ? '' : !c.lichess.connected
     ? "Not connected: when your lines branch, the computer picks the opponent's reply at random. Connect Lichess to have it reply as often as real players at your level do."
     : `Connected: the computer picks the opponent's replies as often as Lichess players ${c.lichess.describe} play them (blitz and rapid).`;
@@ -477,7 +484,7 @@ export function DrillScreen({ c, client, onReview }: { c: DrillController; clien
           </div>
           <div className="board-row">
             <Board fen={board.fen} orientation={board.orientation} lastMove={board.lastMove} movable={board.movable}
-              arrows={board.arrows} snapBack={c.misses} onMove={(uci) => void c.onMove(uci)} />
+              arrows={board.arrows} snapBack={c.misses} onMove={(uci) => void c.onMove(uci)} highlights={lit ?? NO_SQUARES} />
           </div>
           <div className="row puzzle-buttons">
             {buttons.toggle && <button type="button" className="btn secondary" onClick={() => c.toggleFullLine()}>{c.showFullLine ? 'Hide full line' : 'Show full line'}</button>}
@@ -514,6 +521,7 @@ export function DrillScreen({ c, client, onReview }: { c: DrillController; clien
               ))}
             </div>
           )}
+          {lineOver && c.view !== TREE && <IdeasPanel ideas={c.coachIdeas} onToggle={(on) => void c.coachIdeas.set(on)} onSquares={setLit} />}
           {c.view === TREE && c.tree.showsIdeas() && (
             <div className="ideas">
               <div className="note">{c.tree.ideasHeader}</div>

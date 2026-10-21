@@ -38,6 +38,8 @@ export interface BoardProps {
   lastMove?: string | null;          // UCI, highlighted
   /** Bump it to put the pieces back on `fen` (a wrong move the position didn't take). */
   snapBack?: number;
+  /** Squares lit up (e.g. the ones the Coach's text you're pointing at mentions). */
+  highlights?: string[];
   arrows?: Arrow[];
   /** A move badge in a square's corner (Game Review's !!, !, ✓, ?!, ?, ??, ≡, ⚑). */
   badges?: { square: string; text: string; color: string }[];
@@ -73,7 +75,9 @@ function destsOf(board: ChessBoard): Map<Key, Key[]> {
   return dests;
 }
 
-export function Board({ fen, orientation = 'white', movable = null, onMove, lastMove, arrows = [], badges = [], snapBack = 0 }: BoardProps) {
+const NO_SQUARES: string[] = [];
+
+export function Board({ fen, orientation = 'white', movable = null, onMove, lastMove, arrows = [], badges = [], snapBack = 0, highlights = NO_SQUARES }: BoardProps) {
   const el = useRef<HTMLDivElement>(null);
   const api = useRef<Api | null>(null);
   const [promotion, setPromotion] = useState<{ from: string; to: string } | null>(null);
@@ -118,6 +122,7 @@ export function Board({ fen, orientation = 'white', movable = null, onMove, last
       turnColor: turn,
       check: board.isCheck() ? turn : false,
       lastMove: lastMove ? [lastMove.slice(0, 2) as Key, lastMove.slice(2, 4) as Key] : undefined,
+      highlight: { custom: new Map(highlights.map((sq) => [sq as Key, 'coach-hl'])) },
       movable: {
         free: false,
         color: canMove ? turn : undefined,
@@ -140,7 +145,7 @@ export function Board({ fen, orientation = 'white', movable = null, onMove, last
         ...badges.map((b): DrawShape => ({ orig: b.square as Key, customSvg: { html: badgeSvg(b.text, b.color) } })),
       ] },
     });
-  }, [fen, orientation, movable, lastMove, arrows, badges, snapBack]);
+  }, [fen, orientation, movable, lastMove, arrows, badges, snapBack, highlights]);
 
   const choose = (letter: string | null) => {
     const p = promotion;

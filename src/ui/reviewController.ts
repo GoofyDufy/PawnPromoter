@@ -8,14 +8,17 @@
  * its lines as you click through.
  */
 import { MATE_CP, MIN_CHANCES_LOST, winChances } from '../core/analyzer';
+import { phase } from '../core/stats';
 import { Board, type Color } from '../core/chess';
 import type { Engine } from '../core/engine';
 import { pySigned } from '../core/format';
 import type { DbClient } from '../data/client';
 import type { AmazingView, EvalRow, ReviewGame, ReviewGameRow } from '../data/reviewServices';
+import * as coach from '../core/coach';
 import * as explain from '../core/explain';
 import * as openingCommentary from '../core/openingCommentary';
 import { Analysis, ideaChips } from './analysis';
+import { beforeLast, CoachIdeas } from './coachIdeas';
 import type { Arrow } from './Board';
 
 export const GRAPH_CLAMP = 600;                 // the graph shows evaluations within ±6 pawns
@@ -28,6 +31,8 @@ export const BEST_COLOR = '#2E7D4F';
 export const ONLY_COLOR = '#14A693';            // ! the only move that keeps your position
 export const BOOK_COLOR = '#8A8F98';            // ≡ a move inside your prep
 export const LEFT_PREP = '#8B5CF6';             // ⚑ the move that left your prep
+const COACH_DEPTH = 12;                         // Stockfish's line for the Coach's "one move too early"
+const TURNING_CHANCES = 0.3;                    // a drop this big (winning chances) can be the game's turning point
 
 export type Tone = 'normal' | 'success' | 'muted' | { color: string };
 
@@ -114,6 +119,7 @@ export class ReviewController {
   /** Why the move just played (yours) was good or bad: '' when there's nothing to say. */
   why = '';
   private whyCache = new Map<string, string>();
+  private turning: { gameId: string; ply: number | null } | null = null;
   private whyToken: object | null = null;
   private board: Board = Board.fromFen();
   private arrows: Arrow[] = [];
@@ -121,6 +127,7 @@ export class ReviewController {
   private listeners = new Set<() => void>();
 
   constructor(private readonly client: DbClient, private readonly engine: Engine | null) {
+    this.coachIdeas = new CoachIdeas(client, 'review_ideas', engine, () => this.changed());
     this.analysis = new Analysis(engine, {
       title: (b) => this.analysisTitle(b),
       hint: 'click a line, then →',
@@ -141,8 +148,9 @@ export class ReviewController {
   // ---------- games list ----------
 
   async refreshGames(): Promise<void> {
-    const s = await this.client.service('getSettings', ['review_top_moves']);
+    const s = await this.client.service('getSettings', ['review_top_moves', 'review_ideas']);
     this.topMoves = s.review_top_moves === '1';
+    this.coachIdeas.on = s.review_ideas === '1';
     this.games = await this.client.service('reviewGames', this.filter, this.result);
     this.gamesLoaded = true;
     if (!this.games.length && !this.game) this.status = { text: 'No analyzed games in this filter yet — run Analyze new games on Import & Analyze.', tone: 'muted' };
@@ -277,6 +285,7 @@ export class ReviewController {
     for (const m of g.ucis.slice(0, this.ply)) this.board.push(m);
     this.describe();
     void this.explainMove();
+    void this.explainIdeas();
     if (this.topMoves) this.analysis.peek(this.board);
     else this.analysis.unpeek();
     this.changed();
@@ -364,60 +373,72 @@ export class ReviewController {
     }
     const before = Board.fromFen(ev.fen_before);
     const san = before.san(ev.move_uci);
-    const principles = openingCommentary.principles(before, ev.move_uci);
     const m = mark(ev);
     const goodMove = !m && (ev.move_uci === ev.best_move_uci || !!g.amazing[last] || this.only(last));
+    // the Coach (core/coach.ts): the position read like a human, the engine's facts as reasons
+    const input: coach.CoachInput = {
+      fenBefore: ev.fen_before, move: ev.move_uci, best: ev.best_move_uci, cpBefore: ev.cp_before, cpAfter: ev.cp_after,
+      second: ev.second_move_uci, cpSecond: ev.cp_second, turningPoint: this.turningPoint() === last,
+    };
     if (!m && !goodMove) {
       // a fine move: what it does, if anything worth saying (no engine)
-      const bits = whatItDoes(before, ev.move_uci);
-      const text = bits.length ? `Why it's fine: ${san} ${bits.join('; ')}.` : '';
+      const words = coach.coach(input);
+      const bits = words ? [] : whatItDoes(before, ev.move_uci);
+      const text = words ? `Coach: ${words}` : bits.length ? `Coach: ${san} ${bits.join('; ')}.` : '';
       this.whyCache.set(key, text);
       this.why = text;
       return;
     }
-    if (!m) {
-      // a good move (best, ! only move, !! amazing): what it achieves along Stockfish's line —
-      // material won, mate — plus the squares it takes and the principles it follows
-      const token = {};
-      this.whyToken = token;
-      this.why = 'Working out why…';
-      let text: string;
-      try {
-        text = await explain.explainSolution(ev.fen_before, ev.move_uci, null, this.engine);
-      } catch {
-        text = await explain.explainSolution(ev.fen_before, ev.move_uci, null, null);
-      }
-      const extra = whatItDoes(before, ev.move_uci).filter((b) => !text.includes(b));
-      if (extra.length) text += `\n${san} also ${extra.join('; ')}.`;
-      text = `Why it works: ${text}`;
-      this.whyCache.set(key, text);
-      if (this.whyToken !== token) return;
-      this.why = text;
-      this.changed();
-      return;
-    }
-    // a mistake: what the better move does, and what goes wrong after yours
     const token = {};
     this.whyToken = token;
     this.why = 'Working out why…';
+    const facts = async (best: string, played: string | null) => {
+      try {
+        return await explain.solutionFacts(ev.fen_before, best, played, this.engine);
+      } catch {
+        return explain.solutionFacts(ev.fen_before, best, played, null);   // the board facts alone
+      }
+    };
     let text: string;
-    try {
-      text = await explain.explainSolution(ev.fen_before, ev.best_move_uci!, ev.move_uci, this.engine);
-    } catch {
-      text = await explain.explainSolution(ev.fen_before, ev.best_move_uci!, ev.move_uci, null);   // the board facts alone
+    if (!m) {
+      // a good move (best, ! only move, !! amazing): what it achieves along Stockfish's line
+      input.facts = await facts(ev.move_uci, null);
+      text = coach.coach(input);
+      const extra = whatItDoes(before, ev.move_uci).filter((b) => !text.includes(b) && !(/castl/.test(b) && /castl/.test(text)));
+      if (extra.length) text += ` ${san} also ${extra.join('; ')}.`;
+    } else {
+      // a mistake: what goes wrong after yours, what the better move does, and the engine's line ("one move too early")
+      input.facts = await facts(ev.best_move_uci!, ev.move_uci);
+      input.extraBad = openingCommentary.principles(before, ev.move_uci).filter((f) => !f.good).map((f) => f.text);
+      if (this.engine) {
+        try {
+          input.bestLine = (await this.engine.analyse(before, { depth: COACH_DEPTH }))[0]?.pv;
+        } catch {
+          /* no line: no "one move too early" */
+        }
+      }
+      text = coach.coach(input);
     }
-    // a quiet better move: say what it does ("d5 gains space; adds control of c6")
-    const bestSan = before.san(ev.best_move_uci!);
-    const bestDoes = whatItDoes(before, ev.best_move_uci!);
-    if (bestDoes.length && text.startsWith(`${bestSan}.`)) text = `${bestSan} ${bestDoes.join('; ')}.${text.slice(bestSan.length + 1)}`;
-    const bad = principles.filter((f) => !f.good).map((f) => f.text);
-    if (spaceNote(before, ev.best_move_uci!) && !spaceNote(before, ev.move_uci)) bad.push(`doesn't take the space ${bestSan} would — your opponent gets room instead`);
-    if (bad.length && !text.includes(bad[0])) text += `\nAlso, ${san} ${bad.slice(0, 2).join('; ')}.`;
-    text = `Why: ${text}`;
+    text = `Coach: ${text}`;
     this.whyCache.set(key, text);
     if (this.whyToken !== token) return;            // moved on meanwhile
     this.why = text;
     this.changed();
+  }
+
+  /** The game's turning point: the move of yours that cost the most winning chances (a real mistake only). */
+  private turningPoint(): number | null {
+    const g = this.game!;
+    if (this.turning?.gameId === g.id) return this.turning.ply;
+    let best: number | null = null;
+    let worst = TURNING_CHANCES;
+    for (const [ply, ev] of Object.entries(g.evals)) {
+      if (ev.cp_after === null) continue;
+      const drop = winChances(ev.cp_before) - winChances(ev.cp_after);
+      if (drop >= worst) [best, worst] = [Number(ply), drop];
+    }
+    this.turning = { gameId: g.id, ply: best };
+    return best;
   }
 
   /** On the move that left your prep: say so; on the position before it: your prep's move(s) as green arrows. */
@@ -456,6 +477,57 @@ export class ReviewController {
     this.setStatus('No more mistakes after this point.', 'success');
     this.changed();
   }
+
+  // ---------- the Coach on the position: 💡 Ideas ----------
+
+  private readonly coachIdeas: CoachIdeas;
+
+  get ideasOn(): boolean {
+    return this.coachIdeas.on;
+  }
+
+  get ideas(): coach.Ideas | null {
+    return this.coachIdeas.ideas;
+  }
+
+  async setIdeas(on: boolean): Promise<void> {
+    await this.coachIdeas.set(on);
+  }
+
+  /** The ideas of the position on the board: at once from the board, then with Stockfish's plan. */
+  private async explainIdeas(): Promise<void> {
+    const g = this.game;
+    if (!g) return this.coachIdeas.explain(null);
+    const board = this.board;
+    // your move after theirs: what their move wants (what they'd play if they could move again)
+    const theirMove = board.turn === g.myColor && this.ply > 0 ? g.ucis[this.ply - 1] : undefined;
+    await this.coachIdeas.explain({ fen: board.fen(), me: g.myColor, cp: this.evalAtPly(), theirMove, before: beforeLast(board) });
+  }
+
+  /** The whole game, as a coach would sum it up (📋 Game summary). */
+  summaryOn = false;
+
+  toggleSummary(): void {
+    this.summaryOn = !this.summaryOn;
+    this.changed();
+  }
+
+  summary(): coach.GameSummary | null {
+    const g = this.game;
+    if (!g || !this.summaryOn) return null;
+    if (this.summaryCache?.gameId === g.id) return this.summaryCache.summary;
+    const moves: coach.SummaryMove[] = Object.entries(g.evals).map(([p, ev]) => {
+      const ply = Number(p);
+      return { ply, fenBefore: ev.fen_before, san: g.sans[ply], move: g.ucis[ply], cpBefore: ev.cp_before, cpAfter: ev.cp_after,
+        only: this.only(ply), amazing: !!g.amazing[ply], theirSan: ply > 0 ? g.sans[ply - 1] : undefined };
+    }).sort((a, b) => a.ply - b.ply);
+    const left = g.prep && g.prep.reason === 'you' ? g.prep.departure : null;
+    const summary = coach.gameSummary(moves, g.result, phase, left);
+    this.summaryCache = { gameId: g.id, summary };
+    return summary;
+  }
+
+  private summaryCache: { gameId: string; summary: coach.GameSummary } | null = null;
 
   async setTopMoves(on: boolean): Promise<void> {
     this.topMoves = on;

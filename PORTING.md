@@ -141,7 +141,7 @@ etc. are UI — Phases 2-5.
   ends it while you're down material; MAX_MOVES 15 (desktop 10). Results say
   how it ended (Forced mate / Forced draw / Wins material …); mate scores show
   as M2 (also on every evaluation bar, instead of #2). Attack / Defend (the
-  computer sacrifices, you defend; recorded with key "…|defend"), a source
+  computer sacrifices, you defend; sacrifices that force mate are left out; recorded with key "…|defend"), a source
   filter (All / My games / Lichess), your game's moves as you go, Play it out
   from the end, and Try other defences (replay against Stockfish's other
   reasonable defences, unscored).
@@ -155,6 +155,81 @@ etc. are UI — Phases 2-5.
 - **Stats → Results by opening → Practice** (web only): the opening as you
   play it (the moves at least half your games in it share) goes into a
   "From your games" repertoire and the drill opens on it.
+- **The Coach** (web only, `core/coach.ts`): Game Review's "Why" box, rewritten
+  as a human coach would say it — rules only, no AI. It reads the position
+  (named pawn structures and their plans, pawn breaks, walled-in bishops,
+  stuck knights, outposts, development, the king's shelter, material vs
+  evaluation), takes the engine's facts from `explain.solutionFacts` (shared
+  with `explainSolution`, whose wording is unchanged), and says: what went
+  wrong, what was better and why, "one move too early", whether the engine's
+  move is a human one, the practical view, and the game's turning point.
+  Material is only claimed when the evaluation backs it.
+  **💡 Ideas** (Game Review, remembered as `review_ideas`): the Coach on the
+  position itself — who's better in human terms, structure and plans for both
+  sides, pawn breaks, space, passed pawns, bad bishops / stuck knights /
+  outposts / open files, kings and weaknesses, and Stockfish's plan in words.
+  Deepened from our GothamChess notes: **📋 Game summary** ("What went well" — the hard moves found, a mistake punished, a defence, a clean conversion, keeping it open for the bishops or closed for the knights, an outpost, a model start, a long accurate stretch;
+  phase by phase with the mistakes to jump to, one line on why you won or
+  lost — one oversight, a slow slide, or the opening — and 1–2 takeaways);
+  **What your opponent wants** (their last move and what it threatens, from a
+  "pass" search); **Who has what** (material, king safety, activity, space);
+  move habits (a check for its own sake, a one-move attack, trading when down,
+  trading queens in your own attack, grabbing a pawn before developing); and
+  position rules (opposite-side castling race, bishop pair, Rule of +2 vs a
+  merely loose king, rooks facing on a file, weak colour complexes, backward
+  pawns).
+  Deepened again from our Naroditsky notes: what a pawn move leaves behind
+  (squares no pawn can guard again), a move on the wing met by a strike in the
+  centre, the base of the pawn chain in a locked centre and the push that hits
+  it, hooks in an opposite-castling race, loose pieces (undefended, or guarded
+  only by the queen — counted when attacked or advanced), king and queen on
+  one open line, fianchetto holes, a sealed back rank (and the luft move), a
+  "bad" bishop that guards a pawn, an **Endgame** section (the active king, an
+  outside passer, rooks behind passed pawns, counting tempi in pawn endings),
+  luft and fianchettos no longer called "loosening", the habit of pushing
+  pawns in front of your own king in a race, and two summary lessons (giving
+  a slip straight back; one mistake straight after another).
+  **The Coach on the other tabs** (`ui/coachIdeas.ts` + `IdeasPanel`, shared
+  with Game Review): 💡 Ideas, on / off remembered per tab, in Puzzle Review
+  (once solved or revealed — it follows the board through the line; a wrong
+  try also gets the habit behind it, "Coach: Bb5+ is a check for its own
+  sake…"), Tactics & Threats (once the answer is shown), the Analysis board
+  ("you" = the side at the bottom; it uses the lines Stockfish already shows)
+  and Opening Drill (once a line is finished). Never before the answer, so it
+  can't give a puzzle away.
+  **Tuned on real games:** every Ideas point has a rule and a weight (0–100);
+  the top three show first as **Key ideas**, the rest fold under "More".
+  `tests/ideasAudit.test.ts` (skipped unless `IDEAS_SAMPLE` points at a JSON
+  export of positions from your database) counts how often each rule fires,
+  by phase, and how often it makes the key list, and dumps sample text to
+  `IDEAS_OUT`. The first audit (600 of your positions) led to: a locked centre
+  needs pawns pushed past the middle, no structure names in endgames, loose
+  pieces in endgames only when attacked, isolated pawns only on half-open
+  files, edge holes only next to the king, no central-king warning with the
+  queens off, castling named as castling, and "no direct threat" only when
+  Stockfish actually looked.
+  **Why, not just what:** `coach.moveReasons` says what a move does (takes,
+  forks, pins, attacks, defends a hanging piece, develops, centralises, takes
+  an outpost, strikes at a pawn, frees a bishop, puts a rook on an open file or
+  the 7th, pushes a passer). Stockfish's top three moves (MultiPV) each get
+  their reason — "Just as good: Bc4 (develops the bishop)" — or "the only move
+  that keeps things together" when the next best is a pawn worse; pawn breaks
+  say what they'd do. **What's new:** points the last move made true are
+  marked "New:" and move up. **By stage:** the opening stresses development
+  and the king, the endgame passed pawns and the king, structure talk less.
+  **Why the best move works** (`coach.lineOutcome` / `planOf`): Stockfish's
+  line is played to a quiet moment (6 plies, on through captures and checks)
+  and the end is compared with the start — material (only when the evaluation
+  backs it), a king coming under fire or castling, passed pawns made or lost,
+  reachable pawn weaknesses left behind, a knight on an outpost, rooks on open
+  files or the 7th, development, trading down when ahead, activity. The
+  biggest changes become the first key idea: "Your plan: win material. After
+  32...Bd4 33.Kh1 Qxf2 34.Bd3, your opponent wins a pawn." A quiet best move
+  that stops the other side's threat (a short null-move search, then a check
+  that the threat no longer works) says so — "h3 is mainly a defensive move:
+  it stops Bg4" — and an only move says what goes wrong after the next best.
+  With `IDEAS_ENGINE=/usr/games/stockfish` the audit runs this whole pipeline
+  on every 5th position.
 - **Engine strength** (Your data → Engine, a web-app addition): "Strong" uses
   the full-network single-threaded build (95 MB, downloaded once and cached)
   for the interactive engine and Play it out; analyzing games stays on the

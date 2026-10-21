@@ -234,58 +234,104 @@ export async function explainAttempt(fen: string, attempt: string, engine: Engin
   return { text: sentences.slice(0, 3).join(' '), pv, cp: cpMe };
 }
 
+/** The facts behind an explanation (what the best move achieves; what went wrong with the move
+ *  played), for explainSolution's sentences and for the Coach's own words (coach.ts). */
+export interface SolutionFacts {
+  best: {
+    san: string;
+    features: string[];          // "takes the knight", "forks the king and rook" …
+    mate: number | null;         // it forces mate in N
+    gain: number;                // material won along its line
+    line: string;                // "20.Qc2 bxc4 21.bxc4 Qc3 22.Qb3"
+    shortLine: string;           // the first 3 moves of it
+    scope: string[];             // "it opens up your queen on g4 (15 squares → 18)"
+  };
+  played: {
+    san: string;
+    mated: number | null;        // it allows mate in N
+    lost: number;                // material lost along the reply line
+    lossLine: string;            // that line, with what each capture takes
+    reply: string;               // the opponent's best reply line (3 moves)
+    mateLine: string;            // the reply line, 4 moves (when it mates)
+    hanging: string[];           // pieces it leaves undefended
+    king: string | null;         // how it weakens your king
+    scope: string[];
+    cp: number | null;           // your evaluation after it
+  } | null;
+}
+
+export async function solutionFacts(fen: string, best: string, played: string | null, engine: Engine | null = null): Promise<SolutionFacts> {
+  const before = Board.fromFen(fen);
+  const me = before.turn;
+  const afterBest = before.copy();
+  afterBest.push(best);
+  const [pv, score] = await engineLine(engine, afterBest);
+  const facts: SolutionFacts = {
+    best: {
+      san: before.san(best),
+      features: moveFeatures(before, best),
+      mate: mateFor(score, me),
+      gain: pv.length ? lineOutcome(before, [best, ...pv], me) : lineOutcome(before, [best], me),
+      line: line(before, [best, ...pv], 5),
+      shortLine: line(before, [best, ...pv], 3),
+      scope: scopeNotes(before, afterBest, me, sq(best, 2)),
+    },
+    played: null,
+  };
+  if (played !== null && played !== best && before.isLegal(played)) {
+    const afterGame = before.copy();
+    afterGame.push(played);
+    const [gpv, gscore] = await engineLine(engine, afterGame);
+    facts.played = {
+      san: before.san(played),
+      mated: mateFor(gscore, opposite(me)),
+      lost: gpv.length ? -lineOutcome(afterGame, gpv, me) : 0,
+      lossLine: gpv.length ? lineNoted(afterGame, gpv, 4, true) : '',
+      reply: gpv.length ? line(afterGame, gpv, 3) : '',
+      mateLine: line(afterGame, gpv, 4),
+      hanging: newlyHanging(before, afterGame, me),
+      king: kingWeakening(before, played, me),
+      scope: scopeNotes(before, afterGame, me, sq(played, 2)),
+      cp: gscore ? gscore.pov(me).score(MATE_CP) : null,
+    };
+  }
+  return facts;
+}
+
 /** What the best move achieves, and why the move actually played in your game went wrong. */
 export async function explainSolution(fen: string, best: string, gameMove: string | null,
   engine: Engine | null = null, inGame = true): Promise<string> {
   // inGame false (the drills): "Nf3 ran into …" instead of "In the game, Nf3 ran into …"
   const lead = inGame ? 'In the game, ' : '';
-  const before = Board.fromFen(fen);
-  const me = before.turn;
-  const bestSan = before.san(best);
+  const me = Board.fromFen(fen).turn;
+  const f = await solutionFacts(fen, best, gameMove, engine);
   const sentences: string[] = [];
-
-  const afterBest = before.copy();
-  afterBest.push(best);
-  const features = moveFeatures(before, best);
-  const [pv, score] = await engineLine(engine, afterBest);
-  const mate = mateFor(score, me);
-  const change = pv.length ? lineOutcome(before, [best, ...pv], me) : lineOutcome(before, [best], me);
-  const keyLine = line(before, [best, ...pv], 5);
-  const what = features.length ? `${bestSan} ${features.join(', ')}` : bestSan;
-  if (mate) {
-    sentences.push(`${what}, and it forces mate: ${keyLine}.`);
-  } else if (change >= 1) {
-    sentences.push(`${what}. The key line ${keyLine} wins ${materialWords(change)}.`);
+  const b = f.best;
+  const what = b.features.length ? `${b.san} ${b.features.join(', ')}` : b.san;
+  if (b.mate) {
+    sentences.push(`${what}, and it forces mate: ${b.line}.`);
+  } else if (b.gain >= 1) {
+    sentences.push(`${what}. The key line ${b.line} wins ${materialWords(b.gain)}.`);
   } else {
-    const scope = scopeNotes(before, afterBest, me, sq(best, 2));
-    const detail = scope.length ? ` — ${scope[0]}` : '';
-    sentences.push(`${what}${detail}. Main line: ${keyLine}.`);
+    const detail = b.scope.length ? ` — ${b.scope[0]}` : '';
+    sentences.push(`${what}${detail}. Main line: ${b.line}.`);
   }
-
-  if (gameMove !== null && gameMove !== best && before.isLegal(gameMove)) {
-    const afterGame = before.copy();
-    afterGame.push(gameMove);
-    const gameSan = before.san(gameMove);
-    const [gpv, gscore] = await engineLine(engine, afterGame);
-    const gchange = gpv.length ? lineOutcome(afterGame, gpv, me) : 0;
+  const g = f.played;
+  if (g) {
     const opp = side(opposite(me));
-    if (mateFor(gscore, opposite(me))) {
-      sentences.push(`${inGame ? 'Your game move ' : ''}${gameSan} allowed a forced mate: ${line(afterGame, gpv, 4)}.`);
-    } else if (gpv.length && gchange <= -1) {
-      sentences.push(`${lead}${gameSan} ran into ${lineNoted(afterGame, gpv, 4, true)}, `
-        + `losing ${materialWords(-gchange)}.`);
+    if (g.mated) {
+      sentences.push(`${inGame ? 'Your game move ' : ''}${g.san} allowed a forced mate: ${g.mateLine}.`);
+    } else if (g.lossLine && g.lost >= 1) {
+      sentences.push(`${lead}${g.san} ran into ${g.lossLine}, losing ${materialWords(g.lost)}.`);
     } else {
-      const notes = newlyHanging(before, afterGame, me);
-      const why = notes.length ? [`left your ${notes[0]} undefended`] : [];
-      const weak = kingWeakening(before, gameMove, me);
-      if (weak) why.push(weak);
-      why.push(...scopeNotes(before, afterGame, me, sq(gameMove, 2)));
+      const why = g.hanging.length ? [`left your ${g.hanging[0]} undefended`] : [];
+      if (g.king) why.push(g.king);
+      why.push(...g.scope);
       if (why.length) {
-        sentences.push(`${lead}${gameSan} ${why[0].replace('it ', '')}.`);
-      } else if (gpv.length) {
-        const cp = gscore ? gscore.pov(me).score(MATE_CP) : null;
-        const evaluation = cp !== null ? `, leaving you at ${pySigned(cp / 100, 1)}` : '';
-        sentences.push(`${lead}${gameSan} let ${opp} play ${line(afterGame, gpv, 3)}${evaluation}.`);
+        sentences.push(`${lead}${g.san} ${why[0].replace('it ', '')}.`);
+      } else if (g.reply) {
+        const evaluation = g.cp !== null ? `, leaving you at ${pySigned(g.cp / 100, 1)}` : '';
+        sentences.push(`${lead}${g.san} let ${opp} play ${g.reply}${evaluation}.`);
       }
     }
   }

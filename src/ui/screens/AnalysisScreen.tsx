@@ -4,17 +4,22 @@
  * evaluation bar — the app's shared engine, through the core's IdeasEngine.
  * The screens share analysis.ts (analysis_board.py) for their own analysis boards.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { Board as ChessBoard, type Color, STARTING_FEN } from '../../core/chess';
 import { type Idea, IdeasEngine, lineText } from '../../core/engineIdeas';
 import { sharedEngine } from '../../engine/stockfish';
+import type { DbClient } from '../../data/client';
 import { type Arrow, Board } from '../Board';
+import { beforeLast, CoachIdeas } from '../coachIdeas';
 import { EvalBar } from '../EvalBar';
+import { IdeasPanel } from '../SquareText';
 
 const COLORS: Arrow['brush'][] = ['green', 'blue', 'grey'];
 const DOT = { green: '#15781b', blue: '#003088', grey: '#8d8d8d' } as Record<string, string>;
+const NO_SQUARES: string[] = [];
+const PLAN_READY = 12;                                   // the Coach uses Stockfish's line from this depth
 
-export function AnalysisScreen() {
+export function AnalysisScreen({ client }: { client: DbClient }) {
   const [start, setStart] = useState(STARTING_FEN);
   const [moves, setMoves] = useState<string[]>([]);
   const [at, setAt] = useState(0);                       // moves played on the board (≤ moves.length)
@@ -24,6 +29,11 @@ export function AnalysisScreen() {
   const [engineError, setEngineError] = useState<string | null>(null);
   const [fenInput, setFenInput] = useState('');
   const ideasEngine = useRef<IdeasEngine | null>(null);
+  // the Coach's ideas for the position ("you" = the side at the bottom), from the lines Stockfish shows
+  const [, redraw] = useReducer((n: number) => n + 1, 0);
+  const coachIdeas = useMemo(() => new CoachIdeas(client, 'analysis_ideas', null, redraw), [client]);
+  const [lit, setLit] = useState<string[] | null>(null);
+  useEffect(() => { void coachIdeas.load(); }, [coachIdeas]);
 
   const board = useMemo(() => {
     const b = ChessBoard.fromFen(start);
@@ -77,6 +87,17 @@ export function AnalysisScreen() {
   };
 
   const best = ideas[0];
+  const planReady = depth >= PLAN_READY && best ? best.move : '';
+  useEffect(() => {
+    setLit(null);
+    const me = orientation;
+    const cpWhite = planReady && best ? best.cp_white : null;
+    void coachIdeas.explain({ fen, me, cp: cpWhite === null ? null : me === 'white' ? cpWhite : -cpWhite,
+      theirMove: board.turn === me && at ? moves[at - 1] : undefined, bestLine: planReady && best ? best.pv : undefined,
+      before: beforeLast(board), alternatives: planReady ? ideas.map((k) => ({ move: k.move, cp: me === 'white' ? k.cp_white : -k.cp_white, line: k.pv })) : undefined });
+    // once per position and side, and again when Stockfish's line is deep enough (not on every new depth)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coachIdeas, fen, orientation, planReady]);
   const arrows: Arrow[] = ideas.map((i, k) => ({ from: i.move.slice(0, 2), to: i.move.slice(2, 4), brush: COLORS[k] }));
   const history = ChessBoard.fromFen(start);
   const sans = moves.map((m) => { const san = history.san(m); history.push(m); return san; });
@@ -89,7 +110,7 @@ export function AnalysisScreen() {
         <div className="board-row">
           <EvalBar cpWhite={best ? best.cp_white : null} mate={best?.mate} orientation={orientation} />
           <Board fen={fen} orientation={orientation} movable="both" onMove={play}
-            lastMove={at ? moves[at - 1] : null} arrows={arrows} />
+            lastMove={at ? moves[at - 1] : null} arrows={arrows} highlights={lit ?? NO_SQUARES} />
         </div>
         <div className="card">
           <h2>Stockfish {depth ? <span className="note">· depth {depth}</span> : <span className="note">· thinking…</span>}</h2>
@@ -106,6 +127,7 @@ export function AnalysisScreen() {
               ))}
             </div>
           )}
+          <IdeasPanel ideas={coachIdeas} onToggle={(on) => void coachIdeas.set(on)} onSquares={setLit} />
           <div className="row" style={{ marginTop: 14 }}>
             <button type="button" className="btn secondary" onClick={() => setAt(0)} disabled={!at} aria-label="Start">⏮</button>
             <button type="button" className="btn secondary" onClick={() => setAt(at - 1)} disabled={!at} aria-label="Back">◀</button>

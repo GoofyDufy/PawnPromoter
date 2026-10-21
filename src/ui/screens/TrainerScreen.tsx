@@ -11,6 +11,7 @@ import { Board } from '../Board';
 import { EvalBar } from '../EvalBar';
 import type { TrainerBase } from '../trainer/base';
 import { PlayDialog } from '../PlayDialog';
+import { IdeasPanel } from '../SquareText';
 import { LICHESS_BATCH, SAC_SIDES, SAC_SOURCES, SacController } from '../trainer/sacController';
 import type { SpotController } from '../trainer/spotController';
 import type { ThreatController } from '../trainer/threatController';
@@ -21,6 +22,7 @@ export const SACRIFICE = 'Sacrifice!!';
 const MODES = [TACTIC, THREAT, SACRIFICE];
 const OLD_NAMES: Record<string, string> = { 'Is there a tactic?': TACTIC, "What's the threat?": THREAT, 'Make it work': SACRIFICE };
 const DOT: Record<string, string> = { green: '#15781b', blue: '#003088', grey: '#8d8d8d' };
+const NO_SQUARES: string[] = [];
 
 export interface Trainers {
   spot: SpotController;
@@ -44,6 +46,11 @@ export function TrainerScreen({ client, trainers, onReview }: {
 
   const t: TrainerBase | null = mode === THREAT ? trainers.threat : mode === SACRIFICE ? trainers.sac : mode ? trainers.spot : null;
   useSyncExternalStore(t ? t.subscribe : () => () => {}, () => t?.version ?? 0);
+  // the Coach's ideas once the answer is shown; squares light while you point at them
+  const [lit, setLit] = useState<string[] | null>(null);
+  const answerShown = !!t && !t.liveAnalysis() && !!t.stockfishLines();
+  useEffect(() => { if (t) void t.coachIdeas.load(); }, [t]);
+  useEffect(() => { setLit(null); t?.explainIdeas(); }, [t, answerShown, t?.fen]);
 
   useEffect(() => { if (t) void t.onShown(); }, [t]);
 
@@ -114,7 +121,7 @@ export function TrainerScreen({ client, trainers, onReview }: {
           <div className="board-row">
             <EvalBar cpWhite={t.evalWhite} mate={t.evalWhite === null ? null : t.evalMate} orientation={t.orientation} blank={t.evalWhite === null} />
             <Board fen={t.fen ?? '8/8/8/8/8/8/8/8 w - - 0 1'} orientation={t.orientation} lastMove={t.lastMove} arrows={t.arrows}
-              movable={t.fen ? t.movable : null} onMove={(uci) => void t.onMove(uci)} />
+              movable={t.fen ? t.movable : null} onMove={(uci) => void t.onMove(uci)} highlights={lit ?? NO_SQUARES} />
           </div>
           <div className="row puzzle-buttons">
             {t.buttons.map((b) => (
@@ -150,6 +157,7 @@ export function TrainerScreen({ client, trainers, onReview }: {
                 ))}
               </div>
             )}
+            {lines && <IdeasPanel ideas={t.coachIdeas} onToggle={(on) => void t.coachIdeas.set(on)} onSquares={setLit} />}
             {lines && (
               <div className="ideas stockfish-lines">
                 <div className="row"><strong>Stockfish</strong><span className="note">{lines.header}</span></div>

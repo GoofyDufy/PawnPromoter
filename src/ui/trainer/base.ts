@@ -10,6 +10,7 @@ import type { DbClient } from '../../data/client';
 import type { LevelView } from '../../data/level';
 import { Analysis, ideaRows } from '../analysis';
 import type { Arrow } from '../Board';
+import { CoachIdeas } from '../coachIdeas';
 
 export type Tone = 'normal' | 'success' | 'error' | 'warning' | 'muted' | 'sac';
 
@@ -74,6 +75,16 @@ export abstract class TrainerBase {
         } else if (this.explorer.peeking) this.changed();
       },
     });
+    this.coachIdeas = new CoachIdeas(client, 'trainer_ideas', engine, () => this.changed());
+  }
+
+  /** The Coach's 💡 Ideas on the position — offered once the round's answer is shown. */
+  readonly coachIdeas: CoachIdeas;
+
+  /** The ideas of the position the board shows after a round (the screen calls this when it changes). */
+  explainIdeas(): void {
+    const open = !this.exploring && this.explorer.peeking && this.shownBoard;
+    void this.coachIdeas.explain(open ? { fen: this.shownBoard!.fen(), me: this.orientation } : null);
   }
 
   subscribe = (listener: () => void): (() => void) => {

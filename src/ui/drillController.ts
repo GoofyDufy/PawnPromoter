@@ -18,6 +18,7 @@ import type { DrillView, LichessStatus, RepertoireEntry, VariationEntry } from '
 import type { LevelView } from '../data/level';
 import type { MyDeviationView } from '../data/myGamesServices';
 import type { Arrow } from './Board';
+import { CoachIdeas } from './coachIdeas';
 import { MyGamesController } from './myGamesController';
 import type { OpeningData } from './openingData';
 import { TreeController } from './treeController';
@@ -103,6 +104,16 @@ export class DrillController {
       showMyDeviation: (d) => void this.openMyDeviation(d),
     }, engine);
     this.myGames = new MyGamesController(client, engine, () => this.changed(), (r) => this.tree.setReport(r));
+    this.coachIdeas = new CoachIdeas(client, 'drill_ideas', engine, () => this.changed());
+  }
+
+  /** The Coach's 💡 Ideas once a line is finished: the position the board shows (the end, or a move of
+   *  the full line you clicked). The screen calls this when the board changes. */
+  readonly coachIdeas: CoachIdeas;
+
+  explainIdeas(): void {
+    const d = this.drill;
+    void this.coachIdeas.explain(d?.finished && this.view !== TREE && !this.showingDeviation ? { fen: this.board().fen, me: d.myColor } : null);
   }
 
   private ask(p: Prompt): void {

@@ -10,6 +10,7 @@ import type { NoteView } from '../../data/reviewServices';
 import { TIME_FILTERS } from '../../core/models';
 import { IDEA_BRUSHES } from '../analysis';
 import { Board } from '../Board';
+import { IdeasPanel, SquareText } from '../SquareText';
 import { EvalBar } from '../EvalBar';
 import { Modal } from '../Modal';
 import {
@@ -171,6 +172,8 @@ function NotesDialog({ client, onOpen, onClose }: { client: DbClient; onOpen: (n
 }
 
 /** onOpenPuzzle(id): Puzzle Review on that puzzle. */
+const NO_SQUARES: string[] = [];
+
 export function ReviewScreen({ r, client, onOpenPuzzle, onPuzzlesChanged }: {
   r: ReviewController; client: DbClient; onOpenPuzzle: (id: string) => void; onPuzzlesChanged: () => void;
 }) {
@@ -180,6 +183,9 @@ export function ReviewScreen({ r, client, onOpenPuzzle, onPuzzlesChanged }: {
   const [notesOpen, setNotesOpen] = useState(false);
   // the games list folds away once a game is open (more room for the board); ☰ Games opens it again
   const [listOpen, setListOpen] = useState(true);
+  // squares lit on the board while you point at the Coach's words (cleared when the position changes)
+  const [lit, setLit] = useState<string[] | null>(null);
+  useEffect(() => setLit(null), [r.ply, r.game]);
   const movesBox = useRef<HTMLOListElement>(null);
 
   useEffect(() => { if (!r.gamesLoaded) void r.refreshGames(); }, [r]);
@@ -280,10 +286,10 @@ export function ReviewScreen({ r, client, onOpenPuzzle, onPuzzlesChanged }: {
           </div>
           <div className="board-row">
             <EvalBar cpWhite={r.evalWhite()} mate={r.analysis.active ? r.analysis.evalMate : null} orientation={v.orientation} />
-            <Board fen={v.fen} orientation={v.orientation} lastMove={v.lastMove} arrows={v.arrows} badges={v.badges}
+            <Board fen={v.fen} orientation={v.orientation} lastMove={v.lastMove} arrows={v.arrows} badges={v.badges} highlights={lit ?? NO_SQUARES}
               movable={g ? 'both' : null} onMove={(uci) => r.onMove(uci)} />
           </div>
-          <div className="row puzzle-buttons">
+          <div className="row puzzle-buttons review-buttons">
             {([['⏮', -999, 'Start'], ['←', -1, 'Back'], ['→', 1, 'Forward'], ['⏭', 999, 'End']] as const).map(([t, d, label]) => (
               <button key={t} type="button" className="btn secondary" aria-label={label} onClick={() => r.step(d)} disabled={!g}>{t}</button>
             ))}
@@ -291,10 +297,9 @@ export function ReviewScreen({ r, client, onOpenPuzzle, onPuzzlesChanged }: {
             <span style={{ flex: 1 }} />
             {!r.analysis.active && <button type="button" className="btn" onClick={() => r.nextMistake()} disabled={!g}>Next mistake</button>}
           </div>
-          <NoteBox r={r} />
         </div>
 
-        <div className="card commentary-card review-side" aria-label="Commentary">
+        <div className={`card commentary-card review-side${(r.ideasOn || r.summaryOn) && g && !r.analysis.active ? ' with-ideas' : ''}`} aria-label="Commentary">
           {/* the words about this position scroll on their own: a long explanation never hides anything */}
           <div className="review-text">
           {r.analysis.active ? (
@@ -312,7 +317,33 @@ export function ReviewScreen({ r, client, onOpenPuzzle, onPuzzlesChanged }: {
           ) : (<>
             <p className={`status ${typeof tone === 'string' ? tone : ''}`} style={statusStyle} role="status">{r.status.text}</p>
             {r.detail && <p className="explanation">{r.detail}</p>}
-            {r.why && <p className={`why ${r.why.startsWith('Working') ? 'note' : ''}`}>{r.why}</p>}
+            {r.why && <p className={`why ${r.why.startsWith('Working') ? 'note' : ''}`}><SquareText text={r.why} onSquares={setLit} /></p>}
+            {g && (
+              <IdeasPanel ideas={{ on: r.ideasOn, ideas: r.ideas }} onToggle={(on) => void r.setIdeas(on)} onSquares={setLit}
+                extra={<button type="button" className={`chip summary-toggle${r.summaryOn ? ' on' : ''}`} aria-pressed={r.summaryOn}
+                  onClick={() => r.toggleSummary()}>📋 {r.summaryOn ? 'Hide the summary' : 'Game summary'}</button>}>
+                {(() => {
+                  const sum = r.summary();
+                  return sum && (
+                    <div className="game-summary">
+                      {sum.praise.length > 0 && (<>
+                        <div className="section">What went well</div>
+                        <ul className="summary-praise">{sum.praise.map((p) => <li key={p}>{p}</li>)}</ul>
+                      </>)}
+                      <p className="ideas-summary">{sum.verdict}</p>
+                      {sum.phases.map((p) => (
+                        <p key={p.name} className="summary-phase"><strong>{p.name}:</strong> {p.text}
+                          {p.moves.length > 0 && <> Mistakes: {p.moves.map((m, k) => (
+                            <span key={m.ply}>{k > 0 && ', '}<button type="button" className="move-link" title="Go to this move" onClick={() => r.go(m.ply + 1)}>{m.label}</button></span>
+                          ))}.</>}
+                        </p>
+                      ))}
+                      {sum.takeaways.length > 0 && <ul className="summary-takeaways">{sum.takeaways.map((t) => <li key={t}>{t}</li>)}</ul>}
+                    </div>
+                  );
+                })()}
+              </IdeasPanel>
+            )}
             {r.notice && <p className="ok">{r.notice}</p>}
             {g?.accuracy && <p className="note">{g.accuracy}</p>}
             {chips.length > 0 && (
@@ -323,6 +354,7 @@ export function ReviewScreen({ r, client, onOpenPuzzle, onPuzzlesChanged }: {
             )}
           </>)}
           </div>
+          <NoteBox r={r} />
           <div className="row graph-head">
             <div className="section" style={{ flex: 1 }}>Evaluation (your point of view)</div>
             <label className="check"><input type="checkbox" checked={r.topMoves} onChange={(e) => void r.setTopMoves(e.target.checked)} /> Stockfish's top moves</label>

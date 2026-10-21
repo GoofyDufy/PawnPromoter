@@ -11,6 +11,7 @@
  */
 import { MATE_CP } from '../core/analyzer';
 import { Board, type Color, WHITE } from '../core/chess';
+import * as coach from '../core/coach';
 import type { Engine } from '../core/engine';
 import * as explain from '../core/explain';
 import { pyFixed, pySigned } from '../core/format';
@@ -26,6 +27,7 @@ import {
 } from '../data/services';
 import { Analysis } from './analysis';
 import type { Arrow } from './Board';
+import { beforeLast, CoachIdeas } from './coachIdeas';
 
 export const NEAR_BEST_CP = 50;      // a try within half a pawn of the best move is flagged as near-best
 export const MAIN_LINE_PLIES = 12;   // how far the step-through main line goes after your best move
@@ -140,6 +142,25 @@ export class PuzzleController {
       },
       onChange: () => this.changed(),
     });
+    this.coachIdeas = new CoachIdeas(client, 'puzzle_ideas', engine, () => this.changed());
+  }
+
+  /** The Coach's 💡 Ideas on the puzzle position — offered once it's solved or revealed. */
+  readonly coachIdeas: CoachIdeas;
+
+  /** The ideas of the position on the board (the screen calls this when it changes). */
+  explainIdeas(): void {
+    const p = this.puzzle;
+    if (!p || this.state !== 'done') {
+      void this.coachIdeas.explain(null);
+      return;
+    }
+    const me = Board.fromFen(p.fen).turn;
+    const b = this.board;
+    const atStart = b.fen() === Board.fromFen(p.fen).fen();
+    void this.coachIdeas.explain({ fen: b.fen(), me, cp: atStart ? p.eval_before_cp : null, theirMove: b.turn === me ? b.moveStack.at(-1) : undefined,
+      before: beforeLast(b) })
+      .then(() => this.changed());
   }
 
   /** Bumped on every change (React's useSyncExternalStore snapshot). */
@@ -269,6 +290,7 @@ export class PuzzleController {
     this.attemptId = null;
     this.nearBestFlagged = false;
     this.explainToken = null;
+    this.explainIdeas();
     this.hideMainLine();
     this.startSolution();
     // puzzle positions are always your move — show the board from your side
@@ -508,6 +530,10 @@ export class PuzzleController {
       text += `\nGreen arrow: the computer's reply ${board.san(pv[0])}.`;
     }
     if (arrows.some((a) => a.brush === BLUE)) text += ` Blue arrow: your game move ${this.puzzle!.played_move_san}.`;
+    // the habit behind the try, when it's a recognisable one (a check for its own sake, a one-move attack…)
+    const before = Board.fromFen(fen);
+    const habit = coach.habits(before, { fenBefore: fen, move, best: this.puzzle!.correct_move_uci, cpBefore: this.puzzle!.eval_before_cp ?? 0, cpAfter: cp })[0];
+    if (habit) text += `\nCoach: ${before.san(move)} ${habit}.`;
     return { text, arrows, cp };
   }
 

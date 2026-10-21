@@ -47,7 +47,7 @@ export class SacController extends TrainerBase {
   title = 'Sacrifice!!';
   intro = 'A sacrifice is only amazing if you follow it up. Attack: find the sacrifice, then each next move against '
     + "Stockfish's best defence until it has paid off — mate, a forced draw, or the material back with interest. "
-    + 'Defend: the computer sacrifices and attacks; find the toughest defence, move by move. '
+    + 'Defend: the computer sacrifices and attacks; find the toughest defence, move by move (sacrifices that force mate are left out — there\'s nothing to defend). '
     + 'A wrong try gets a hint.\n\n'
     + 'Sacrifices from your own games (your !! amazing moves and ones you missed) and Lichess sacrifice puzzles. '
     + `+${sac.CLEAN_XP} XP for a clean line, +${sac.DONE_XP} if you needed help.`;
@@ -196,7 +196,9 @@ export class SacController extends TrainerBase {
         if (i < 0) break;
         const cand = this.pool.splice(i, 1)[0];
         this.prepTries += 1;
-        if ((await sac.followUps(this.engine, toCand(cand))).moves >= 1) {
+        const { moves, outcome } = await sac.followUps(this.engine, toCand(cand));
+        // Defend: a sacrifice that forces mate has no defence to find — left out
+        if (moves >= 1 && !(this.side === 'defend' && outcome === 'mate')) {
           this.ready = cand;
           this.prepTries = 0;
           this.preparing = false;
@@ -293,6 +295,12 @@ export class SacController extends TrainerBase {
     this.changed();
     const stepInfo = await sac.step(this.engine!, this.board, this.me, 0, this.lineCtx, true, false);   // you answer it, whatever it is
     if (token !== this.token) return;
+    if (stepInfo.reason === 'mate' || (stepInfo.mate !== null && stepInfo.mate < 0)) {
+      // a forced mate: nothing to defend (prepare leaves these out; this one slipped through) — the next one, unscored
+      this.state = 'result';
+      void this.nextRound();
+      return;
+    }
     this.stepInfo = stepInfo;
     if (stepInfo.over) {
       await this.finish(stepInfo.reason, stepInfo.best_cp, stepInfo.mate);

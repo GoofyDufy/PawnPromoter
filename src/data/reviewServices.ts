@@ -82,6 +82,7 @@ export interface ReviewGame {
   /** ply (moves played before the position) -> your note on it */
   notes: Record<number, string>;
   url: string;
+  result: string;            // win / loss / draw (your side)
 }
 
 const number = (ply: number) => `${Math.floor(ply / 2) + 1}${ply % 2 === 0 ? '.' : '...'}`;
@@ -129,7 +130,7 @@ export function reviewGame(conn: Db, gameId: string): ReviewGame | null {
   return {
     id: g.id, title, accuracy: parts.length ? `Accuracy — ${parts.join(' · ')}` : '', opening: openingText(conn, { id: g.id, pgn: g.pgn }, prep, sans, myColor),
     ucis, sans, evals, myColor, prep, amazing: amazingMoves, puzzles: gamePuzzles(conn, gameId, evals),
-    notes: gameNotes.forGame(conn, gameId), url: g.chess_com_url,
+    notes: gameNotes.forGame(conn, gameId), url: g.chess_com_url, result: String(g.result ?? ''),
   };
 }
 
