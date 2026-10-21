@@ -225,7 +225,7 @@ export function TreeView({ t, onSelect, onDeviation, onStar, onContext, onWheel 
         let piece = movedFrom.has(sq) ? null : start.pieceAt(sq);
         if (firsts.has(sq)) piece = start.pieceAt(sqOf(firsts.get(sq)!.move!.move_uci.slice(0, 2)));
         add(<>
-          <rect data-hit={id} x={x - s / 2} y={y - s / 2} width={s} height={s} fill={(file + rank) % 2 === 1 ? '#f0d9b5' : '#b58863'} />
+          <rect data-hit={id} x={x - s / 2} y={y - s / 2} width={s} height={s} fill={(file + rank) % 2 === 1 ? 'var(--sq-light)' : 'var(--sq-dark)'} />
           {piece && <text data-hit={id} x={x} y={y} textAnchor="middle" dominantBaseline="central" fontSize={Math.max(10, s * 0.72)}
             className={`glyph ${piece.color}`}>{GLYPHS[piece.role]}</text>}
         </>);

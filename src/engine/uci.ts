@@ -109,6 +109,20 @@ export class UciEngine implements Engine {
     return run;
   }
 
+  /** "ucinewgame" + "isready", in turn with the searches: the next search starts with an empty hash. */
+  newGame(): Promise<void> {
+    const run = this.queue.then(async () => {
+      await this.ready;
+      if (this.dead) throw this.dead;
+      this.send('ucinewgame');
+      const ok = this.until('readyok');
+      this.send('isready');
+      await ok;
+    });
+    this.queue = run.catch(() => undefined);
+    return run;
+  }
+
   /** setoption, in turn with the searches (e.g. UCI_LimitStrength / UCI_Elo for Play it out). */
   setOption(name: string, value: string | number | boolean): Promise<void> {
     const run = this.queue.then(async () => {

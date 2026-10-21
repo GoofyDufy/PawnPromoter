@@ -17,6 +17,10 @@ import type { DbClient } from '../data/client';
 import { parallelEngines, runPool } from '../engine/pool';
 import { startStockfish } from '../engine/stockfish';
 import type { UciEngine } from '../engine/uci';
+import { clockLabel } from '../core/models';
+import { AnalysisStopped as WeakStopped, CONFIG as WEAK_CONFIG, searchGame } from '../core/weak/analysis';
+import { CAP, MATE_CP, clamp } from '../core/weak/evalcore';
+import { Board } from '../core/chess';
 
 export interface Progress {
   text: string;
@@ -33,7 +37,7 @@ export interface Notice {
 }
 
 export interface JobsState {
-  busy: null | 'import' | 'analyze' | 'regenerate';
+  busy: null | 'import' | 'analyze' | 'regenerate' | 'weak';
   progress: Progress | null;
   notice: Notice | null;
   classify: string;              // "Sorting new puzzles into kinds: 12 / 40…"
@@ -42,12 +46,14 @@ export interface JobsState {
   puzzlesVersion: number;
   /** Bumped each time an analyzed game adds puzzles, while the run goes on. */
   puzzlesFound: number;
+  /** Bumped whenever weakness-stats analysis was saved (Stats → Weaknesses reloads). */
+  weakVersion: number;
 }
 
 type Listener = (s: JobsState) => void;
 
 export class Jobs {
-  state: JobsState = { busy: null, progress: null, notice: null, classify: '', lichess: { busy: false, text: '' }, puzzlesVersion: 0, puzzlesFound: 0 };
+  state: JobsState = { busy: null, progress: null, notice: null, classify: '', lichess: { busy: false, text: '' }, puzzlesVersion: 0, puzzlesFound: 0, weakVersion: 0 };
   private listeners = new Set<Listener>();
   private stopRequested = false;
   private classifyStop: { stopped: boolean } | null = null;
@@ -146,6 +152,86 @@ export class Jobs {
   stop(): void {
     this.stopRequested = true;
     if (this.state.progress) this.set({ progress: { ...this.state.progress, text: 'Stopping after the current move…', stoppable: false } });
+  }
+
+  // ---------- weakness stats (Stats → Weaknesses) ----------
+
+  /** Every position of your newest `limit` unanalysed games in one time control,
+   *  at the weakness stats' fixed engine setting; then the §9 re-checks. */
+  async analyzeWeak(timeControl: string, limit: number): Promise<void> {
+    if (this.state.busy) return;
+    if (!(await this.client.service('libraryCount'))) {
+      // the opening book comes from the opening library: load it first (once)
+      this.set({ busy: 'weak', notice: null, progress: { text: 'Loading the opening library…', value: 0, max: null, stoppable: false } });
+      const built = await (await fetch(`${import.meta.env.BASE_URL}openings/library.json`)).json();
+      await this.client.service('libraryLoad', built);
+    }
+    const ids = await this.client.service('weakGamesToAnalyse', timeControl, limit);
+    if (!ids.length) {
+      this.set({ busy: null, progress: null });
+      await this.verifyWeak(timeControl);
+      return;
+    }
+    this.pauseClassifying();
+    this.stopRequested = false;
+    const p = { games: 0, positions: 0 };
+    const text = () => `${p.games} of ${ids.length} games analysed · ${p.positions} positions searched`;
+    this.set({ busy: 'weak', notice: null, progress: { text: 'Starting Stockfish…', value: 0, max: ids.length, stoppable: true } });
+    let engines: UciEngine[] = [];
+    let stopped = false;
+    try {
+      engines = await Promise.all(Array.from({ length: parallelEngines() }, () => startStockfish(WEAK_CONFIG.hash_mb)));
+      await runPool(engines, ids, async (engine, id) => {
+        const keys = await this.client.service('weakPrepare', id);
+        if (keys === null) return null;
+        return searchGame(engine, keys, () => {
+          p.positions += 1;
+          this.set({ progress: { text: text(), value: p.games, max: ids.length, stoppable: !this.stopRequested } });
+        }, () => this.stopRequested);
+      }, async (id, evals) => {
+        if (evals) await this.client.service('weakSaveGame', id, [...evals]);
+        p.games += 1;
+        this.set({ progress: { text: text(), value: p.games, max: ids.length, stoppable: !this.stopRequested }, weakVersion: this.state.weakVersion + 1 });
+      });
+    } catch (e) {
+      if (e instanceof WeakStopped) stopped = true;
+      else {
+        for (const engine of engines) engine.quit();
+        this.set({ busy: null, progress: null, notice: { ok: false,
+          text: `Something went wrong while analysing: ${e instanceof Error ? e.message : e}. Games finished before the error are saved.` } });
+        return;
+      }
+    }
+    for (const engine of engines) engine.quit();
+    this.set({ busy: null, progress: null, notice: { ok: true, text: `${stopped ? 'Stopped. ' : ''}Analysed ${p.games} of ${ids.length} games (${clockLabel(timeControl)}).` },
+      weakVersion: this.state.weakVersion + 1 });
+    if (!stopped) await this.verifyWeak(timeControl);
+  }
+
+  /** SPEC §9: re-search each showcased move at the same depth before it's shown. */
+  async verifyWeak(timeControl: string): Promise<void> {
+    if (this.state.busy) return;
+    const todo = await this.client.service('weakToVerify', timeControl);
+    if (!todo.length) return;
+    this.set({ busy: 'weak', progress: { text: `Re-checking ${todo.length} example positions…`, value: 0, max: todo.length, stoppable: false } });
+    const engine = await startStockfish(WEAK_CONFIG.hash_mb);
+    const rows: [string, string, number][] = [];
+    try {
+      for (const [fen, uci] of todo) {
+        await engine.newGame();
+        const board = Board.fromFen(fen);
+        const [info] = await engine.analyse(board, { depth: WEAK_CONFIG.depth }, 1, [uci]);
+        const s = info.score.pov('white');
+        const cp = s.isMate() ? ((s.mate() ?? 0) > 0 ? MATE_CP : -MATE_CP) : s.score()!;
+        rows.push([fen, uci, clamp(cp, -CAP, CAP)]);
+        this.set({ progress: { text: `Re-checking example positions: ${rows.length} / ${todo.length}…`, value: rows.length, max: todo.length, stoppable: false } });
+      }
+    } catch {
+      /* an engine error: the rest are re-checked next time */
+    }
+    engine.quit();
+    if (rows.length) await this.client.service('weakSaveVerified', rows);
+    this.set({ busy: null, progress: null, weakVersion: this.state.weakVersion + 1 });
   }
 
   // ---------- rebuild at a new blunder size ----------

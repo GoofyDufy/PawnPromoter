@@ -35,6 +35,8 @@ export function LineChart({ points, goal = null, color = 'var(--good)', format =
         return <g><line x1={PAD_L} y1={gy} x2={W - PAD_R} y2={gy} className="goal" strokeDasharray="5 4" strokeWidth={2} />
           <text x={W - PAD_R} y={gy - 4} textAnchor="end" className="tick goal-text">Goal {format(goal)}</text></g>;
       })()}
+      <path className="area" fill={color}
+        d={`M${points.map(([, v], i) => xy(i, v).join(',')).join('L')}L${xy(points.length - 1, lo).join(',')}L${xy(0, lo).join(',')}Z`} />
       <polyline points={points.map(([, v], i) => xy(i, v).join(',')).join(' ')} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" />
       <circle cx={lx} cy={ly} r={4} fill={color} />
       {[[0, 'start'], [Math.floor(points.length / 2), 'middle'], [points.length - 1, 'end']].map(([i, anchor]) => (

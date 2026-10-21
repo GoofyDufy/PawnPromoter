@@ -72,6 +72,8 @@ export interface Engine {
    *  without multipv — callers take [0] there. rootMoves: search only these
    *  moves (python-chess root_moves, UCI "go ... searchmoves"). */
   analyse(board: Board, limit: Limit, multipv?: number, rootMoves?: string[]): Promise<InfoLine[]>;
+  /** UCI "ucinewgame": forget the previous game (clears the hash). Optional: fakes skip it. */
+  newGame?(): Promise<void>;
 }
 
 /** Turns a UCI "info ... score cp X / mate N ... pv ..." line into an InfoLine,

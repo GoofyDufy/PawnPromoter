@@ -24,6 +24,7 @@ import { reviewServices } from './reviewServices';
 import { progressServices } from './progressServices';
 import { statsServices } from './statsServices';
 import { trainerServices } from './trainerServices';
+import { weakServices } from './weakServices';
 import { shortDate } from './dates';
 import { level, type LevelView } from './level';
 
@@ -378,5 +379,6 @@ export const services = {
   ...reviewServices,
   ...statsServices,
   ...progressServices,
+  ...weakServices,
 };
 export type Services = typeof services;

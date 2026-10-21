@@ -34,6 +34,20 @@ export const TIME_FILTERS: Record<string, Set<string> | null> = {
   Daily: new Set(['Daily']),
 };
 
+const FRACTIONS: Record<number, string> = { 0.25: '¼', 0.5: '½', 0.75: '¾' };
+
+/** A time control as players say it: minutes + increment seconds ("180+2" → "3+2",
+ *  "600" → "10+0", "30" → "½+0", "90+1" → "1½+1"). Daily or unreadable ones unchanged. */
+export function clockLabel(timeControl: string | null | undefined): string {
+  const m = /^(\d+)(?:\+(\d+))?$/.exec(timeControl ?? '');
+  if (!m) return timeControl ?? '';
+  const minutes = parseInt(m[1], 10) / 60;
+  const whole = Math.floor(minutes);
+  const frac = FRACTIONS[minutes - whole];
+  const base = Number.isInteger(minutes) ? String(minutes) : frac ? `${whole || ''}${frac}` : String(Math.round(minutes * 10) / 10);
+  return `${base}+${m[2] ?? '0'}`;
+}
+
 export function inTimeFilter(timeControl: string | null | undefined, timeClasses: Set<string> | null | undefined): boolean {
   return !timeClasses || timeClasses.has(timeClass(timeControl));
 }

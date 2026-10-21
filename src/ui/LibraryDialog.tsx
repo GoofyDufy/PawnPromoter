@@ -20,7 +20,7 @@ const ALL = 'All families';
 const ANY_CHARACTER = 'Any character';
 const SEARCH_DELAY_MS = 250;
 const MANY = 40;                 // adding more than this many lines at once asks first
-const CHARACTER_COLORS: Record<string, string> = { Sharp: '#E8735E', Balanced: '#E6A94A', Quiet: '#8FB3E8' };
+const CHARACTER_COLORS: Record<string, string> = { Sharp: 'var(--series-4)', Balanced: 'var(--series-2)', Quiet: 'var(--series-1)' };
 
 export function LibraryDialog({ client, onAdded, onClose, onReview }: {
   client: DbClient; onAdded: () => Promise<void>; onClose: () => void; onReview: (gameId: string, fen: string) => void;

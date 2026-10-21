@@ -20,7 +20,7 @@ declare module 'react' {
 }
 import { Board as ChessBoard, type Color, squareRank } from '../core/chess';
 import 'chessground/assets/chessground.base.css';
-import 'chessground/assets/chessground.brown.css';
+import './board-slate.css';
 import 'chessground/assets/chessground.cburnett.css';
 
 export interface Arrow {

@@ -22,12 +22,12 @@ import { beforeLast, CoachIdeas } from './coachIdeas';
 import type { Arrow } from './Board';
 
 export const GRAPH_CLAMP = 600;                 // the graph shows evaluations within ±6 pawns
-export const ERROR = '#D9534F';
-export const WARNING = '#E0A030';
-export const INFO = '#4A90D9';
+export const ERROR = '#b8402c';
+export const WARNING = '#d08a1e';
+export const INFO = '#3b5b84';
 export const MARKS: [number, string, string, string][] = [[300, '??', 'Blunder', ERROR], [150, '?', 'Mistake', WARNING], [80, '?!', 'Inaccuracy', INFO]];
 export const AMAZING_COLOR = '#E05599';         // !! a sound sacrifice
-export const BEST_COLOR = '#2E7D4F';
+export const BEST_COLOR = '#2c7a4c';
 export const ONLY_COLOR = '#14A693';            // ! the only move that keeps your position
 export const BOOK_COLOR = '#8A8F98';            // ≡ a move inside your prep
 export const LEFT_PREP = '#8B5CF6';             // ⚑ the move that left your prep

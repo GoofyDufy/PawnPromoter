@@ -15,9 +15,11 @@ import { LineChart, MultiLineChart } from '../Charts';
 import { DataTable } from '../DataTable';
 import { Modal } from '../Modal';
 import type { OpeningData } from '../openingData';
+import type { Jobs } from '../jobs';
+import { WeaknessesPage } from './WeaknessesPage';
 
-const PAGES = ['Overview', 'Playing style', 'Improvement', 'Repertoire'] as const;
-const AREA_COLORS: Record<string, string> = { Openings: '#5B8DEF', Middlegame: '#E6A94A', Endgame: '#4FB3A5', Tactics: '#E8735E' };
+const PAGES = ['Weaknesses', 'Overview', 'Playing style', 'Improvement', 'Repertoire'] as const;
+const AREA_COLORS: Record<string, string> = { Openings: 'var(--series-1)', Middlegame: 'var(--series-2)', Endgame: 'var(--series-3)', Tactics: 'var(--series-4)' };
 const ALL_FIRST_MOVES = 'All first moves';
 const GAPS_FROM_GAMES = 'Gaps in your games';
 const GAPS_FROM_LICHESS = 'Popular on Lichess';
@@ -38,8 +40,9 @@ function Section({ title, help, children }: { title: string; help: string; child
 
 export type PracticeAction = Improvement['practice'][number]['action'];
 
-export function StatsScreen({ client, openingData, onReview, onDrill, onRepertoireChanged, onPractice, onPracticeOpening }: {
+export function StatsScreen({ client, jobs, openingData, onReview, onDrill, onRepertoireChanged, onPractice, onPracticeOpening }: {
   client: DbClient;
+  jobs: Jobs;
   openingData: OpeningData;
   onReview: (gameId: string, fen: string) => void;
   onDrill: (catalogIndex: number) => void;
@@ -48,7 +51,7 @@ export function StatsScreen({ client, openingData, onReview, onDrill, onRepertoi
   /** Practise an opening from Results by opening (its stats key: name + colour). */
   onPracticeOpening: (key: string) => void;
 }) {
-  const [page, setPage] = useState<(typeof PAGES)[number]>('Overview');
+  const [page, setPage] = useState<(typeof PAGES)[number]>('Weaknesses');
   const [filter, setFilter] = useState<string | null>(null);
   const [overview, setOverview] = useState<Overview | null>(null);
   const [styleView, setStyleView] = useState<StyleView | null>(null);
@@ -68,16 +71,16 @@ export function StatsScreen({ client, openingData, onReview, onDrill, onRepertoi
     void client.service('getSettings', ['stats_filter']).then((s) => setFilter(s.stats_filter && s.stats_filter in TIME_FILTERS ? s.stats_filter : 'All games'));
   }, [client]);
 
-  // Overview and Playing style: when the filter changes
+  // Overview and Playing style: when the filter changes (not while Weaknesses is shown)
   useEffect(() => {
-    if (!filter) return;
+    if (!filter || page === 'Weaknesses') return;
     setBusy(true);
     void (async () => {
       setOverview(await client.service('statsOverview', filter));
       setStyleView(await client.service('statsStyle', filter));
       setBusy(false);
     })();
-  }, [client, filter]);
+  }, [client, filter, page === 'Weaknesses']);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadRepertoire = useCallback(async () => {
     if (!filter) return;
@@ -149,12 +152,15 @@ export function StatsScreen({ client, openingData, onReview, onDrill, onRepertoi
           {PAGES.map((p) => <button key={p} type="button" role="tab" aria-selected={page === p} aria-checked={page === p} onClick={() => setPage(p)}>{p}</button>)}
         </div>
         <span style={{ flex: 1 }} />
-        <span className="note">Games</span>
-        <select aria-label="Games" value={filter ?? 'All games'} onChange={(e) => setFilter(e.target.value)}>
-          {Object.keys(TIME_FILTERS).map((f) => <option key={f}>{f}</option>)}
-        </select>
+        {page !== 'Weaknesses' && <>
+          <span className="note">Games</span>
+          <select aria-label="Games" value={filter ?? 'All games'} onChange={(e) => setFilter(e.target.value)}>
+            {Object.keys(TIME_FILTERS).map((f) => <option key={f}>{f}</option>)}
+          </select>
+        </>}
       </div>
-      <p className="note">{busy ? 'Working it out…' : overview?.summary}</p>
+      {page !== 'Weaknesses' && <p className="note">{busy ? 'Working it out…' : overview?.summary}</p>}
+      {page === 'Weaknesses' && <WeaknessesPage client={client} jobs={jobs} onReview={onReview} onPractice={onPractice} />}
       {notice && (
         <div className={`notice ${notice.ok ? 'ok' : 'error'}`} role="status">
           <span>{notice.text}</span>

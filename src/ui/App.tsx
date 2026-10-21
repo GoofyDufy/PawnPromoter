@@ -58,6 +58,7 @@ export function App({ client }: { client: DbClient }) {
   // the long-running work (import, analysis, Lichess) outlives screen switches
   const jobs = useMemo(() => new Jobs(client), [client]);
   const jobsState = useSyncExternalStore(useCallback((l: () => void) => jobs.subscribe(l), [jobs]), () => jobs.state);
+  useEffect(() => { if (import.meta.env.MODE === 'e2e') (window as unknown as { jobs: Jobs }).jobs = jobs; }, [jobs]);   // tests/e2e
   const onLevel = useCallback((level: LevelView) => setSummary((s) => (s ? { ...s, level } : s)), []);
   // Puzzle Review keeps its place while you visit other screens; a new one per player
   const current = profiles?.current ?? null;
@@ -184,7 +185,7 @@ export function App({ client }: { client: DbClient }) {
               tactics: () => void client.service('setSettings', { trainer_mode: 'Tactic?' }).then(() => setScreen('tactics')),
               analyze: () => setScreen('import'),
             }} />)
-            : screen === 'stats' ? (profiles && <StatsScreen client={client} openingData={openingData} onReview={reviewGame}
+            : screen === 'stats' ? (profiles && <StatsScreen client={client} jobs={jobs} openingData={openingData} onReview={reviewGame}
               onDrill={(i) => { setScreen('drill'); void drill?.drillSuggestion(i); }} onRepertoireChanged={() => void drill?.refreshRepertoires()}
               onPracticeOpening={(key) => { setScreen('drill'); void drill?.practiceOpening(key); }}
               onPractice={(action) => {

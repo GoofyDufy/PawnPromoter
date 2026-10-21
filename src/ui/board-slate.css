@@ -1,0 +1,32 @@
+/* The board in the app's slate palette (replaces chessground.brown.css):
+   squares from the --sq-light / --sq-dark tokens, so the board follows the
+   theme. a8 is light: the pattern's top-left square is the light colour. */
+cg-board {
+  background-color: var(--sq-light);
+  background-image: repeating-conic-gradient(var(--sq-dark) 0 25%, var(--sq-light) 0 50%);
+  background-size: 25% 25%;
+}
+
+cg-board square.move-dest {
+  background: radial-gradient(rgb(28 48 78 / 0.45) 22%, rgb(28 48 78 / 0.7) 0, rgb(0 0 0 / 0.25) 0, rgb(0 0 0 / 0) 0);
+}
+cg-board square.premove-dest {
+  background: radial-gradient(rgb(70 40 90 / 0.45) 22%, rgb(70 40 90 / 0.7) 0, rgb(0 0 0 / 0.25) 0, rgb(0 0 0 / 0) 0);
+}
+cg-board square.oc.move-dest { background: radial-gradient(transparent 0%, transparent 80%, rgb(28 48 78 / 0.35) 80%); }
+cg-board square.oc.premove-dest { background: radial-gradient(transparent 0%, transparent 80%, rgb(70 40 90 / 0.3) 80%); }
+cg-board square.move-dest:hover { background: rgb(28 48 78 / 0.3); }
+cg-board square.premove-dest:hover { background: rgb(70 40 90 / 0.25); }
+cg-board square.last-move { background-color: rgb(232 186 74 / 0.45); }
+cg-board square.selected { background-color: rgb(59 91 132 / 0.5); }
+cg-board square.check {
+  background: radial-gradient(ellipse at center, rgb(214 48 30) 0%, rgb(200 40 26) 25%, rgb(170 30 20 / 0) 89%, rgb(160 30 20 / 0) 100%);
+}
+cg-board square.current-premove { background-color: rgb(70 40 90 / 0.5); }
+
+/* rank/file labels: one colour with a light halo, readable on both square colours */
+.cg-wrap coords coord {
+  color: rgb(25 33 44 / 0.85);
+  text-shadow: 0 0 2px rgb(255 255 255 / 0.9), 0 0 1px rgb(255 255 255 / 0.9);
+  font-weight: 600;
+}

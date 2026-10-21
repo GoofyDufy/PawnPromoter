@@ -15,6 +15,7 @@ import { runPool } from '../../src/engine/pool';
 import { setEngineStrength, sharedEngine, startStockfish } from '../../src/engine/stockfish';
 import { App } from '../../src/ui/App';
 import type { DrillController } from '../../src/ui/drillController';
+import type { Jobs } from '../../src/ui/jobs';
 import type { ReviewController } from '../../src/ui/reviewController';
 import type { Trainers } from '../../src/ui/screens/TrainerScreen';
 import type { PuzzleController } from '../../src/ui/puzzleController';
@@ -804,6 +805,60 @@ async function phase2(client: DbClient) {
   results.summary = await client.service('summary');
 }
 
+/** Stats → Weaknesses: your snapshot imported into a fresh browser, 25 of your
+ *  games analysed for real at the weakness stats' engine setting, then the
+ *  page's views read back. The profile is kept for screenshots (?phase=show). */
+async function phaseWeak(client: DbClient) {
+  const errors: string[] = [];
+  results.pageErrors = errors;
+  addEventListener('error', (e) => errors.push(`${e.message} ${e.error?.stack}`));
+  addEventListener('unhandledrejection', (e) => errors.push(e.reason instanceof Error ? `${e.reason.message} ${e.reason.stack}` : String(e.reason)));
+  await client.init();
+  await client.importDb(new Uint8Array(await (await fetch('/fixture/snapshot.db')).arrayBuffer()), false);
+  createRoot(document.getElementById('root')!).render(createElement(StrictMode, null, createElement(App, { client })));
+  await waitFor('the app', () => document.querySelector('.level-card'), 120_000);
+  nav('Stats');
+  await waitFor('the weaknesses page', () => document.querySelector('.weak-empty, .weak-page'), 60_000);
+  const jobs = (window as unknown as { jobs: Jobs }).jobs;
+  const tc = (document.querySelector('#weak-tc') as HTMLSelectElement).value;
+  let t0 = performance.now();
+  let positions = 0;
+  const off = jobs.subscribe((s) => { const m = /(\d+) positions searched/.exec(s.progress?.text ?? ''); if (m) positions = Number(m[1]); });
+  await jobs.analyzeWeak(tc, 25);
+  off();
+  results.weakAnalysis = { timeControl: tc, ms: ms(t0), positions, perGameMs: Math.round(ms(t0) / 25), notice: jobs.state.notice };
+  await waitFor('the report', () => document.querySelector('.weak-page .stat-card'), 60_000);
+  await new Promise((r) => setTimeout(r, 500));
+  const cards = () => [...document.querySelectorAll('.weak-page .stat-card')].map((c) => `${c.querySelector('.stat-title span')?.textContent}: ${c.querySelector('.stat-headline')?.textContent ?? c.querySelector('.stat-empty')?.textContent}`);
+  results.weakOverview = { cards: cards(), weaknesses: [...document.querySelectorAll('.weak-row')].map((r) => r.textContent),
+    examples: document.querySelectorAll('.weak-example').length, meta: document.querySelector('.weak-page > p.note')?.textContent };
+  button('Training plan').click();
+  await new Promise((r) => setTimeout(r, 300));
+  results.weakPlan = { focuses: [...document.querySelectorAll('.weak-focus h3')].map((h) => h.textContent),
+    note: document.querySelector('.weak-section .note:last-child')?.textContent };
+  const track = button('Track my progress');
+  if (track) {
+    track.click();
+    await waitFor('the tracked plan', () => document.querySelector('.weak-progress'), 20_000);
+    results.weakTracked = document.querySelector('.weak-progress')?.textContent;
+  }
+  button('Splits').click();
+  await new Promise((r) => setTimeout(r, 300));
+  results.weakSplits = { cards: cards(), openings: document.querySelectorAll('.weak-openings tbody tr').length };
+  t0 = performance.now();
+  button('Last 50 games').click();
+  button('All analysed').click();
+  await new Promise((r) => setTimeout(r, 300));
+  results.weakSwitchMs = ms(t0);
+}
+
+/** Opens the app on whatever this profile holds (for screenshots). */
+async function phaseShow(client: DbClient) {
+  await client.init();
+  createRoot(document.getElementById('root')!).render(createElement(StrictMode, null, createElement(App, { client })));
+  await new Promise(() => undefined);
+}
+
 /** The Strong engine (the 95 MB full network): loads, analyses, and switching back restarts the shared engine. */
 async function phaseEngine() {
   const board = Board.fromFen('r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3');
@@ -832,6 +887,8 @@ async function phaseEngine() {
     else if (phase === 'review') await phaseReview(client);
     else if (phase === 'stats') await phaseStats(client);
     else if (phase === 'engine') await phaseEngine();
+    else if (phase === 'weak') await phaseWeak(client);
+    else if (phase === 'show') await phaseShow(client);
     else await phase2(client);
     results.ok = true;
   } catch (e) {

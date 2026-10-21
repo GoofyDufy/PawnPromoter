@@ -81,6 +81,26 @@ etc. are UI — Phases 2-5.
 | `screens/ScoutScreen.tsx` | `scout_tab.py` (b7738c2) | e2e (scouts a real account) |
 | `src/data/services.ts` | the database calls the tabs make (`upgradePuzzles` = puzzle_tab's start-up rule upgrades) | golden core modules + the above |
 
+## Weakness stats (from ~/WeaknessStats, 2026-10-21)
+
+A second reference: the weakness-stats prototype in `~/WeaknessStats` (Python,
+not a git repo yet), built to its spec pack (SPEC.md v1.1 + FIXES-v1.2.md).
+
+| Python | TypeScript | Checked by |
+|---|---|---|
+| `weakstats/evalcore.py`, `see.py` | `core/weak/evalcore.ts`, `see.ts` | prototype tests ported (SPEC §8 vectors, mate signs, SEE) |
+| `weakstats/eco.py`, `tools/build_eco.py` | `core/weak/book.ts` (built from the `opening_library` table) | `tests/weakAnalysis.test.ts` |
+| `weakstats/stats.py` | `core/weak/stats.ts` | prototype tests ported; golden (`tools/golden_weak.py`): the whole report, both windows, on the prototype's 188 analysed games |
+| `weakstats/pipeline.py`, `engine.py`, `store.py` | `core/weak/analysis.ts`, `store.ts`, `data/weakServices.ts`, `jobs.analyzeWeak` | `tests/weakAnalysis.test.ts`; e2e `tests/e2e/weak.sh` |
+| — (web only) | `core/weak/training.ts` — training plans (PHASE2.md P2.1, first version) | — |
+
+Differences from the prototype: the engine setting (Stockfish 19 lite WASM,
+depth 14, hash kept within a game, `sf19lite-d14-g1`; the prototype used
+Stockfish 16 native at depth 18), positions deep in the opening book are not
+searched (every stat treats them as having no evaluation), and the screen is
+Stats → Weaknesses instead of a separate page (examples open Game Review).
+Openings are grouped by family × colour in both.
+
 ## Deliberate differences
 
 - **Lichess puzzles come from pre-built packs**, not by streaming
