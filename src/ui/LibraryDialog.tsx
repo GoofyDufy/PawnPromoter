@@ -41,7 +41,8 @@ export function LibraryDialog({ client, onAdded, onClose, onReview }: {
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState<number[] | null>(null);
   const [confirmMany, setConfirmMany] = useState<number[] | null>(null);
-  const [names, setNames] = useState<string[]>([]);
+  const [names, setNames] = useState<{ name: string; colors: PlayerColor[] }[]>([]);
+  const [side, setSide] = useState<PlayerColor | null>(null);
   const [games, setGames] = useState<Awaited<ReturnType<typeof client.service<'gamesList'>>> | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -72,12 +73,12 @@ export function LibraryDialog({ client, onAdded, onClose, onReview }: {
 
   const search = useCallback(async () => {
     const result = await client.service('librarySearch', {
-      query, family, character: character === ANY_CHARACTER ? null : character, show, sort,
+      query, family, character: character === ANY_CHARACTER ? null : character, show, sort, side,
     });
     setRows(result.rows);
     setStatus(result.countText);
     setPicked([]);
-  }, [client, query, family, character, show, sort]);
+  }, [client, query, family, character, show, sort, side]);
 
   useEffect(() => {
     if (!ready) return;
@@ -114,7 +115,7 @@ export function LibraryDialog({ client, onAdded, onClose, onReview }: {
       return;
     }
     setConfirmMany(null);
-    setNames(await client.service('repertoireNames'));
+    setNames(await client.service('repertoireList'));
     setSaving(ids);
   };
 
@@ -143,6 +144,11 @@ export function LibraryDialog({ client, onAdded, onClose, onReview }: {
         <div className="row library-head">
           <input aria-label="Search" placeholder="Search (name, ECO, or moves like e4 c5 Nf3)" value={query}
             onChange={(e) => setQuery(e.target.value)} style={{ flex: 1, minWidth: 200 }} autoFocus />
+          <select aria-label="Playing as" value={side ?? ''} onChange={(e) => setSide((e.target.value || null) as PlayerColor | null)}>
+            <option value="">As White and Black</option>
+            <option value="white">Playing as White</option>
+            <option value="black">Playing as Black</option>
+          </select>
           <select aria-label="Show" value={show} onChange={(e) => setShow(e.target.value)}>
             {[SHOW_ALL, SHOW_IN, SHOW_OUT, SHOW_PLAYED].map((o) => <option key={o}>{o}</option>)}
           </select>
@@ -207,12 +213,13 @@ export function LibraryDialog({ client, onAdded, onClose, onReview }: {
         <Modal title="Opening library" onClose={() => setConfirmMany(null)}>
           <p>Add all {confirmMany.length} lines? Big repertoires are harder to drill — you can turn lines off later (Turn lines on/off).</p>
           <div className="row modal-buttons">
-            <button type="button" className="btn" onClick={() => { const ids = confirmMany; setConfirmMany(null); void (async () => { setNames(await client.service('repertoireNames')); setSaving(ids); })(); }}>Add them</button>
+            <button type="button" className="btn" onClick={() => { const ids = confirmMany; setConfirmMany(null); void (async () => { setNames(await client.service('repertoireList')); setSaving(ids); })(); }}>Add them</button>
             <button type="button" className="btn secondary" onClick={() => setConfirmMany(null)}>Cancel</button>
           </div>
         </Modal>
       )}
-      {saving && <SaveDialog names={names} onSave={save} onClose={() => setSaving(null)} />}
+      {saving && <SaveDialog repertoires={names} onSave={save} onClose={() => setSaving(null)}
+        defaultColor={side ?? (detail && saving.includes(detail.id) ? detail.orientation : 'white')} />}
       {games && (
         <Modal title={`${detail?.title ?? ''} — ${games.length} game${games.length !== 1 ? 's' : ''}`} onClose={() => setGames(null)}>
           <p className="note">Click one to open it in Game Review at this line's position.</p>

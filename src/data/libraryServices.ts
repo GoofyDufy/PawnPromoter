@@ -36,7 +36,13 @@ export interface LibrarySearch {
   character: string | null;
   show: string;
   sort: string;
+  /** Only lines for this side (null: both). */
+  side?: PlayerColor | null;
 }
+
+/** Whose opening a line is: the side that made its last (defining) move — the Sicilian (…c5) is Black's,
+ *  the Ruy Lopez (Bb5) White's. */
+export const sideOf = (o: { plies: number }): PlayerColor => (o.plies % 2 === 1 ? 'white' : 'black');
 
 export function libraryCount(conn: Db): number {
   return openingLibrary.count(conn);
@@ -82,6 +88,9 @@ export function librarySearch(conn: Db, s: LibrarySearch): { rows: LibraryRowVie
   const recs = cacheFor(conn).recs;
   let rows: [openingLibrary.Opening, string][] = [];
   for (const o of found) {
+    // a side's lines: its own openings, any line you've played with that colour, and any in that colour's repertoire
+    if (s.side && sideOf(o) !== s.side && !(recs.get(o.id) ?? []).some((r) => r.color === s.side)
+      && openingLibrary.status(o, { [s.side]: reps[s.side] ?? new Set() })[0] !== 'in') continue;
     const [flag] = openingLibrary.status(o, reps);
     if ((s.show === SHOW_IN && flag !== 'in') || (s.show === SHOW_OUT && flag === 'in')) continue;
     if (s.show === SHOW_PLAYED && !recs.has(o.id)) continue;
@@ -93,7 +102,7 @@ export function librarySearch(conn: Db, s: LibrarySearch): { rows: LibraryRowVie
   const views = rows.map(([o, flag]): LibraryRowView => {
     const label = oneFamily ? (o.variation || o.name) : o.name;
     const char = o.character ? `  · ${o.character}` : '';
-    const lineRecs = recs.get(o.id);
+    const lineRecs = recs.get(o.id)?.filter((r) => !s.side || r.color === s.side);
     let you = '';
     if (lineRecs?.length) {                      // up front: long names would hide it at the end
       const games = lineRecs.reduce((n, r) => n + r.games, 0);

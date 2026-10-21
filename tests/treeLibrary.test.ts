@@ -175,5 +175,27 @@ describe('the opening library', () => {
     expect(after.flagColor).toBe('black');
     const mine = await client.service('librarySearch', { ...search, show: 'In my repertoire' });
     expect(mine.rows.map((r) => r.id)).toContain(first.id);
+    expect(await client.service('repertoireList')).toEqual([{ name: 'Sicilian', colors: ['black'] }]);
+  });
+
+  it('filters lines by the side you play', async () => {
+    const { client } = await setup();
+    const built = JSON.parse(readFileSync(fileURLToPath(new URL('../public/openings/library.json', import.meta.url)), 'utf8'));
+    await client.service('libraryLoad', built);
+    const search = { query: 'Najdorf', family: null, character: null, show: 'All lines', sort: 'Book order' };
+    const all = await client.service('librarySearch', search);
+    const white = await client.service('librarySearch', { ...search, side: 'white' as const });
+    const black = await client.service('librarySearch', { ...search, side: 'black' as const });
+    expect(all.rows.length).toBeLessThan(600);
+    expect(white.rows.length).toBeGreaterThan(0);
+    expect(black.rows.length).toBeGreaterThan(0);
+    expect(white.rows.length + black.rows.length).toBe(all.rows.length);           // each line belongs to the side that made its last move
+    for (const r of black.rows.slice(0, 20)) expect((await client.service('libraryDetail', r.id))!.orientation).toBe('black');
+    // a line you've saved for White shows when playing as White, whoever made its last move
+    const theirs = black.rows[0];
+    await client.service('libraryAdd', [theirs.id], 'Anti-Sicilian', 'white');
+    const after = await client.service('librarySearch', { ...search, side: 'white' as const });
+    expect(after.rows.map((r) => r.id)).toContain(theirs.id);
+    expect(after.rows.length).toBeGreaterThan(white.rows.length);         // (and any shorter line it covers)
   });
 });

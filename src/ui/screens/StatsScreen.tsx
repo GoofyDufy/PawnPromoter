@@ -7,12 +7,13 @@
  * prep doesn't answer, lines you face most). Recomputed when shown.
  */
 import { type ReactNode, useCallback, useEffect, useState } from 'react';
-import { TIME_FILTERS } from '../../core/models';
+import { type PlayerColor, TIME_FILTERS } from '../../core/models';
 import type { DbClient } from '../../data/client';
 import type { Table } from '../../data/statsServices';
 import type { Improvement } from '../../core/improvement';
 import { LineChart, MultiLineChart } from '../Charts';
 import { DataTable } from '../DataTable';
+import { MastersDialog } from '../MastersDialog';
 import { Modal } from '../Modal';
 import type { OpeningData } from '../openingData';
 import type { Jobs } from '../jobs';
@@ -65,6 +66,7 @@ export function StatsScreen({ client, jobs, openingData, onReview, onDrill, onRe
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
   const [games, setGames] = useState<{ title: string; fen: string; games: { id: string; label: string; result: string }[] } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [masters, setMasters] = useState<{ title: string; moves: string[]; color: PlayerColor; token: string | null } | null>(null);
   const [improve, setImprove] = useState<Improvement | null>(null);
 
   useEffect(() => {
@@ -125,6 +127,13 @@ export function StatsScreen({ client, jobs, openingData, onReview, onDrill, onRe
     const r = await client.service('statsGames', id);
     if ('message' in r) setNotice({ ok: false, text: r.message });
     else setGames(r);
+  };
+
+  const showMasters = async (id: string | null) => {
+    if (!id?.startsWith('common')) { setNotice({ ok: false, text: 'Select a line in Lines you face most first.' }); return; }
+    const r = await client.service('statsLine', id);
+    if ('message' in r) setNotice({ ok: false, text: r.message });
+    else setMasters(r);
   };
 
   const add = async (id: string | null) => {
@@ -287,10 +296,16 @@ export function StatsScreen({ client, jobs, openingData, onReview, onDrill, onRe
           )}
           <Section title="Lines you face most (first 3 moves)" help="Your most common openings. ✓ = already covered by your repertoire.">
             {rep && <DataTable table={rep.common} maxRows={12} selected={selected} onSelect={setSelected} onOpen={(id) => void showGames(id)} wide={[0, 1]} />}
-            {repActions}
+            <div className="row" style={{ justifyContent: 'flex-end', marginTop: 8 }}>
+              <button type="button" className="btn secondary" onClick={() => void showMasters(selected)}>Show lines in master database</button>
+              <button type="button" className="btn secondary" onClick={() => void showGames(selected)}>Show games</button>
+              <button type="button" className="btn" onClick={() => void add(selected)}>Add selected to repertoire</button>
+            </div>
           </Section>
         </div>
       )}
+
+      {masters && <MastersDialog {...masters} onClose={() => setMasters(null)} />}
 
       {games && (
         <Modal title={games.title} onClose={() => setGames(null)}>

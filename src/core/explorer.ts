@@ -18,6 +18,7 @@ import type { Db } from './sqlite';
 import { addDays, isoformat, nowIso } from './time';
 
 export const EXPLORER_URL = 'https://explorer.lichess.ovh/lichess';
+export const MASTERS_URL = 'https://explorer.lichess.ovh/masters';
 export const ACCOUNT_URL = 'https://lichess.org/api/account';
 export const TOKEN_PAGE = 'https://lichess.org/account/oauth/token';
 export const TOKEN_SETTING = 'lichess_token';
@@ -212,6 +213,47 @@ export async function fetchStats(token: string, fen: string, bands: string, fetc
   if (resp.status === 429) throw new ExplorerError('rate limited');
   if (resp.status !== 200) throw new ExplorerError(`Lichess answered with an error (${resp.status}).`);
   return resp.json();
+}
+
+/** One position in the Lichess masters database (over-the-board games between strong players). */
+export interface MastersPosition {
+  games: number;
+  white: number;
+  draws: number;
+  black: number;
+  opening: string | null;                       // "B90 Sicilian Defense: Najdorf Variation"
+  moves: { uci: string; san: string; games: number; white: number; draws: number; black: number; rating: number }[];
+  topGames: { id: string; white: string; black: string; whiteRating: number; blackRating: number; year: number; result: string }[];
+}
+
+/** The masters database at a position (token: sent when there is one). Throws ExplorerError. */
+export async function fetchMasters(token: string | null, fen: string, fetchImpl: Fetch = fetch): Promise<MastersPosition> {
+  const params = new URLSearchParams({ fen, moves: '12', topGames: '8' });
+  let resp: Response;
+  try {
+    resp = await fetchImpl(`${MASTERS_URL}?${params}`, { headers: token ? auth(token) : {}, signal: AbortSignal.timeout(15_000) });
+  } catch (e) {
+    throw new ExplorerError(`Couldn't reach Lichess: ${e}`);
+  }
+  if (resp.status === 401) throw new BadToken(token ? "Lichess didn't accept the saved token." : 'Connect Lichess first (Opening Drill → Add lines → Connect Lichess…).');
+  if (resp.status === 429) throw new ExplorerError('Lichess asks us to slow down — try again in a minute.');
+  if (resp.status !== 200) throw new ExplorerError(`Lichess answered with an error (${resp.status}).`);
+  return parseMasters(await resp.json());
+}
+
+/** The masters answer as plain data. */
+export function parseMasters(data: any): MastersPosition {
+  const n = (x: unknown) => (typeof x === 'number' ? x : 0);
+  const result = (w: unknown) => (w === 'white' ? '1-0' : w === 'black' ? '0-1' : '½-½');
+  return {
+    games: n(data?.white) + n(data?.draws) + n(data?.black),
+    white: n(data?.white), draws: n(data?.draws), black: n(data?.black),
+    opening: data?.opening ? `${data.opening.eco ?? ''} ${data.opening.name ?? ''}`.trim() : null,
+    moves: (data?.moves ?? []).map((m: any) => ({ uci: String(m.uci), san: String(m.san), games: n(m.white) + n(m.draws) + n(m.black),
+      white: n(m.white), draws: n(m.draws), black: n(m.black), rating: n(m.averageRating) })),
+    topGames: (data?.topGames ?? []).map((g: any) => ({ id: String(g.id), white: String(g.white?.name ?? '?'), black: String(g.black?.name ?? '?'),
+      whiteRating: n(g.white?.rating), blackRating: n(g.black?.rating), year: n(g.year), result: result(g.winner) })),
+  };
 }
 
 const realSleep = (s: number) => new Promise<void>((resolve) => setTimeout(resolve, s * 1000));

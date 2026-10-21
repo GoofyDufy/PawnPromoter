@@ -232,6 +232,22 @@ export function statsPopular(conn: Db, firstMove: string | null): { status: stri
   return { status, table: { ...empty, rows }, opponentFens, replyFens: gaps.gapReplyPositions(popular) };
 }
 
+/** A "Lines you face most" row for the masters database: its moves (uci, from the start) and title, and
+ *  the Lichess token (the masters explorer wants one). */
+export function statsLine(conn: Db, id: string): { title: string; moves: string[]; color: PlayerColor; token: string | null } | { message: string } {
+  const c = id.startsWith('common') ? report?.common[Number(id.slice(6))] : undefined;
+  if (!c) return { message: 'Select a line in Lines you face most first.' };
+  const b = Board.fromFen(STARTING_FEN);
+  const moves: string[] = [];
+  for (const san of c.sans) {
+    const uci = b.parseSan(san);
+    if (!uci) break;
+    moves.push(uci);
+    b.push(uci);
+  }
+  return { title: `${gaps.formatLine(c.sans)}${c.opening ? ` — ${c.opening}` : ''}`, moves, color: c.color as PlayerColor, token: explorer.getToken(conn) };
+}
+
 /** The games behind a row, newest first, and the position to review them at. */
 export function statsGames(conn: Db, id: string): { title: string; fen: string; games: { id: string; label: string; result: string }[] } | { message: string } {
   if (id.startsWith('popular')) return { message: 'This move comes from Lichess players, not from your own games, so there are no games of yours to show.' };
@@ -302,6 +318,6 @@ export function statsImprovement(conn: Db, filter: string): improvement.Improvem
 
 export const statsServices = {
   scoutLines, statsImprovement, openingPractice,
-  statsOverview, statsStyle, drillSuggestion, statsRepertoire, statsRepertoireRender, statsPopular, statsGames, statsAdd,
+  statsOverview, statsStyle, drillSuggestion, statsRepertoire, statsRepertoireRender, statsPopular, statsGames, statsLine, statsAdd,
   explorerMissing,
 };

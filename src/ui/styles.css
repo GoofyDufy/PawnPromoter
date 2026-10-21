@@ -263,6 +263,8 @@ button.chip { cursor: pointer; }
 .play-dialog::backdrop { background: rgb(0 0 0 / 0.5); }
 .play { display: flex; gap: 20px; flex-wrap: wrap; }
 .play .board-wrap { width: max(240px, min(420px, calc(100vh - 120px), calc(100vw - 72px))); }
+/* don't let the row stretch the board to the side panel's height: it has to stay square */
+.play .board-wrap { align-self: flex-start; flex: none; }
 .play-side { width: 280px; display: flex; flex-direction: column; gap: 6px; }
 .play-side h2 { margin: 0; font-size: 16px; }
 /* tab buttons: never squeezed — each keeps its whole label, and they wrap to a second row if the panel is narrow */
@@ -679,3 +681,15 @@ cg-board square.coach-hl { background: rgb(255 196 0 / 0.5); box-shadow: inset 0
 .weak-method dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; margin: 0; }
 .weak-method dt { color: var(--ink-2); }
 .weak-method dd { margin: 0; }
+
+/* Stats → Lines you face most → master database */
+.modal.wide:has(.masters) { width: min(1040px, calc(100vw - 32px)); }
+.masters { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+.masters-board { width: min(360px, 100%); flex: none; }
+.masters-side { flex: 1 1 340px; min-width: 0; }
+.masters-line { margin: 4px 0 8px; }
+.masters-moves { width: 100%; margin: 10px 0; }
+/* white / draw / black share: board colours, not good / bad (it's nobody's result) */
+.masters .wdl { width: 90px; height: 10px; border: 1px solid var(--ink-2); }
+.masters .wdl .w { background: #f4f1ea; } .masters .wdl .d { background: #9a9a9a; opacity: 1; } .masters .wdl .b { background: #2b2b2b; }
+.masters-games { font-size: 0.9em; }

@@ -322,7 +322,7 @@ export function DrillScreen({ c, client, onReview }: { c: DrillController; clien
   useSyncExternalStore(c.subscribe, () => c.version);
   const data = useSyncExternalStore(c.openingData.subscribe, () => c.openingData.state);
   const [dialog, setDialog] = useState<Dialog>(null);
-  const [names, setNames] = useState<string[]>([]);
+  const [names, setNames] = useState<{ name: string; colors: PlayerColor[] }[]>([]);
   const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
   const file = useRef<HTMLInputElement>(null);
 
@@ -338,7 +338,7 @@ export function DrillScreen({ c, client, onReview }: { c: DrillController; clien
   }, [c, dialog]);
 
   const askSave = async (text: string, source: 'file' | 'paste') => {
-    setNames(await client.service('repertoireNames'));
+    setNames(await client.service('repertoireList'));
     setDialog({ kind: 'save', text, source });
   };
 
@@ -539,7 +539,7 @@ export function DrillScreen({ c, client, onReview }: { c: DrillController; clien
         </div>
       </div>
 
-      {dialog?.kind === 'save' && <SaveDialog names={names} onSave={saveTo} onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'save' && <SaveDialog repertoires={names} onSave={saveTo} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'paste' && <PasteDialog onNext={(text) => void askSave(text, 'paste')} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'lines' && <LinesDialog client={client} onClose={() => { setDialog(null); void c.refreshRepertoires(); }} />}
       {dialog?.kind === 'delete' && (

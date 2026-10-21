@@ -117,6 +117,13 @@ export function repertoireNames(conn: Db): string[] {
   return [...new Set(db.listRepertoires(conn).map(([name]) => name))].sort();
 }
 
+/** Every repertoire with the colour(s) you play in it, by name — for "Save to repertoire". */
+export function repertoireList(conn: Db): { name: string; colors: PlayerColor[] }[] {
+  const by = new Map<string, PlayerColor[]>();
+  for (const [name, color] of db.listRepertoires(conn)) by.set(name, [...(by.get(name) ?? []), color as PlayerColor]);
+  return [...by].sort((a, b) => a[0].localeCompare(b[0])).map(([name, colors]) => ({ name, colors }));
+}
+
 // ---------- Lichess: real-world replies ----------
 
 export interface LichessStatus {
@@ -315,7 +322,7 @@ export function drillStop(_conn: Db): void {
 }
 
 export const drillServices = {
-  repertoires, variations, linePreview, allLines, setLineEnabled, lineSize, deleteBranch, importPgn, repertoireNames,
+  repertoires, variations, linePreview, allLines, setLineEnabled, lineSize, deleteBranch, importPgn, repertoireNames, repertoireList,
   lichessStatus, setLichessToken, explorerTodo, explorerSave, treeLines, treeStarts, setOpeningStart, explorerStats,
   drillStart, drillStartLine, drillRestart, drillNewRandom, drillOpponent, drillAttempt, drillReveal, drillFinish, drillStop,
 };
