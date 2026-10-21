@@ -444,7 +444,9 @@ describe('the structures from PAWN-STRUCTURES-EXPLAINER.md', () => {
   it('names the French chain, with or without …cxd4, and keeps it a closed centre', () => {
     const f = s('r1b1kbnr/pp3ppp/1qn1p3/3pP3/2pP4/P1P2N2/1P3PPP/RNBQKB1R w KQkq - 0 7')!;
     expect([f.key, f.owner]).toEqual(['french', 'white']);
-    expect(f.plan('black')).toMatch(/…c5 hits d4 and …f6 hits e5/);
+    expect(f.plan('black')).not.toMatch(/c5/);                            // …c4 is already played
+    // before …c5, both breaks are there (1.e4 e6 2.d4 d5 3.e5 Ne7)
+    expect(s('rnbqkb1r/ppp1nppp/4p3/3pP3/3P4/8/PPP2PPP/RNBQKBNR w KQkq - 2 4')!.plan('black')).toMatch(/…c5 hits d4 and …f6 hits e5/);
     expect(s('r1b1kb1r/pp2nppp/1qn1p3/3pP3/3P4/5N2/PP2BPPP/RNBQK2R w KQkq - 1 8')?.key).toBe('french');
     expect(coach.isClosed(f)).toBe(true);
     expect(coach.chainBase(Board.fromFen('r1b1kb1r/pp2nppp/1qn1p3/3pP3/3P4/5N2/PP2BPPP/RNBQK2R w KQkq - 1 8'), 'white')).toBe(27);   // d4
@@ -471,5 +473,50 @@ describe('the structures from PAWN-STRUCTURES-EXPLAINER.md', () => {
     // with the queens on, or in a Carlsbad (the minority attack is the story), no majority note
     const carlsbad = coach.positionIdeas({ fen: 'rnbq1rk1/pp2nppp/2pb4/3p4/3P4/2N2NP1/PP2PPBP/R1BQ1RK1 b - - 6 8', me: 'white' });
     expect(carlsbad.points.some((x) => x.rule.startsWith('majority'))).toBe(false);
+  });
+});
+
+describe('the Coach only names pawn moves that exist', () => {
+  const s = (fen: string) => coach.structure(Board.fromFen(fen))!;
+
+  it('French chain from your game: no …c5 once the c-pawn is gone, …f6 still offered', () => {
+    const plan = s('r1b1k2r/pp3pbp/4p1p1/q2pP1B1/3P4/2P2N2/P4PPP/R1Q2RK1 w kq - 0 14').plan('black');
+    expect(plan).not.toMatch(/c5/);
+    expect(plan).toMatch(/…f6 hits e5/);
+    // and with neither break left, it says to work with pieces instead
+    const none = s('r1b1k2r/pp4bp/4p1p1/q2pPpB1/3P4/2P2N2/P4PPP/R1Q2RK1 w kq - 0 14').plan('black');
+    expect(none).toMatch(/pile up on d4 with your pieces/);
+  });
+
+  it('Maroczy without a black b-pawn: no …b5, no a4', () => {
+    const m = s('r1bq1rk1/p3ppbp/2np1np1/8/2PNP3/2N1B3/PP2BPPP/R2Q1RK1 b - - 3 9');
+    expect(m.key).toBe('maroczy');
+    expect(m.plan('white')).not.toMatch(/a4|b5/);
+    expect(m.plan('black')).toMatch(/prepare …d5/);
+    expect(m.plan('black')).not.toMatch(/b5/);
+  });
+
+  it('Carlsbad without a white b-pawn: no minority attack', () => {
+    const c = s('r1bq1rk1/pp1nbppp/2p2n2/3p4/3P4/2NBPN2/P4PPP/R1BQ1RK1 w - - 0 9');
+    expect(c.key).toBe('carlsbad');
+    expect(c.plan('white')).toMatch(/pressure on c6 down the c-file/);
+  });
+
+  it('IQP names the real push', () => {
+    expect(s('r1bq1rk1/pp2bppp/2n2n2/3p4/3P4/2NB1N2/PP3PPP/R1BQ1RK1 w - - 0 10').plan('white')).not.toMatch(/d5 \/ d4/);
+    expect(s('r1bq1rk1/pp2bppp/2n2n2/8/3P4/2NB1N2/PP3PPP/R1BQ1RK1 w - - 0 10').plan('white')).toMatch(/d5 is your break/);
+  });
+
+  it('a pinned pawn has no break', () => {
+    // d2 is pinned to the king by the bishop on a5: d4 would hit e5, but it's illegal
+    expect(coach.breakMoves(Board.fromFen('4k3/8/8/b3p3/8/8/3P4/4K3 w - - 0 1'), 'white')).toEqual([]);
+    expect(coach.breakMoves(Board.fromFen('4k3/8/8/4p3/8/8/3P4/4K3 w - - 0 1'), 'white')).toEqual(['d2d4']);
+  });
+
+  it('canReach: own pawn behind, no pawn in the way', () => {
+    const b = Board.fromFen('4k3/1p6/8/1P6/8/8/P7/4K3 w - - 0 1');
+    expect(coach.canReach(b, 'white', 'a4')).toBe(true);
+    expect(coach.canReach(b, 'black', 'b5')).toBe(false);     // blocked by the white pawn on b5
+    expect(coach.canReach(b, 'white', 'c4')).toBe(false);     // no c-pawn
   });
 });

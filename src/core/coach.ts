@@ -70,6 +70,22 @@ const hasPawn = (board: Board, c: Color, f: number) => pawnsOf(board, c).some((p
 const pawnOn = (board: Board, c: Color, s: string) => board.pieceAt(parse(s))?.role === 'pawn' && board.pieceAt(parse(s))?.color === c;
 /** A square named from White's side ("d5"), as seen from `c`'s side (Black's d5 is d4). */
 const mirror = (c: Color, s: string) => (c === 'white' ? s : `${s[0]}${9 - Number(s[1])}`);
+/** Whether `c` has a pawn that could be pushed to square `sq` (named from the board, e.g. "b5"): a pawn of
+ *  its own on that file, behind the square, with no pawn of either side in the way. Plans only name
+ *  pawn moves that pass this — never a push for a pawn that isn't there. */
+export function canReach(board: Board, c: Color, sq: string): boolean {
+  const target = parse(sq);
+  const f = file(target);
+  return pawnsOf(board, c).some((p) => {
+    if (file(p) !== f || relRank(p, c) >= relRank(target, c)) return false;
+    for (let r = rank(p) + forward(c); ; r += forward(c)) {
+      if (board.pieceAt(at(f, r))?.role === 'pawn') return false;
+      if (r === rank(target)) return true;
+    }
+  });
+}
+/** "a and b" / "a, b and c" (for the plans). */
+const and = (xs: string[]) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 /** A pawn move by `c` as written in prose: Black's moves get the "…". */
 const by = (c: Color, sq: string) => (c === 'black' ? `…${sq}` : sq);
 /** Closed centres (a pawn chain): plans on the wings, knights over bishops. */
@@ -84,8 +100,11 @@ export function structure(board: Board): Structure | null {
     const d = hasPawn(board, c, 3);
     // isolated d-pawn: a d-pawn with no c- or e-pawn beside it
     if (d && !hasPawn(board, c, 2) && !hasPawn(board, c, 4)) {
+      const dp = pawnsOf(board, c).filter((p) => file(p) === 3).sort((a, b) => relRank(b, c) - relRank(a, c))[0];
+      const next = relRank(dp, c) < 6 ? name(dp + 8 * forward(c)) : null;
+      const push = next && canReach(board, c, next) ? ` and ${by(c, next)} is your break` : '';
       return { key: 'iqp', name: "an isolated queen's pawn position", owner: c,
-        plan: (me) => (me === c ? 'keep the pieces on and play actively — the d-pawn gives you space and the d5 / d4 push is your break'
+        plan: (me) => (me === c ? `keep the pieces on and play actively — the d-pawn gives you space${push}`
           : 'trade pieces and blockade the pawn with a knight in front of it — in the endgame it becomes a weakness') };
     }
     // hanging pawns: c- and d-pawns side by side with no b- or e-pawns
@@ -101,8 +120,10 @@ export function structure(board: Board): Structure | null {
     const o = opposite(c);
     const [d4, c6, d5] = c === 'white' ? ['d4', 'c6', 'd5'] : ['d5', 'c3', 'd4'];
     if (pawnOn(board, c, d4) && !hasPawn(board, c, 2) && pawnOn(board, o, c6) && pawnOn(board, o, d5) && !hasPawn(board, o, 4)) {
+      const b5 = mirror(c, 'b5');
       return { key: 'carlsbad', name: 'a Carlsbad structure', owner: c,
-        plan: (me) => (me === c ? 'the minority attack: push your b-pawn up the board to make a weakness on c6'
+        plan: (me) => (me === c ? (canReach(board, c, b5) ? `the minority attack: push your b-pawn to ${b5} to make a weakness on ${c6}`
+          : `put pressure on ${c6} down the c-file — it's the target in this structure`)
           : 'play on the kingside, and get a knight to e4 / e5') };
     }
   }
@@ -114,9 +135,11 @@ export function structure(board: Board): Structure | null {
     if (pawnOn(board, c, c4) && pawnOn(board, c, e4) && !hasPawn(board, c, 3) && !hasPawn(board, o, 2)
       && (pawnOn(board, o, d6) || pawnOn(board, o, d7)) && !pawnOn(board, o, e5)) {
       const [d5, b5, a4] = ['d5', 'b5', 'a4'].map((x) => mirror(c, x));
+      const theirBreaks = [b5, d5].filter((x) => canReach(board, o, x)).map((x) => by(o, x));
+      const stopB = canReach(board, o, b5) && canReach(board, c, a4) ? `, and ${by(c, a4)} stops ${by(o, b5)}` : '';
       return { key: 'maroczy', name: 'a Maroczy bind', owner: c,
-        plan: (me) => (me === c ? `squeeze: your c- and e-pawns stop ${by(o, d5)}, and ${by(c, a4)} stops ${by(o, b5)} — put a knight on ${d5}, improve your pieces behind the pawns and expand slowly`
-          : `you're cramped, so trade pieces (minor pieces especially), keep everything solid and prepare ${by(o, b5)} or ${by(o, d5)} — once one of those breaks lands, the cramp is gone`) };
+        plan: (me) => (me === c ? `squeeze: your c- and e-pawns stop ${by(o, d5)}${stopB} — put a knight on ${d5}, improve your pieces behind the pawns and expand slowly`
+          : `you're cramped, so trade pieces (minor pieces especially) and keep everything solid${theirBreaks.length ? ` — prepare ${theirBreaks.join(' or ')}: once a break lands, the cramp is gone` : ''}`) };
     }
   }
   // Boleslavsky hole: an open Sicilian where the side without a c-pawn has played …e5 with …d6 —
@@ -137,9 +160,10 @@ export function structure(board: Board): Structure | null {
     const o = opposite(c);
     const [d4, e5, d5, e6, c5, f6] = ['d4', 'e5', 'd5', 'e6', 'c5', 'f6'].map((x) => mirror(c, x));
     if (pawnOn(board, c, d4) && pawnOn(board, c, e5) && pawnOn(board, o, d5) && pawnOn(board, o, e6)) {
+      const hits = [[c5, d4], [f6, e5]].filter(([x]) => canReach(board, o, x)).map(([x, t]) => `${by(o, x)} hits ${t}`);
       return { key: 'french', name: 'a French pawn chain', owner: c,
         plan: (me) => (me === c ? `your pawns point at the kingside, so play there: keep ${d4} and ${e5} supported and attack the king`
-          : `break at the chain: ${by(o, c5)} hits ${d4} and ${by(o, f6)} hits ${e5} — and free your light-squared bishop (or trade it), because a French that never breaks gets squeezed`) };
+          : `${hits.length ? `break at the chain: ${and(hits)}` : `pile up on ${d4} with your pieces — it's the chain's weak link`} — and free your light-squared bishop (or trade it), because a French that never breaks gets squeezed`) };
     }
   }
   // locked centre: pawns blocking each other on the d- and e-files, or on one of them with a pawn chain
@@ -163,6 +187,7 @@ export function structure(board: Board): Structure | null {
 /** Pawn pushes that would hit an enemy pawn: a side's "breaks", as moves (uci). */
 export function breakMoves(board: Board, c: Color): string[] {
   const out: string[] = [];
+  const view = board.turn === c ? board : passTurn(board);      // a pinned pawn, or a side in check, has no break
   const theirs = new Set(pawnsOf(board, opposite(c)));
   for (const p of pawnsOf(board, c)) {
     const steps = relRank(p, c) === 1 ? [1, 2] : [1];
@@ -171,7 +196,7 @@ export function breakMoves(board: Board, c: Color): string[] {
       if (to < 0 || to > 63 || board.pieceAt(to) || (n === 2 && board.pieceAt(p + 8 * forward(c)))) break;
       const r = rank(to) + forward(c);
       const hits = [file(to) - 1, file(to) + 1].some((f) => f >= 0 && f <= 7 && r >= 0 && r <= 7 && theirs.has(at(f, r)));
-      if (hits) out.push(name(p) + name(to));
+      if (hits && (!view || view.isLegal(name(p) + name(to)))) out.push(name(p) + name(to));
     }
   }
   return out;
