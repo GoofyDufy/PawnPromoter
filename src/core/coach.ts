@@ -60,7 +60,7 @@ export function material(board: Board, c: Color): number {
 // ---------- 1. the pawn structure ----------
 
 export interface Structure {
-  key: 'iqp' | 'carlsbad' | 'locked' | 'open' | 'hanging';
+  key: 'iqp' | 'carlsbad' | 'maroczy' | 'boleslavsky' | 'french' | 'locked' | 'open' | 'hanging';
   name: string;
   owner: Color | null;           // whose pawns make it (the IQP's side, …)
   plan(c: Color): string;        // the plan for side c
@@ -68,6 +68,12 @@ export interface Structure {
 
 const hasPawn = (board: Board, c: Color, f: number) => pawnsOf(board, c).some((p) => file(p) === f);
 const pawnOn = (board: Board, c: Color, s: string) => board.pieceAt(parse(s))?.role === 'pawn' && board.pieceAt(parse(s))?.color === c;
+/** A square named from White's side ("d5"), as seen from `c`'s side (Black's d5 is d4). */
+const mirror = (c: Color, s: string) => (c === 'white' ? s : `${s[0]}${9 - Number(s[1])}`);
+/** A pawn move by `c` as written in prose: Black's moves get the "…". */
+const by = (c: Color, sq: string) => (c === 'black' ? `…${sq}` : sq);
+/** Closed centres (a pawn chain): plans on the wings, knights over bishops. */
+export const isClosed = (s: Structure | null) => s?.key === 'locked' || s?.key === 'french';
 
 /** The named structure on the board, if it's one worth naming (not in an endgame: with the queens off
  *  and a rook and minor piece or less each, it's about kings and passed pawns instead). */
@@ -98,6 +104,42 @@ export function structure(board: Board): Structure | null {
       return { key: 'carlsbad', name: 'a Carlsbad structure', owner: c,
         plan: (me) => (me === c ? 'the minority attack: push your b-pawn up the board to make a weakness on c6'
           : 'play on the kingside, and get a knight to e4 / e5') };
+    }
+  }
+  // Maroczy bind: c- and e-pawns on the 4th, the d-pawn traded for the opponent's c-pawn, and the
+  // opponent's d-pawn behind (…d6 or …d7) — both of its breaks, …d5 and …b5, are bottled up
+  for (const c of ['white', 'black'] as Color[]) {
+    const o = opposite(c);
+    const [c4, e4, d6, d7, e5] = ['c4', 'e4', 'd6', 'd7', 'e5'].map((x) => mirror(c, x));
+    if (pawnOn(board, c, c4) && pawnOn(board, c, e4) && !hasPawn(board, c, 3) && !hasPawn(board, o, 2)
+      && (pawnOn(board, o, d6) || pawnOn(board, o, d7)) && !pawnOn(board, o, e5)) {
+      const [d5, b5, a4] = ['d5', 'b5', 'a4'].map((x) => mirror(c, x));
+      return { key: 'maroczy', name: 'a Maroczy bind', owner: c,
+        plan: (me) => (me === c ? `squeeze: your c- and e-pawns stop ${by(o, d5)}, and ${by(c, a4)} stops ${by(o, b5)} — put a knight on ${d5}, improve your pieces behind the pawns and expand slowly`
+          : `you're cramped, so trade pieces (minor pieces especially), keep everything solid and prepare ${by(o, b5)} or ${by(o, d5)} — once one of those breaks lands, the cramp is gone`) };
+    }
+  }
+  // Boleslavsky hole: an open Sicilian where the side without a c-pawn has played …e5 with …d6 —
+  // d5 can never be covered by a pawn again, and the d-pawn behind it is backward ("owner" = the side
+  // that owns the hole: its pieces can sit there)
+  for (const c of ['white', 'black'] as Color[]) {
+    const o = opposite(c);
+    const [e4, e5, d6, d5] = ['e4', 'e5', 'd6', 'd5'].map((x) => mirror(c, x));
+    const oneD = pawnsOf(board, o).filter((p) => file(p) === 3).length === 1;      // …d6 is its only d-pawn (no …d4 wedge)
+    if (pawnOn(board, c, e4) && !hasPawn(board, c, 3) && pawnOn(board, o, e5) && pawnOn(board, o, d6) && oneD && !hasPawn(board, o, 2)) {
+      return { key: 'boleslavsky', name: `a Sicilian with a hole on ${d5} (the Boleslavsky hole)`, owner: c,
+        plan: (me) => (me === c ? `put a knight on ${d5} — no pawn can ever chase it away — keep ${by(o, d5)} from happening, and press the backward pawn on ${d6}`
+          : `the hole on ${d5} is the price of your active pieces: fight for ${d5} with pieces, use the open c-file and expand on the queenside — and if you can ever play ${by(o, d5)} safely, the hole and the backward pawn both disappear`) };
+    }
+  }
+  // the French chain: d4 + e5 against d5 + e6 — the chain points at the kingside
+  for (const c of ['white', 'black'] as Color[]) {
+    const o = opposite(c);
+    const [d4, e5, d5, e6, c5, f6] = ['d4', 'e5', 'd5', 'e6', 'c5', 'f6'].map((x) => mirror(c, x));
+    if (pawnOn(board, c, d4) && pawnOn(board, c, e5) && pawnOn(board, o, d5) && pawnOn(board, o, e6)) {
+      return { key: 'french', name: 'a French pawn chain', owner: c,
+        plan: (me) => (me === c ? `your pawns point at the kingside, so play there: keep ${d4} and ${e5} supported and attack the king`
+          : `break at the chain: ${by(o, c5)} hits ${d4} and ${by(o, f6)} hits ${e5} — and free your light-squared bishop (or trade it), because a French that never breaks gets squeezed`) };
     }
   }
   // locked centre: pawns blocking each other on the d- and e-files, or on one of them with a pawn chain
@@ -516,6 +558,32 @@ export function passedPawns(board: Board, c: Color): Square[] {
   return pawnsOf(board, c).filter((p) => !theirs.some((t) => Math.abs(file(t) - file(p)) <= 1 && relRank(t, c) > relRank(p, c)));
 }
 
+export interface Majority { color: Color; wing: 'queenside' | 'kingside'; mine: number; theirs: number; candidate: Square }
+
+const WINGS: ['queenside' | 'kingside', number[]][] = [['queenside', [0, 1, 2]], ['kingside', [4, 5, 6, 7]]];
+
+/** Healthy pawn majorities: more pawns on a wing (a–c, or e–h) than the opponent, counted on different
+ *  files (doubled pawns don't make a passer — one enemy pawn holds two), with no passed pawn there yet.
+ *  The candidate is the pawn with no enemy pawn ahead on its own file, the furthest advanced. */
+export function majorities(board: Board): Majority[] {
+  const out: Majority[] = [];
+  for (const c of ['white', 'black'] as Color[]) {
+    const o = opposite(c);
+    for (const [wing, files] of WINGS) {
+      const mine = pawnsOf(board, c).filter((p) => files.includes(file(p)));
+      const theirs = pawnsOf(board, o).filter((p) => files.includes(file(p)));
+      const distinct = new Set(mine.map(file)).size;
+      if (!theirs.length || distinct <= theirs.length) continue;
+      if (passedPawns(board, c).some((p) => files.includes(file(p)))) continue;
+      const free = mine.filter((p) => !theirs.some((t) => file(t) === file(p) && relRank(t, c) > relRank(p, c)))
+        .sort((a, b) => relRank(b, c) - relRank(a, c));
+      if (!free.length) continue;
+      out.push({ color: c, wing, mine: mine.length, theirs: theirs.length, candidate: free[0] });
+    }
+  }
+  return out;
+}
+
 /** Pawns with no friendly pawn on a neighbouring file. */
 export function isolatedPawns(board: Board, c: Color): Square[] {
   const mine = pawnsOf(board, c);
@@ -708,7 +776,7 @@ export function positionIdeas(i: IdeasInput): Ideas {
     add('structure', 40, mine === theirs ? `This is ${s.name}. For both sides: ${mine}.` : `This is ${s.name}. For you: ${mine}. For your opponent: ${theirs}.`);
   }
   // a locked centre: name the base of their chain, and the push that hits it
-  const base = s?.key === 'locked' ? chainBase(board, them) : null;
+  const base = isClosed(s) ? chainBase(board, them) : null;
   if (base !== null) {
     const hit = breaks(board, me).find((b) => [file(parse(b)) - 1, file(parse(b)) + 1].some((f) => f >= 0 && f <= 7
       && at(f, rank(parse(b)) + forward(me)) === base));
@@ -735,6 +803,23 @@ export function positionIdeas(i: IdeasInput): Ideas {
       const w = 40 + 8 * (relRank(far, c) - 3);       // the further it's gone, the more it matters
       add(c === me ? 'passer' : 'passer-theirs', w, c === me ? `Your passed pawn on ${name(far)} is a real asset: push it when it's safe, with your pieces behind it.`
         : `Your opponent's passed pawn on ${name(far)} needs watching: blockade it with a piece in front of it.`);
+    }
+  }
+  // a healthy pawn majority on a wing: a passed pawn in the making — once the queens are off (before
+  // that, the structure's own plan is the story: in a Carlsbad the minority attack is aimed at it)
+  const queensOff = !board.pieces('queen', 'white').length && !board.pieces('queen', 'black').length;
+  if (queensOff && s?.key !== 'carlsbad') {
+    const endgame = phaseOf(board) === 'endgame';
+    for (const m of majorities(board)) {
+      const mine = m.color === me;
+      const qs = m.wing === 'queenside';
+      const weight = (qs ? (endgame ? 50 : 40) : 25) - (mine ? 0 : 5);
+      const why = qs
+        ? (endgame ? 'with the kings far away on the other wing, a passed pawn there is hard to stop' : 'it gets stronger as pieces come off — trades favour the side with it')
+        : "it's worth less than a queenside one, because the kings are already on that wing to stop it";
+      add(mine ? 'majority' : 'majority-theirs', weight, mine
+        ? `You have a ${m.wing} pawn majority (${m.mine} against ${m.theirs}): ${why}. Push the pawn with a clear road first — ${name(m.candidate)} — and trade until one is passed.`
+        : `Your opponent has a ${m.wing} pawn majority (${m.mine} against ${m.theirs}): ${why}. Blockade the pawn with a clear road (${name(m.candidate)}) and keep active elsewhere.`);
     }
   }
   // kings castled on opposite wings: a race
@@ -1328,8 +1413,8 @@ export function whatWentWell(mine: SummaryMove[], result: string): string[] {
     const s = structure(after);
     const bishops = (c: Color) => after.pieces('bishop', c).length;
     const knights = (c: Color) => after.pieces('knight', c).length;
-    if (bishops(me) === 2 && bishops(opposite(me)) < 2 && s?.key !== 'locked') openForBishops += 1;
-    if (knights(me) > bishops(me) && bishops(opposite(me)) > knights(opposite(me)) && s?.key === 'locked') closedForKnights += 1;
+    if (bishops(me) === 2 && bishops(opposite(me)) < 2 && !isClosed(s)) openForBishops += 1;
+    if (knights(me) > bishops(me) && bishops(opposite(me)) > knights(opposite(me)) && isClosed(s)) closedForKnights += 1;
     if (!outpost && changes(b, m.move).good.some((g) => g.includes('no pawn can ever chase'))) outpost = `${label(m)} put your knight on an outpost — a square no pawn could chase it from.`;
   }
   if (openForBishops >= 6) out.push('Good job keeping the position open while you had the two bishops — that\'s exactly where they shine.');

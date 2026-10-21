@@ -18,7 +18,7 @@ describe('reading the position', () => {
     // Carlsbad: White d4 (no c-pawn), Black c6 + d5 (no e-pawn)
     expect(coach.structure(board('r1bq1rk1/pp1nbppp/2p2n2/3p4/3P4/2NBPN2/PP3PPP/R1BQ1RK1 w - - 0 9'))?.key).toBe('carlsbad');
     // French advance: e5 against e6 is locked
-    expect(coach.structure(board('rnbqkbnr/pp3ppp/4p3/2ppP3/3P4/8/PPP2PPP/RNBQKBNR w KQkq - 0 4'))?.key).toBe('locked');
+    expect(coach.structure(board('rnbqkbnr/pp3ppp/4p3/2ppP3/3P4/8/PPP2PPP/RNBQKBNR w KQkq - 0 4'))?.key).toBe('french');
     expect(coach.structure(Board.fromFen())).toBe(null);
   });
 
@@ -314,7 +314,7 @@ describe('ranking the ideas', () => {
   it('a locked centre needs pawns pushed past the middle; no structure names in an endgame', () => {
     expect(coach.structure(board('r2q1rk1/pp1b1pbp/2n1pnp1/3p4/3P4/1PN1PNP1/P4PBP/R1BQ1RK1 w - - 1 11'))?.key).not.toBe('locked');   // d4 v d5: can still open
     expect(coach.structure(board('rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2'))).toBe(null);                     // 1.e4 e5
-    expect(coach.structure(board('rnbqkbnr/pp3ppp/4p3/2ppP3/3P4/8/PPP2PPP/RNBQKBNR w KQkq - 0 4'))?.key).toBe('locked');           // the French
+    expect(coach.structure(board('rnbqkbnr/pp3ppp/4p3/2ppP3/3P4/8/PPP2PPP/RNBQKBNR w KQkq - 0 4'))?.key).toBe('french');           // the French
     expect(coach.structure(board('8/p1b5/8/7k/2r3p1/3R3p/5K2/8 b - - 3 67'))).toBe(null);                                           // a rook ending
   });
 
@@ -409,5 +409,67 @@ describe('why the best move works: the payoff of its line', () => {
     const ideas = coach.positionIdeas({ fen, me: 'white', cp: 30, alternatives: [{ move: 'h2h3', cp: 30, line: ['h2h3'] }],
       prevents: { move: 'c8g4', gain: 200 } });
     expect(ideas.points.find((p) => p.rule === 'payoff')?.text).toBe('h3 is mainly a defensive move: it stops Bg4.');
+  });
+});
+
+describe('the structures from PAWN-STRUCTURES-EXPLAINER.md', () => {
+  const s = (fen: string) => coach.structure(Board.fromFen(fen));
+
+  it('names a Maroczy bind (Accelerated Dragon and Hedgehog) and both plans', () => {
+    const m = s('r1bq1rk1/pp2ppbp/2np1np1/8/2PNP3/2N1B3/PP2BPPP/R2Q1RK1 b - - 3 9')!;
+    expect([m.key, m.owner]).toEqual(['maroczy', 'white']);
+    expect(m.plan('white')).toMatch(/stop …d5, and a4 stops …b5 — put a knight on d5/);
+    expect(m.plan('black')).toMatch(/trade pieces.*…b5 or …d5/);
+    expect(s('rn2kb1r/1bq2ppp/pp1ppn2/8/2PNP3/2N3P1/PP3PBP/R1BQ1RK1 w kq - 0 10')?.key).toBe('maroczy');
+    // the Botvinnik English (c4 + e4 with d3) is not a bind: White still has its d-pawn
+    expect(s('r1bqk1nr/ppp2pbp/2np2p1/4p3/2P1P3/2NP2P1/PP3PBP/R1BQK1NR b KQkq - 0 6')?.key).not.toBe('maroczy');
+  });
+
+  it('names the Boleslavsky hole (Classical, Sveshnikov, Najdorf) and both plans', () => {
+    for (const fen of ['r1bq1rk1/pp2bppp/2np1n2/4p3/4P3/2N2N2/PPP1BPPP/R1BQ1RK1 w - - 4 9',
+      'r1bqkb1r/5ppp/p1np1n2/1p2p1B1/4P3/N1N5/PPP2PPP/R2QKB1R w KQkq - 0 9',
+      'rnbq1rk1/1p2bppp/p2p1n2/4p3/4P3/1NN5/PPP1BPPP/R1BQ1RK1 w - - 4 9']) {
+      const b = s(fen)!;
+      expect([b.key, b.owner, b.name]).toEqual(['boleslavsky', 'white', 'a Sicilian with a hole on d5 (the Boleslavsky hole)']);
+    }
+    const b = s('r1bq1rk1/pp2bppp/2np1n2/4p3/4P3/2N2N2/PPP1BPPP/R1BQ1RK1 w - - 4 9')!;
+    expect(b.plan('white')).toMatch(/knight on d5.*backward pawn on d6/);
+    expect(b.plan('black')).toMatch(/play …d5 safely/);
+  });
+
+  it('is not a Boleslavsky hole when the opponent also has a pawn on d4 (from a real game)', () => {
+    expect(s('r1b2rk1/ppq1bppp/2np1n2/4p3/2PpP3/PQ1B1N2/1P2KPPP/RNR5 w - - 0 12')?.key).not.toBe('boleslavsky');
+  });
+
+  it('names the French chain, with or without …cxd4, and keeps it a closed centre', () => {
+    const f = s('r1b1kbnr/pp3ppp/1qn1p3/3pP3/2pP4/P1P2N2/1P3PPP/RNBQKB1R w KQkq - 0 7')!;
+    expect([f.key, f.owner]).toEqual(['french', 'white']);
+    expect(f.plan('black')).toMatch(/…c5 hits d4 and …f6 hits e5/);
+    expect(s('r1b1kb1r/pp2nppp/1qn1p3/3pP3/3P4/5N2/PP2BPPP/RNBQK2R w KQkq - 1 8')?.key).toBe('french');
+    expect(coach.isClosed(f)).toBe(true);
+    expect(coach.chainBase(Board.fromFen('r1b1kb1r/pp2nppp/1qn1p3/3pP3/3P4/5N2/PP2BPPP/RNBQK2R w KQkq - 1 8'), 'white')).toBe(27);   // d4
+  });
+
+  it('mirrors: a Maroczy bind for Black uses Black\'s moves', () => {
+    // Black pawns c5 + e5, no d-pawn; White has traded its c-pawn and keeps d3
+    const m = s('r1bqk2r/pp3ppp/2n2n2/2p1p3/2b5/2NP1NP1/PP2PPBP/R1BQ1RK1 w kq - 0 9')!;
+    expect([m.key, m.owner]).toEqual(['maroczy', 'black']);
+    expect(m.plan('black')).toMatch(/stop d4, and …a5 stops b4 — put a knight on d4/);
+  });
+
+  it('finds healthy majorities, ignores doubled ones, and names the candidate', () => {
+    // an Open-Sicilian-type ending: White 3 v 2 on the queenside
+    const w = coach.majorities(Board.fromFen('6k1/pp3ppp/8/8/8/8/PPP2PPP/6K1 w - - 0 30'));
+    expect(w.map((m) => [m.color, m.wing, m.mine, m.theirs])).toEqual([['white', 'queenside', 3, 2]]);
+    expect(w[0].candidate).toBe(10);                   // c2: no enemy pawn on the c-file
+    // doubled c-pawns: three pawns but only two files against two — not a real majority
+    expect(coach.majorities(Board.fromFen('6k1/pp3ppp/8/8/8/2P5/P1P2PPP/6K1 w - - 0 30'))).toEqual([]);
+    // the Ideas say why a queenside majority matters in an endgame
+    const ideas = coach.positionIdeas({ fen: '6k1/pp3ppp/8/8/8/8/PPP2PPP/6K1 w - - 0 30', me: 'white' });
+    const p = ideas.points.find((x) => x.rule === 'majority')!;
+    expect(p.text).toMatch(/queenside pawn majority \(3 against 2\).*kings far away.*c2/);
+    // with the queens on, or in a Carlsbad (the minority attack is the story), no majority note
+    const carlsbad = coach.positionIdeas({ fen: 'rnbq1rk1/pp2nppp/2pb4/3p4/3P4/2N2NP1/PP2PPBP/R1BQ1RK1 b - - 6 8', me: 'white' });
+    expect(carlsbad.points.some((x) => x.rule.startsWith('majority'))).toBe(false);
   });
 });

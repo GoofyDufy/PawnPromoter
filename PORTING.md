@@ -184,6 +184,11 @@ Openings are grouped by family × colour in both.
   wrong, what was better and why, "one move too early", whether the engine's
   move is a human one, the practical view, and the game's turning point.
   Material is only claimed when the evaluation backs it.
+  Structures (2026-10-21, from PAWN-STRUCTURES-EXPLAINER.md): IQP, hanging pawns,
+  Carlsbad, Maroczy bind, Boleslavsky hole (Sicilian …e5 + …d6), French chain,
+  locked and open centres — each also recognised with colours reversed; healthy
+  pawn majorities (a–c / e–h, doubled pawns don't count) are an Ideas point once
+  the queens are off.
   **💡 Ideas** (Game Review, remembered as `review_ideas`): the Coach on the
   position itself — who's better in human terms, structure and plans for both
   sides, pawn breaks, space, passed pawns, bad bishops / stuck knights /
