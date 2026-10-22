@@ -19,7 +19,8 @@ export const SCOPE_DIFF = 3;          // squares of mobility difference worth me
 export const VALUES: Record<Role, number> = { pawn: 1, knight: 3, bishop: 3, rook: 5, queen: 9, king: 0 };
 const MATERIAL_WORDS: Record<number, string> = {
   1: 'a pawn', 2: 'two pawns', 3: 'a piece', 4: 'a piece and a pawn', 5: 'a rook',
-  6: 'a rook and a pawn', 8: 'a rook and a piece', 9: 'the queen',
+  6: 'a rook and a pawn', 7: 'a rook and two pawns', 8: 'a rook and a piece', 9: 'the queen', 10: 'a queen and a pawn',
+  11: 'a queen and two pawns', 12: 'a queen and a piece', 13: 'a queen and a piece and a pawn', 14: 'a queen and a rook',
 };
 const PROMOTION_ROLES: Record<string, Role> = { q: 'queen', r: 'rook', b: 'bishop', n: 'knight' };
 
@@ -34,7 +35,7 @@ function balance(board: Board, color: Color): number {
 }
 
 function materialWords(n: number): string {
-  return MATERIAL_WORDS[n] ?? `${n} points of material`;
+  return MATERIAL_WORDS[n] ?? `${n} pawns' worth of material`;
 }
 
 function side(color: Color): string {

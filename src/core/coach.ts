@@ -327,7 +327,7 @@ export function moveReasons(before: Board, uci: string, whose = 'your'): string[
   if (piece.role === 'rook' || piece.role === 'queen') {
     const mineOn = pawnsOf(after, me).some((p) => file(p) === file(to));
     const theirsOn = pawnsOf(after, o).some((p) => file(p) === file(to));
-    if (piece.role === 'rook' && file(from) !== file(to) && !mineOn) out.push(`puts the rook on the ${theirsOn ? 'half-open' : 'open'} ${fileName(file(to))}`);
+    if (piece.role === 'rook' && file(from) !== file(to) && !mineOn && usefulFile(after, me, file(to))) out.push(`puts the rook on the ${theirsOn ? 'half-open' : 'open'} ${fileName(file(to))}`);
     if (relRank(to, me) === 6 && relRank(from, me) !== 6) out.push(`gets the ${piece.role} to the 7th rank`);
   }
   return out;
@@ -670,6 +670,23 @@ export function openFiles(board: Board): number[] {
   return [0, 1, 2, 3, 4, 5, 6, 7].filter((f) => !pawns.some((p) => file(p) === f));
 }
 
+/** A blocked centre: two or more pawns head to head on the c- to f-files (or a named closed chain). There
+ *  the plans are pawn breaks and manoeuvres, and a file a rook could use is the exception, not the rule. */
+export function blockedCentre(board: Board): boolean {
+  if (isClosed(structure(board))) return true;
+  const black = new Set(pawnsOf(board, 'black'));
+  return pawnsOf(board, 'white').filter((p) => file(p) >= 2 && file(p) <= 5 && black.has(p + 8)).length >= 2;
+}
+
+/** A file worth a rook for `c`: open, or half-open against an enemy pawn no pawn defends (something to hit).
+ *  In a blocked centre only an open file counts. */
+export function usefulFile(board: Board, c: Color, f: number, blocked = blockedCentre(board)): boolean {
+  if (pawnsOf(board, c).some((p) => file(p) === f)) return false;
+  const theirs = pawnsOf(board, opposite(c)).filter((p) => file(p) === f);
+  if (!theirs.length) return true;
+  return !blocked && theirs.some((p) => !board.attackers(opposite(c), p).some((a) => board.pieceAt(a)?.role === 'pawn'));
+}
+
 /** Empty outpost squares for `c` in the centre (c- to f-file) that one of its knights could use. */
 export function outpostSquares(board: Board, c: Color): Square[] {
   if (!board.pieces('knight', c).length) return [];
@@ -807,6 +824,39 @@ const SECTION_MAX = 5;                 // points per section, most important fir
 
 /** The ideas of a position: the situation, the plans, the pieces, the kings and weaknesses,
  *  and what Stockfish wants — "you" being `me`. The most important few come first as key ideas. */
+const PAWNS: Record<Role, number> = { pawn: 1, knight: 3, bishop: 3, rook: 5, queen: 9, king: 0 };
+
+/** What a threat would get them, in board terms: the material that changes hands in Stockfish's line
+ *  (the piece it takes, when that's the whole story), not the engine's swing, which also counts how much
+ *  worse the position gets. Without material changing hands, the swing is named as what it is. */
+function threatGain(passed: Board | null, threat: { move: string; gain: number; line?: string[] }, me: Color): string {
+  if (threat.gain >= MATE_CP / 2) return ', with mate';
+  const them = opposite(me);
+  if (passed && passed.isLegal(threat.move)) {
+    const line = threat.line?.length && threat.line[0] === threat.move ? threat.line : [threat.move];
+    const outcome = lineOutcome(passed.fen(), line, them, threat.gain);
+    if (outcome.changes.some((c) => c.kind === 'material' && c.forMe)) {
+      // (the same stretch of the line the outcome read)
+      const net = material(lineEnd(passed, line.slice(0, outcome.line.split(' ').length)), them) - material(passed, them);
+      const taken = passed.pieceAt(parse(threat.move.slice(2, 4)));
+      if (taken && taken.color === me && net === PAWNS[taken.role]) return `, which wins your ${taken.role}`;
+      if (net > 0) return `, which would win ${materialWords(net)}`;
+    }
+  }
+  const pawns = Math.max(1, Math.round(threat.gain / 100));
+  return `, which Stockfish rates at about ${pawns} pawn${pawns === 1 ? '' : 's'}' worth for them`;
+}
+
+/** The position after a line (as far as it stays legal). */
+function lineEnd(board: Board, line: string[]): Board {
+  const b = board.copy();
+  for (const m of line) {
+    if (!b.isLegal(m)) break;
+    b.push(m);
+  }
+  return b;
+}
+
 export function positionIdeas(i: IdeasInput): Ideas {
   const board = Board.fromFen(i.fen);
   const me = i.me;
@@ -834,7 +884,7 @@ export function positionIdeas(i: IdeasInput): Ideas {
         // only a forcing follow-up (a capture or a check) is part of the plan; a quiet move there is noise
         if (b2.isLegal(tl[0])) { b2.push(tl[0]); if (b2.isLegal(tl[1])) { b2.push(tl[1]); if (b2.isLegal(tl[2]) && (b2.isCapture(tl[2]) || b2.givesCheck(tl[2]))) follow = b2.san(tl[2]); } }
       }
-      add('threat', 100, `${last ? `${last} ` : ''}It threatens ${san}${follow ? ` (with ${follow} to follow)` : ''}${i.threat.gain >= MATE_CP / 2 ? ', with mate' : `, which would win about ${materialWords(Math.max(1, Math.round(i.threat.gain / 100)))}`} — deal with that first.`);
+      add('threat', 100, `${last ? `${last} ` : ''}It threatens ${san}${follow ? ` (with ${follow} to follow)` : ''}${threatGain(passed, i.threat, me)} — deal with that first.`);
     } else {
       if (i.threat === null) add('no-threat', 15, `${last ? `${last} ` : ''}No direct threat: you're free to improve your position — bring out the piece that isn't playing yet.`);
       else if (last) add('last-move', 10, last);           // Stockfish hasn't looked: no claim either way
@@ -1007,7 +1057,7 @@ export function positionIdeas(i: IdeasInput): Ideas {
   const theirPosts = outpostSquares(board, them);
   if (theirPosts.length) add('outpost-theirs', 35, `Your opponent would love a knight on ${name(theirPosts[0])}: keep an eye on it.`);
   const open = openFiles(board);
-  if (open.length) {
+  if (open.length && !blockedCentre(board)) {
     const rooksOn = board.pieces('rook', me).filter((r) => open.includes(file(r)));
     if (rooksOn.length) add('open-file-rook', 25, `Your rook already controls the open ${fileName(file(rooksOn[0]))} — use it to get to the 7th rank.`);
     else if (has(board, me, 'rook')) add('open-file', 35, `The ${list(open.slice(0, 2).map(fileName))} ${open.length > 1 ? 'are' : 'is'} open: put a rook there first.`);
@@ -1776,7 +1826,8 @@ interface Snapshot {
   weak: Record<Color, string[]>;                      // "an isolated pawn on e6"
   outposts: Record<Color, Square[]>;                  // knights standing on outposts
   seventh: Record<Color, number>;                     // rooks and queens on the 7th rank
-  openFiles: Record<Color, number[]>;                 // files with a rook of theirs and no pawn of their own
+  openFiles: Record<Color, number[]>;                 // files worth a rook (usefulFile) with a rook of theirs on them
+  rooks: Record<Color, Square[]>;
   home: Record<Color, number>;
   castled: Record<Color, boolean>;
   pieces: number;                                     // all pieces' material (trades)
@@ -1802,7 +1853,8 @@ function snapshot(board: Board): Snapshot {
     ]),
     outposts: both((c) => board.pieces('knight', c).filter((n) => isOutpost(board, n, c))),
     seventh: both((c) => [...board.pieces('rook', c), ...board.pieces('queen', c)].filter((s) => relRank(s, c) === 6).length),
-    openFiles: both((c) => board.pieces('rook', c).map(file).filter((f) => !pawnsOf(board, c).some((p) => file(p) === f))),
+    openFiles: both((c) => { const blocked = blockedCentre(board); return board.pieces('rook', c).map(file).filter((f) => usefulFile(board, c, f, blocked)); }),
+    rooks: both((c) => board.pieces('rook', c)),
     home: both((c) => piecesAtHome(board, c)),
     castled: both((c) => castledLike(board, c)),
     pieces: pieceMaterial(board, 'white') + pieceMaterial(board, 'black'),
@@ -1951,8 +2003,9 @@ export function lineOutcome(fen: string, line: string[], me: Color, cp: number |
     const post = s1.outposts[c].find((n) => !s0.outposts[c].includes(n));
     if (post !== undefined) add('outpost', c === me, 50, `${whose(c)} knight lands on ${name(post)}, an outpost no pawn can chase it from`);
     if (s1.seventh[c] > s0.seventh[c]) add('rook', c === me, 45, `${whose(c)} heavy pieces reach the 7th rank`);
-    const took = s1.openFiles[c].find((f) => !s0.openFiles[c].includes(f));
-    if (took !== undefined && s1.seventh[c] <= s0.seventh[c]) add('rook', c === me, 40, `${who(c)} ${c === me ? 'take' : 'takes'} the ${fileName(took)} with a rook`);
+    // (a rook has to get there in the line: a pawn leaving the file in front of a rook at home isn't a plan)
+    const took = s1.openFiles[c].find((f) => !s0.openFiles[c].includes(f) && s1.rooks[c].some((r) => file(r) === f && !s0.rooks[c].includes(r)));
+    if (took !== undefined && s1.seventh[c] <= s0.seventh[c]) add('rook', c === me, 30, `${who(c)} ${c === me ? 'take' : 'takes'} the ${fileName(took)} with a rook`);
     if (start.fullmoveNumber <= 15 && s0.home[c] - s1.home[c] >= 2) add('development', c === me, 40, `${who(c)} ${c === me ? 'get' : 'gets'} ${whose(c)} pieces out`);
   }
   // trading down when ahead

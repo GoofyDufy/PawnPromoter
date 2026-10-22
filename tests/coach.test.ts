@@ -156,7 +156,12 @@ describe('more position ideas', () => {
     const t = text(coach.positionIdeas({ fen: 'rnb1kbnr/pppp1ppp/8/4p3/4P2q/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3', me: 'white', cp: 50,
       theirMove: 'd8h4', threat: { move: 'h4e4', gain: 200 } }));
     expect(t).toMatch(/Their last move brings the queen to h4/);
-    expect(t).toMatch(/It threatens Qxe4\+?, which would win about two pawns — deal with that first\./);
+    // what it takes on the board, not Stockfish's swing (200 here, for one pawn)
+    expect(t).toMatch(/It threatens Qxe4\+?, which wins your pawn — deal with that first\./);
+    const hanging = (move: string, gain: number) => text(coach.positionIdeas({ fen: '4k3/8/8/8/4N3/8/2b5/4K3 w - - 0 1', me: 'white', cp: -600,
+      theirMove: 'b1c2', threat: { move, gain } }));
+    expect(hanging('c2e4', 700)).toMatch(/It threatens Bxe4, which wins your knight —/);           // not "7 points of material"
+    expect(hanging('c2d3', 300)).toMatch(/It threatens Bd3, which Stockfish rates at about 3 pawns' worth for them —/);
     expect(text(coach.positionIdeas({ fen: Board.fromFen().fen(), me: 'white', cp: 20 }))).not.toMatch(/What your opponent wants/);   // not after a move of theirs
     expect(text(coach.positionIdeas({ fen: Board.fromFen().fen(), me: 'white', cp: 20, theirMove: null, threat: null })))
       .toMatch(/No direct threat: you're free to improve your position/);
@@ -657,6 +662,26 @@ describe('a forced line, talked through', () => {
     const line = ['e2e8', 'd8e8', 'e1e8'];
     expect(coach.walkThrough(back, line, coach.lineOutcome(back, line, 'white').changes, 'white'))
       .toBe('1.Rxe8+ takes the rook and forks the king and the queen on d8. They take back (1...Qxe8), and 2.Rxe8# is mate.');
+  });
+});
+
+describe('rooks and files, only where they matter', () => {
+  it('a blocked centre: no "put a rook on the open file" (the plans are breaks)', () => {
+    // King's Indian: d5/e4 against d6/e5, with the c-file open
+    const kid = 'r1bq1rk1/pp3pbp/3p1np1/3Pp3/4P3/2N2N2/PP2BPPP/R2Q1RK1 w - - 0 12';
+    expect(coach.blockedCentre(board(kid))).toBe(true);
+    expect(coach.positionIdeas({ fen: kid, me: 'white' }).points.some((p) => p.rule === 'open-file')).toBe(false);
+  });
+
+  it('a half-open file needs a pawn to hit that no pawn defends', () => {
+    expect(coach.moveReasons(board('k7/1p6/2p5/8/8/8/8/K2R4 w - - 0 1'), 'd1c1').join(' ')).not.toMatch(/half-open/);
+    expect(coach.moveReasons(board('k7/1p6/2p5/8/8/8/8/K2R4 w - - 0 1'), 'd1b1')).toContain('puts the rook on the half-open b-file');
+  });
+
+  it('the plan needs a rook to get to the file in the line', () => {
+    // ...axb4 empties the a-file in front of the rook at home: not a rook plan
+    expect(coach.lineOutcome('r5k1/8/8/p7/1P6/8/8/6K1 b - - 0 1', ['a5b4'], 'black').changes.some((c) => c.kind === 'rook')).toBe(false);
+    expect(coach.lineOutcome('2r4k/8/8/8/8/8/8/K7 b - - 0 1', ['c8a8'], 'black').changes.map((c) => c.text)).toContain('you take the a-file with a rook');
   });
 });
 

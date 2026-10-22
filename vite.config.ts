@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import react from '@vitejs/plugin-react';
@@ -22,6 +22,21 @@ function kingCoachDb(): Plugin {
         res.setHeader('Content-Type', 'application/x-sqlite3');
         res.setHeader('Cache-Control', 'no-store');
         res.end(readFileSync(path));
+      });
+      // POST /__client-log: the page's database errors, appended to ~/.cache/pawnpromoter/client-errors.log
+      // (what failed, at which step, with the stack), so a failure on screen can be read afterwards
+      server.middlewares.use('/__client-log', (req, res) => {
+        const remote = req.socket.remoteAddress ?? '';
+        if (req.method !== 'POST' || !['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(remote)) { res.statusCode = 403; res.end(); return; }
+        let body = '';
+        req.on('data', (c) => { if (body.length < 20000) body += c; });
+        req.on('end', () => {
+          const dir = join(homedir(), '.cache', 'pawnpromoter');
+          mkdirSync(dir, { recursive: true });
+          appendFileSync(join(dir, 'client-errors.log'), `${body}\n`);
+          res.statusCode = 204;
+          res.end();
+        });
       });
     },
   };

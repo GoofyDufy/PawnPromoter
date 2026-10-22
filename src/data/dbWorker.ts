@@ -97,13 +97,44 @@ function profilesView(): ProfilesView {
   return { current: profiles.current(), players: profiles.list() };
 }
 
+/** The database's files on this device. A page that is closing (a reload, or the browser still shutting
+ *  down when it's started again) can hold them for a moment, so this waits and tries again before giving up. */
+async function openPool(): Promise<Pool> {
+  // (forceReinitIfPreviouslyFailed: sqlite-wasm otherwise hands back the first failure; its types omit it)
+  const options = { name: POOL_NAME, initialCapacity: 3, forceReinitIfPreviouslyFailed: true };
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await sqlite3.installOpfsSAHPoolVfs(options);
+    } catch (err) {
+      report(err, `open the storage (attempt ${attempt})`);
+      if (attempt >= 8) {
+        const why = err instanceof Error ? err.message : String(err);
+        throw new Error(`${why}. KingSide Coach may still be open in another tab or window — close it, then reload this page.`);
+      }
+      await new Promise((r) => setTimeout(r, 500 * attempt));
+    }
+  }
+}
+
+/** Which step of opening is running, for the error report. */
+let step = 'start';
+
+/** Dev server only: a database error, with its step and stack, to ~/.cache/pawnpromoter/client-errors.log. */
+function report(err: unknown, op: string): void {
+  if (!import.meta.env.DEV) return;
+  const e = err instanceof Error ? err : null;
+  const body = JSON.stringify({ at: new Date().toISOString(), op, step, name: e?.name ?? typeof err, message: e?.message ?? String(err),
+    stack: e?.stack ?? null, agent: navigator.userAgent });
+  void fetch('/__client-log', { method: 'POST', body }).catch(() => {});
+}
+
 async function init(): Promise<ProfilesView> {
   if (conn) return profilesView();           // already open (the page called init again)
   let t = performance.now();
-  const lap = (name: string) => { timings[name] = Math.round(performance.now() - t); t = performance.now(); };
+  const lap = (name: string) => { timings[name] = Math.round(performance.now() - t); t = performance.now(); step = `after ${name}`; };
   sqlite3 = await sqlite3InitModule();
   lap('sqlite');
-  pool = await sqlite3.installOpfsSAHPoolVfs({ name: POOL_NAME, initialCapacity: 3 });
+  pool = await openPool();
   lap('pool');
   try {
     const text = await (await (await registryFile()).getFile()).text();
@@ -199,6 +230,7 @@ self.onmessage = (e: MessageEvent<Request>) => {
       const result = await handle(req);
       (self as unknown as Worker).postMessage({ id: req.id, ok: true, result });
     } catch (err) {
+      report(err, req.op === 'service' ? `service ${req.name}` : req.op);
       (self as unknown as Worker).postMessage({ id: req.id, ok: false, error: err instanceof Error ? err.message : String(err) });
     }
   });
