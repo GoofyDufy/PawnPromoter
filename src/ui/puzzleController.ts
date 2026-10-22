@@ -158,7 +158,7 @@ export class PuzzleController {
     const me = Board.fromFen(p.fen).turn;
     const b = this.board;
     const atStart = b.fen() === Board.fromFen(p.fen).fen();
-    void this.coachIdeas.explain({ fen: b.fen(), me, cp: atStart ? p.eval_before_cp : null, theirMove: b.turn === me ? b.moveStack.at(-1) : undefined,
+    void this.coachIdeas.explain({ fen: b.fen(), me, cp: atStart ? p.eval_before_cp : null, theirMove: b.turn === me ? (b.moveStack.at(-1) ?? null) : undefined,
       before: beforeLast(b), recapture: b.turn === me && lastWasRecapture(b) })
       .then(() => this.changed());
   }

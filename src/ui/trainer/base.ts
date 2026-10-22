@@ -94,7 +94,9 @@ export abstract class TrainerBase {
   /** The ideas of the position the board shows after a round (the screen calls this when it changes). */
   explainIdeas(): void {
     const open = !this.exploring && this.explorer.peeking && this.shownBoard;
-    void this.coachIdeas.explain(open ? { fen: this.shownBoard!.fen(), me: this.orientation } : null);
+    // (your move after theirs: what they want, even when the move itself isn't known)
+    const b = open ? this.shownBoard! : null;
+    void this.coachIdeas.explain(b ? { fen: b.fen(), me: this.orientation, theirMove: b.turn === this.orientation ? (b.moveStack.at(-1) ?? null) : undefined } : null);
   }
 
   subscribe = (listener: () => void): (() => void) => {

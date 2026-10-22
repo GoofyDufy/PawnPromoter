@@ -665,6 +665,29 @@ describe('a forced line, talked through', () => {
   });
 });
 
+describe('the summary says why it is winning', () => {
+  const fork = 'r3k3/8/8/1N6/8/8/8/4K3 w - - 0 30';
+  // Black: 27...Nxc5! dxc5 Qxc5 — the knight given back, the c3 pawn falls (Stockfish 19, from your puzzles)
+  const sac = '5rk1/4qpp1/p1r4p/P1Np4/3Pn3/2PQ2P1/4R2P/R5K1 b - - 1 27';
+  const sacLine = ['e4c5', 'd4c5', 'e7c5', 'd3d4', 'c5c3', 'd4c3', 'c6c3', 'e2e7', 'f8b8', 'a1f1', 'f7f6', 'e7e6'];
+
+  it('a tactic on the board: find it, not "the safe way home"', () => {
+    const s = coach.positionIdeas({ fen: fork, me: 'white', cp: 500, bestLine: ['b5c7', 'e8d8', 'c7a8'] }).summary;
+    expect(s).toBe("You're winning (+5.0) — but only if you find it: a tactic here wins a rook.");
+  });
+
+  it('a sacrifice, from either side', () => {
+    expect(coach.winningLine(Board.fromFen(sac), sacLine, 'black', 221)).toBe("You're winning (+2.2) — but only if you find it: a sacrifice here wins two pawns.");
+    expect(coach.winningLine(Board.fromFen(sac), sacLine, 'white', -221)).toBe('Your opponent is winning (-2.2): they have a sacrifice that wins two pawns.');
+  });
+
+  it('"the safe way home" only when you are already material up', () => {
+    expect(coach.evalWords(450, false)).toBe('You are winning (+4.5).');
+    const up = coach.positionIdeas({ fen: 'r3k3/8/8/8/8/8/8/R2QK3 w - - 0 30', me: 'white', cp: 900, bestLine: ['d1d5', 'a8a5'] }).summary;
+    expect(up).toMatch(/^You are winning \(\+9\.0\) — now it's about taking the safe way home\./);
+  });
+});
+
 describe('rooks and files, only where they matter', () => {
   it('a blocked centre: no "put a rook on the open file" (the plans are breaks)', () => {
     // King's Indian: d5/e4 against d6/e5, with the c-file open

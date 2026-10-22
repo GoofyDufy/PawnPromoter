@@ -29,7 +29,7 @@ function uciEngine(path: string): Engine & { quit(): void } {
   const send = (c: string) => proc.stdin.write(`${c}\n`);
   send('uci');
   return {
-    analyse(board, limit, multipv = 1) {
+    analyse(board, limit, multipv = 1, rootMoves?: string[]) {
       const run = queue.then(() => new Promise<InfoLine[]>((resolve) => {
         const best = new Map<number, InfoLine>();
         onLine = (l) => {
@@ -38,7 +38,7 @@ function uciEngine(path: string): Engine & { quit(): void } {
         };
         send(`setoption name MultiPV value ${multipv}`);
         send(`position fen ${board.fen()}`);
-        send(`go depth ${limit.depth ?? 12}`);
+        send(`go depth ${limit.depth ?? 12}${rootMoves?.length ? ` searchmoves ${rootMoves.join(' ')}` : ''}`);
       }));
       queue = run.catch(() => undefined);
       return run;
@@ -81,12 +81,26 @@ describe.skipIf(!samplePath)('Ideas audit', () => {
     let totalPoints = 0;
     let totalKey = 0;
     const dump: string[] = [];
+    const verdicts = new Map<string, { agrees: number; contradicted: number; unverifiable: number; examples: string[] }>();
+    const tactics = new Map<string, { works: number; fails: number; examples: string[] }>();
     for (const [n, s] of samples.entries()) {
       const b = Board.fromFen(s.fen);
       let ideas: coach.Ideas;
       if (engine) {
         await ideasFor.explain({ fen: s.fen, me: b.turn, cp: s.cp, theirMove: theirMove(s) ?? null, before: before(s) });
         ideas = ideasFor.ideas!;
+        for (const v of ideasFor.adviceVerdicts) {
+          const e = verdicts.get(v.rule) ?? { agrees: 0, contradicted: 0, unverifiable: 0, examples: [] };
+          e[v.verdict] += 1;
+          if (v.verdict === 'contradicted' && e.examples.length < 2) e.examples.push(`${s.fen}  [${v.gap} worse] ${v.text}`);
+          verdicts.set(v.rule, e);
+        }
+        for (const v of ideasFor.tacticVerdicts) {
+          const e = tactics.get(v.rule) ?? { works: 0, fails: 0, examples: [] };
+          e[v.verdict] += 1;
+          if (v.verdict === 'fails' && e.examples.length < 3) e.examples.push(`${s.fen}  ${v.text} — but ${v.why}`);
+          tactics.set(v.rule, e);
+        }
       } else {
         ideas = coach.positionIdeas({ fen: s.fen, me: b.turn, cp: s.cp, bestLine: [s.best], theirMove: theirMove(s),
           alternatives: s.alts?.map(([move, cp]) => ({ move, cp })), before: before(s) });
@@ -113,7 +127,11 @@ describe.skipIf(!samplePath)('Ideas audit', () => {
     const pct = (x: number, of: number) => `${Math.round((100 * x) / Math.max(1, of))}%`;
     const rows = [...fired].sort((a, b) => b[1].all - a[1].all)
       .map(([r, f]) => `${r.padEnd(26)} ${pct(f.all, samples.length).padStart(5)}  key ${pct(f.key, f.all).padStart(4)}  op ${pct(f.opening, perPhase.opening).padStart(4)}  mid ${pct(f.middlegame, perPhase.middlegame).padStart(4)}  end ${pct(f.endgame, perPhase.endgame).padStart(4)}`);
-    const report = [`${samples.length} positions · ${(totalPoints / samples.length).toFixed(1)} points each (besides "who has what") · ${(totalKey / samples.length).toFixed(1)} key ideas`, '', ...rows].join('\n');
+    const checked = [...verdicts].sort((a, b) => b[1].contradicted - a[1].contradicted)
+      .map(([r, v]) => `${r.padEnd(26)} agrees ${String(v.agrees).padStart(3)}  contradicted ${String(v.contradicted).padStart(3)}  unverifiable ${String(v.unverifiable).padStart(3)}${v.examples.map((x) => `\n    ${x}`).join('')}`);
+    const tacticRows = [...tactics].map(([r, v]) => `${r.padEnd(26)} works ${String(v.works).padStart(3)}  fails ${String(v.fails).padStart(3)}${v.examples.map((x) => `\n    ${x}`).join('')}`);
+    const report = [...(checked.length ? ['Advice checked against Stockfish:', ...checked, ''] : []),
+      ...(tacticRows.length ? ['Their tactics checked against Stockfish:', ...tacticRows, ''] : []), `${samples.length} positions · ${(totalPoints / samples.length).toFixed(1)} points each (besides "who has what") · ${(totalKey / samples.length).toFixed(1)} key ideas`, '', ...rows].join('\n');
     console.log(report);
     if (process.env.IDEAS_OUT) writeFileSync(process.env.IDEAS_OUT, `${report}\n\n${dump.join('\n')}`);
     expect(samples.length).toBeGreaterThan(0);

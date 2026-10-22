@@ -3,8 +3,8 @@
  * Threats, the Analysis board, Opening Drill): on / off remembered per screen, the board's ideas at
  * once, then again with Stockfish's plan (and, after a move of theirs, what it threatens).
  */
-import { scoreToCp } from '../core/analyzer';
-import { Board, type Color } from '../core/chess';
+import { MATE_CP, scoreToCp } from '../core/analyzer';
+import { Board, type Color, parseSquare } from '../core/chess';
 import * as coach from '../core/coach';
 import { pawnEndingTrades } from '../core/endgame';
 import type { Engine, InfoLine } from '../core/engine';
@@ -15,6 +15,11 @@ const THREAT_DEPTH = 10;                         // what their last move threate
 const TOP_MOVES = 3;                             // Stockfish's choices the Coach explains
 const STILL_WORKS = 50;
 const MAX_TRADES = 2;                            // captures into a pawn ending the engine checks                          // a threat the best move leaves standing costs less than this
+const CHECK_DEPTH = 10;                          // the advice check: the best move that follows a piece of advice …
+const CHECK_MARGIN = 100;                        // … more than this worse than Stockfish's best: the advice is wrong here
+const MAX_CHECKS = 4;                            // searches per position (the rest stay unchecked)
+const MAX_TACTIC_CHECKS = 3;                     // their tactics checked per position
+const TACTIC_GAIN = 100;                         // a tactic of theirs is real when it gains them at least this
 const DEEP_DEPTH = 18;                           // the deep coach: Stockfish's good lines, read further
 const DEEP_TIME = 20;                            // … but never longer than this (seconds) on a slow device
 
@@ -35,6 +40,79 @@ export function setDeepCoach(on: boolean): void {
 export function onDeepCoach(f: () => void): () => void {
   deepListeners.add(f);
   return () => deepListeners.delete(f);
+}
+
+/** What Stockfish says about one piece of the Coach's advice in a position. */
+export interface AdviceVerdict { rule: string; text: string; verdict: 'agrees' | 'contradicted' | 'unverifiable'; gap?: number }
+
+/** The Coach's advice against Stockfish (your move only): a piece of advice agrees when one of Stockfish's top moves
+ *  follows it, or when the best move that follows it (searched among just those moves) is within CHECK_MARGIN of its
+ *  best; it's contradicted when that best move is clearly worse — the principle is right in general, wrong here.
+ *  Advice no legal move follows can't be checked. */
+export async function checkAdvice(engine: Engine, board: Board, ideas: coach.Ideas, me: Color,
+  alternatives: { move: string; cp: number | null }[] | undefined): Promise<AdviceVerdict[]> {
+  const best = alternatives?.[0]?.cp;
+  if (board.turn !== me || best === null || best === undefined || board.isGameOver()) return [];
+  const legal = board.legalMoves();
+  const out: AdviceVerdict[] = [];
+  let searches = 0;
+  const seen = new Set<string>();
+  for (const p of [...ideas.points].filter((x) => x.advice).sort((a, b) => b.weight - a.weight)) {
+    if (seen.has(p.rule)) continue;
+    seen.add(p.rule);
+    const follows = legal.filter((m) => p.advice!(m));
+    if (!follows.length) { out.push({ rule: p.rule, text: p.text, verdict: 'unverifiable' }); continue; }
+    if (alternatives!.some((a) => follows.includes(a.move) && a.cp !== null && a.cp >= best - STILL_WORKS)) { out.push({ rule: p.rule, text: p.text, verdict: 'agrees' }); continue; }
+    if (searches >= MAX_CHECKS) { out.push({ rule: p.rule, text: p.text, verdict: 'unverifiable' }); continue; }
+    searches += 1;
+    const [info] = await engine.analyse(board, { depth: CHECK_DEPTH }, 1, follows);
+    if (!info) { out.push({ rule: p.rule, text: p.text, verdict: 'unverifiable' }); continue; }
+    const cp = scoreToCp(info.score, me);
+    const gap = best - cp;
+    const mateLost = best >= MATE_CP / 2 && cp < MATE_CP / 2;
+    out.push({ rule: p.rule, text: p.text, verdict: gap > CHECK_MARGIN || mateLost ? 'contradicted' : 'agrees', gap });
+  }
+  return out;
+}
+
+/** What Stockfish says about one of their tactics on the board (a fork, a pin they can win, a skewer). */
+export interface TacticVerdict { rule: string; text: string; verdict: 'works' | 'fails'; why?: string }
+
+/** Their tactics against Stockfish (your move only): with you passing, the best of the moves that cash the tactic in
+ *  (searched among just those) — it works when that gains them at least a pawn. When none of those moves is legal, the
+ *  piece is pinned. A tactic that fails is said again with the reason, lower down. */
+export async function checkTactics(engine: Engine, board: Board, ideas: coach.Ideas, me: Color, cp: number | null): Promise<TacticVerdict[]> {
+  if (board.turn !== me || cp === null || board.isCheck()) return [];
+  const passed = coach.passTurn(board);
+  if (!passed || passed.isGameOver()) return [];
+  const out: TacticVerdict[] = [];
+  for (const p of ideas.points.filter((x) => x.cash?.length).slice(0, MAX_TACTIC_CHECKS)) {
+    const legal = p.cash!.filter((m) => passed.isLegal(m));
+    if (!legal.length) {
+      const sq = p.cash![0].slice(0, 2);
+      const role = passed.pieceAt(parseSquare(sq)!)?.role ?? 'piece';
+      out.push({ rule: p.rule, text: p.text, verdict: 'fails', why: `the ${role} on ${sq} is pinned, so it can't take` });
+      continue;
+    }
+    const [info] = await engine.analyse(passed, { depth: CHECK_DEPTH }, 1, legal);
+    if (!info?.pv.length) continue;
+    const gain = scoreToCp(info.score, passed.turn) + cp;
+    if (gain >= TACTIC_GAIN) { out.push({ rule: p.rule, text: p.text, verdict: 'works' }); continue; }
+    // the line that shows it: their capture and your answer
+    const b = passed.copy();
+    const sans: string[] = [];
+    for (const m of info.pv.slice(0, 2)) {
+      if (!b.isLegal(m)) break;
+      sans.push(b.san(m));
+      b.push(m);
+    }
+    // (still better after it: no real threat; about level: it wins them nothing)
+    const after = -scoreToCp(info.score, passed.turn);
+    out.push({ rule: p.rule, text: p.text, verdict: 'fails', why: after >= 100
+      ? `it isn't a real threat: even after ${sans.join(' ')} you're still better`
+      : `it doesn't win them anything: after ${sans.join(' ')} it's about level` });
+  }
+  return out;
 }
 
 type Stoppable = { stoppable(board: Board, limit: { depth?: number; time?: number }, multipv?: number): { result: Promise<InfoLine[]>; stop: () => void } };
@@ -78,6 +156,10 @@ export class CoachIdeas {
   private cache = new Map<string, coach.Ideas>();
   private token: object | null = null;
   private last: IdeasPosition | null = null;
+  /** Stockfish's verdict on each piece of advice in the position shown (for the audit). */
+  adviceVerdicts: AdviceVerdict[] = [];
+  /** … and on each of their tactics on the board. */
+  tacticVerdicts: TacticVerdict[] = [];
   /** The deep coach is reading Stockfish's lines for the position shown. */
   deepPending = false;
   private stopDeep: (() => void) | null = null;
@@ -154,7 +236,7 @@ export class CoachIdeas {
           const [info] = await this.engine.analyse(passed, { depth: THREAT_DEPTH });
           if (info?.pv.length) faced = { move: info.pv[0], gain: scoreToCp(info.score, passed.turn) + (forMover(cp) ?? 0), line: info.pv };
         }
-        if (theirMove && faced) threat = faced;
+        if (theirMove !== undefined && faced) threat = faced;    // (null: it's your move after theirs, the move itself unknown)
         // … and whether the best move stops it (prophylaxis)
         const best = bestLine?.[0];
         if (faced && faced.gain >= coach.THREAT_CP && best && board.isLegal(best)) {
@@ -182,8 +264,28 @@ export class CoachIdeas {
       }
     }
     if (token !== this.token) return;            // moved on meanwhile
-    const input = { fen: pos.fen, me: pos.me, cp, bestLine, alternatives, theirMove, threat, prevents, before: pos.before, recapture: pos.recapture, pawnTrades };
-    const full = coach.positionIdeas(input);
+    const draft = { fen: pos.fen, me: pos.me, cp, bestLine, alternatives, theirMove, threat, prevents, before: pos.before, recapture: pos.recapture, pawnTrades };
+    let full = coach.positionIdeas(draft);
+    // the check: advice Stockfish contradicts here is left out
+    let overruled: string[] = [];
+    let revised: Record<string, { text: string; weight: number }> = {};
+    this.adviceVerdicts = [];
+    this.tacticVerdicts = [];
+    if (this.engine && !board.isGameOver()) {
+      try {
+        this.adviceVerdicts = await checkAdvice(this.engine, board, full, pos.me, alternatives);
+        this.tacticVerdicts = await checkTactics(this.engine, board, full, pos.me, cp);
+      } catch {
+        /* unchecked */
+      }
+      if (token !== this.token) return;
+      overruled = this.adviceVerdicts.filter((v) => v.verdict === 'contradicted').map((v) => v.rule);
+      // their tactic that doesn't work: said again with the reason, out of the key ideas
+      revised = Object.fromEntries(this.tacticVerdicts.filter((v) => v.verdict === 'fails')
+        .map((v) => [v.text, { text: `${v.text.replace(/\.$/, '')} — but ${v.why}.`, weight: 30 }]));
+      if (overruled.length || Object.keys(revised).length) full = coach.positionIdeas({ ...draft, overruled, revised });
+    }
+    const input = { ...draft, overruled, revised };
     this.ideas = full;
     const engine = this.engine as (Engine & Partial<Stoppable>) | null;
     if (!deep || !engine?.stoppable || board.isGameOver()) {
