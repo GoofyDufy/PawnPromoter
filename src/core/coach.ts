@@ -16,10 +16,11 @@
  *  5. credit, or reassurance for a small slip.
  * One turning point gets the spotlight; small inaccuracies aren't nagged about.
  */
-import { MATE_CP } from './analyzer';
+import { MATE_CP, MIN_CHANCES_LOST, winChances } from './analyzer';
 import { Board, type Color, opposite, type Role, type Square } from './chess';
 import { materialWords, type SolutionFacts } from './explain';
 import { pySigned } from './format';
+import { endgameInsights } from './endgame';
 
 // ---------- squares ----------
 
@@ -84,6 +85,10 @@ export function canReach(board: Board, c: Color, sq: string): boolean {
     }
   });
 }
+/** Whether `c` has a piece of this kind on the board — advice never names a piece that isn't there. */
+const has = (board: Board, c: Color, role: Role) => board.pieces(role, c).length > 0;
+/** `c` has a bishop on the light squares. */
+const lightBishop = (board: Board, c: Color) => board.pieces('bishop', c).some(light);
 /** "a and b" / "a, b and c" (for the plans). */
 const and = (xs: string[]) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 /** A pawn move by `c` as written in prose: Black's moves get the "…". */
@@ -105,14 +110,14 @@ export function structure(board: Board): Structure | null {
       const push = next && canReach(board, c, next) ? ` and ${by(c, next)} is your break` : '';
       return { key: 'iqp', name: "an isolated queen's pawn position", owner: c,
         plan: (me) => (me === c ? `keep the pieces on and play actively — the d-pawn gives you space${push}`
-          : 'trade pieces and blockade the pawn with a knight in front of it — in the endgame it becomes a weakness') };
+          : `trade pieces and blockade the pawn with ${has(board, opposite(c), 'knight') ? 'a knight' : 'a piece'} in front of it — in the endgame it becomes a weakness`) };
     }
     // hanging pawns: c- and d-pawns side by side with no b- or e-pawns
     const cd = pawnsOf(board, c).filter((p) => file(p) === 2 || file(p) === 3);
     if (cd.length === 2 && rank(cd[0]) === rank(cd[1]) && !hasPawn(board, c, 1) && !hasPawn(board, c, 4)) {
       return { key: 'hanging', name: 'hanging pawns', owner: c,
         plan: (me) => (me === c ? 'keep them side by side and use the space; pushing one at the right moment opens lines'
-          : 'pressure them with rooks on the c- and d-files and make one of them advance — then the other is weak') };
+          : `pressure them with ${has(board, opposite(c), 'rook') ? 'rooks on the c- and d-files' : 'your pieces'} and make one of them advance — then the other is weak`) };
     }
   }
   // Carlsbad: White d4 with no c-pawn; Black c6 + d5 with no e-pawn (or the mirror)
@@ -123,8 +128,8 @@ export function structure(board: Board): Structure | null {
       const b5 = mirror(c, 'b5');
       return { key: 'carlsbad', name: 'a Carlsbad structure', owner: c,
         plan: (me) => (me === c ? (canReach(board, c, b5) ? `the minority attack: push your b-pawn to ${b5} to make a weakness on ${c6}`
-          : `put pressure on ${c6} down the c-file — it's the target in this structure`)
-          : 'play on the kingside, and get a knight to e4 / e5') };
+          : `put pressure on ${c6}${has(board, c, 'rook') || has(board, c, 'queen') ? ' down the c-file' : ' with your pieces'} — it's the target in this structure`)
+          : `play on the kingside${has(board, o, 'knight') ? `, and get a knight to ${mirror(o, 'e4')} / ${mirror(o, 'e5')}` : ''}`) };
     }
   }
   // Maroczy bind: c- and e-pawns on the 4th, the d-pawn traded for the opponent's c-pawn, and the
@@ -138,7 +143,7 @@ export function structure(board: Board): Structure | null {
       const theirBreaks = [b5, d5].filter((x) => canReach(board, o, x)).map((x) => by(o, x));
       const stopB = canReach(board, o, b5) && canReach(board, c, a4) ? `, and ${by(c, a4)} stops ${by(o, b5)}` : '';
       return { key: 'maroczy', name: 'a Maroczy bind', owner: c,
-        plan: (me) => (me === c ? `squeeze: your c- and e-pawns stop ${by(o, d5)}${stopB} — put a knight on ${d5}, improve your pieces behind the pawns and expand slowly`
+        plan: (me) => (me === c ? `squeeze: your c- and e-pawns stop ${by(o, d5)}${stopB} — ${has(board, c, 'knight') ? `put a knight on ${d5}, ` : ''}improve your pieces behind the pawns and expand slowly`
           : `you're cramped, so trade pieces (minor pieces especially) and keep everything solid${theirBreaks.length ? ` — prepare ${theirBreaks.join(' or ')}: once a break lands, the cramp is gone` : ''}`) };
     }
   }
@@ -151,8 +156,8 @@ export function structure(board: Board): Structure | null {
     const oneD = pawnsOf(board, o).filter((p) => file(p) === 3).length === 1;      // …d6 is its only d-pawn (no …d4 wedge)
     if (pawnOn(board, c, e4) && !hasPawn(board, c, 3) && pawnOn(board, o, e5) && pawnOn(board, o, d6) && oneD && !hasPawn(board, o, 2)) {
       return { key: 'boleslavsky', name: `a Sicilian with a hole on ${d5} (the Boleslavsky hole)`, owner: c,
-        plan: (me) => (me === c ? `put a knight on ${d5} — no pawn can ever chase it away — keep ${by(o, d5)} from happening, and press the backward pawn on ${d6}`
-          : `the hole on ${d5} is the price of your active pieces: fight for ${d5} with pieces, use the open c-file and expand on the queenside — and if you can ever play ${by(o, d5)} safely, the hole and the backward pawn both disappear`) };
+        plan: (me) => (me === c ? `put ${has(board, c, 'knight') ? 'a knight' : 'a piece'} on ${d5} — no pawn can ever chase it away — keep ${by(o, d5)} from happening, and press the backward pawn on ${d6}`
+          : `the hole on ${d5} is the price of your active pieces: fight for ${d5} with pieces, ${has(board, o, 'rook') || has(board, o, 'queen') ? 'use the open c-file ' : ''}and expand on the queenside — and if you can ever play ${by(o, d5)} safely, the hole and the backward pawn both disappear`) };
     }
   }
   // the French chain: d4 + e5 against d5 + e6 — the chain points at the kingside
@@ -163,7 +168,7 @@ export function structure(board: Board): Structure | null {
       const hits = [[c5, d4], [f6, e5]].filter(([x]) => canReach(board, o, x)).map(([x, t]) => `${by(o, x)} hits ${t}`);
       return { key: 'french', name: 'a French pawn chain', owner: c,
         plan: (me) => (me === c ? `your pawns point at the kingside, so play there: keep ${d4} and ${e5} supported and attack the king`
-          : `${hits.length ? `break at the chain: ${and(hits)}` : `pile up on ${d4} with your pieces — it's the chain's weak link`} — and free your light-squared bishop (or trade it), because a French that never breaks gets squeezed`) };
+          : `${hits.length ? `break at the chain: ${and(hits)}` : `pile up on ${d4} with your pieces — it's the chain's weak link`}${lightBishop(board, o) ? ' — and free your light-squared bishop (or trade it)' : ''}, because a French that never breaks gets squeezed`) };
     }
   }
   // locked centre: pawns blocking each other on the d- and e-files, or on one of them with a pawn chain
@@ -254,9 +259,45 @@ export function moveReasons(before: Board, uci: string, whose = 'your'): string[
     return p && p.color === o && p.role !== 'pawn' && (p.role === 'king' || VALUE[p.role] > VALUE[piece.role] || !after.attackers(o, t).length);
   }).sort((a, b) => worth(after.pieceAt(b)!.role) - worth(after.pieceAt(a)!.role));      // the king first, then the biggest
   const named = (t: Square) => after.pieceAt(t)!.role === 'king' ? 'king' : `${after.pieceAt(t)!.role} on ${name(t)}`;
+  // checks: double, discovered (from a piece that didn't move), or plain
+  const theirKing = after.king(o);
+  const checkers = after.isCheck() && theirKing !== undefined ? after.attackers(me, theirKing) : [];
+  const discovered = checkers.find((c) => c !== to);
+  if (checkers.length >= 2) out.push('gives double check — the king has to move');
+  else if (discovered !== undefined) out.push(`gives a discovered check from the ${after.pieceAt(discovered)!.role} on ${name(discovered)}`);
   if (targets.length >= 2) out.push(`forks the ${named(targets[0])} and the ${named(targets[1])}`);
-  else if (after.isCheck()) out.push('gives check');
-  else if (targets.length) out.push(`attacks the ${named(targets[0])}`);
+  else if (checkers.length === 1 && discovered === undefined) out.push('gives check');
+  else if (targets.length && after.pieceAt(targets[0])!.role !== 'king') out.push(`attacks the ${named(targets[0])}`);
+  // a discovered attack: a long-range piece that didn't move now hits something it didn't before
+  if (!checkers.length) {
+    const uncovered = [...after.pieceMap()].flatMap(([sq, p]) => (p.color !== me || sq === to || !['bishop', 'rook', 'queen'].includes(p.role) ? []
+      : after.attacks(sq).filter((t) => {
+        const q = after.pieceAt(t);
+        return q && q.color === o && q.role !== 'pawn' && !before.attacks(sq).includes(t)
+          && (VALUE[q.role] > VALUE[p.role] || !after.attackers(o, t).length);
+      }).map((t) => [sq, t] as [Square, Square])))[0];
+    if (uncovered) out.push(`uncovers an attack by the ${after.pieceAt(uncovered[0])!.role} on ${name(uncovered[0])} on the ${after.pieceAt(uncovered[1])!.role} on ${name(uncovered[1])}`);
+  }
+  // removing the defender: what it took was the only guard of something you attack
+  if (taken) {
+    const exposed = [...after.pieceMap()].find(([sq, p]) => p.color === o && p.role !== 'king' && p.role !== 'pawn'
+      && before.attackers(o, sq).includes(to) && before.attackers(o, sq).length === 1 && after.attackers(me, sq).length > 0 && !after.attackers(o, sq).length);
+    if (exposed) out.push(`removes the only defender of the ${exposed[1].role} on ${name(exposed[0])}`);
+  }
+  // a trapped piece: attacked, and nowhere safe to go
+  const trapped = [...after.pieceMap()].find(([sq, p]) => {
+    if (p.color !== o || !['knight', 'bishop', 'rook', 'queen'].includes(p.role) || !after.attackers(me, sq).length) return false;
+    if (before.attackers(me, sq).length) return false;                    // it's this move that does it
+    const threatened = after.attackers(me, sq).some((a) => VALUE[after.pieceAt(a)!.role] < VALUE[p.role]) || !after.attackers(o, sq).length;
+    if (!threatened) return false;
+    const exits = after.legalMoves().filter((m) => parse(m.slice(0, 2)) === sq);
+    return exits.every((m) => {                                          // every square it can reach is covered, and taking there doesn't pay for it
+      const t = parse(m.slice(2, 4));
+      const cap = after.pieceAt(t);
+      return after.isAttackedBy(me, t) && (!cap || VALUE[cap.role] < VALUE[p.role]);
+    });
+  });
+  if (trapped) out.push(`traps the ${trapped[1].role} on ${name(trapped[0])}`);
   for (const pinned of pinsFrom(after, to).slice(0, 1)) out.push(`pins the ${after.pieceAt(pinned)!.role} on ${name(pinned)}`);
   // a piece that was in trouble steps away
   const inDanger = (b: Board, sq: Square, role: Role) => b.attackers(o, sq).some((a) => VALUE[b.pieceAt(a)!.role] < VALUE[role]) || (b.attackers(o, sq).length > 0 && !b.attackers(me, sq).length);
@@ -277,7 +318,7 @@ export function moveReasons(before: Board, uci: string, whose = 'your'): string[
       .find((t) => after.pieceAt(t)?.role === 'pawn' && after.pieceAt(t)?.color === o);
     if (hit !== undefined && !taken) out.push(`strikes at the pawn on ${name(hit)}`);
     const freed = before.pieces('bishop', me).find((b) => after.sliderMobility(b) - before.sliderMobility(b) >= 2);
-    if (freed !== undefined) out.push(`opens the diagonal for ${whose} bishop on ${name(freed)}`);
+    if (freed !== undefined && !out.some((x) => x.startsWith(`uncovers an attack by the bishop on ${name(freed)}`))) out.push(`opens the diagonal for ${whose} bishop on ${name(freed)}`);
     if (passedPawns(after, me).includes(to) && relRank(to, me) >= 4) out.push('pushes the passed pawn');
     if (!out.length && file(to) >= 2 && file(to) <= 5 && relRank(to, me) >= 3 && relRank(from, me) <= 2) out.push('takes space in the centre');
   }
@@ -674,7 +715,7 @@ export interface IdeasInput {
   /** Your opponent just moved: their move, and what it threatens (their best move if they
    *  could move again, and what it would gain them in centipawns). */
   theirMove?: string | null;
-  threat?: { move: string; gain: number } | null;
+  threat?: { move: string; gain: number; line?: string[] } | null;
   /** Stockfish's top moves for the side to move, best first (cp: your point of view; line: its line). */
   alternatives?: { move: string; cp: number | null; line?: string[] }[];
   /** What the side to move would face if it passed (the other side's best move, and what it would gain
@@ -682,6 +723,10 @@ export interface IdeasInput {
   prevents?: { move: string; gain: number } | null;
   /** The position just before (the last move undone): what's new here gets said first. */
   before?: string;
+  /** Their last move took back on the square your move before it captured on (a recapture). */
+  recapture?: boolean;
+  /** Captures that trade into a pawn ending, with Stockfish's score for each (your point of view). */
+  pawnTrades?: { move: string; cp: number | null }[];
 }
 
 /** One thing the Coach could say about a position: which rule said it, and how much it matters
@@ -706,6 +751,33 @@ export interface Ideas {
 }
 
 const squaresNamed = (text: string) => text.match(/\b[a-h][1-8]\b/g) ?? [];
+
+/** The squares Stockfish's lines move on (their first plies): a fact about squares no line touches isn't the
+ *  point of this position — Gotham's "abstract, not concrete". */
+function lineSquares(fen: string, lines: (string[] | undefined)[], plies = 6): Set<string> {
+  const out = new Set<string>();
+  for (const line of lines) {
+    if (!line) continue;
+    const b = Board.fromFen(fen);
+    for (const m of line.slice(0, plies)) {
+      if (!b.isLegal(m)) break;
+      out.add(m.slice(0, 2));
+      out.add(m.slice(2, 4));
+      b.push(m);
+    }
+  }
+  return out;
+}
+
+const nonPawnPieces = (b: Board) => (['knight', 'bishop', 'rook', 'queen'] as Role[]).reduce((n, r) => n + b.pieces(r, 'white').length + b.pieces(r, 'black').length, 0);
+
+/** Points that are concrete by construction (read from the engine or exact theory): always eligible as key ideas. */
+const CONCRETE = new Set(['threat', 'pawn-trade-bad', 'pawn-trade-good', 'pawn-trade-bad-theirs', 'pawn-trade-good-theirs', 'stalemate-trap',
+  'lucena', 'philidor', 'philidor-available', 'square-runs', 'square-runs-theirs', 'wrong-bishop', 'wrong-bishop-theirs', 'rook-pawn-draw',
+  'rook-pawn-draw-theirs', 'compensation', 'not-winning', 'race', 'down-keep', 'up-trade', 'intermezzo', 'dynamic-comp', 'dynamic-comp-theirs', 'static-edge']);
+/** Never a key idea on their own (background, or said by the decision / plan already). */
+const NOT_KEY = new Set(['criteria', 'stockfish', 'payoff', 'last-move', 'no-threat', 'material', 'space', 'breaks', 'breaks-theirs',
+  'endgame-family', 'king-safety-off']);
 const SECTIONS = ['What your opponent wants', 'Who has what', 'The situation', 'Plans', 'The pieces', 'Kings and weaknesses', 'The endgame', 'What Stockfish wants'];
 const KEY_COUNT = 3;                   // key ideas shown first
 const FRESH_BONUS = 15;                // something the last move changed counts for more
@@ -749,11 +821,19 @@ export function positionIdeas(i: IdeasInput): Ideas {
   if (i.theirMove !== undefined && board.turn === me) {
     section = 'What your opponent wants';
     const prev = i.theirMove;
-    const last = prev ? lastMoveNote(board, prev) : null;
+    const last = prev ? lastMoveNote(board, prev, i.before ? Board.fromFen(i.before) : null, !!i.recapture) : null;
     if (i.threat && i.threat.gain >= THREAT_CP) {
       const passed = passTurn(board);
       const san = passed && passed.isLegal(i.threat.move) ? passed.san(i.threat.move) : i.threat.move;
-      add('threat', 100, `${last ? `${last} ` : ''}It threatens ${san}${i.threat.gain >= MATE_CP / 2 ? ', with mate' : `, which would win about ${materialWords(Math.max(1, Math.round(i.threat.gain / 100)))}`} — deal with that first.`);
+      // their idea as a plan: the threat, and the move it sets up (their next move in that line)
+      let follow = '';
+      const tl = i.threat.line;
+      if (passed && tl && tl.length >= 3 && tl[0] === i.threat.move) {
+        const b2 = passed.copy();
+        // only a forcing follow-up (a capture or a check) is part of the plan; a quiet move there is noise
+        if (b2.isLegal(tl[0])) { b2.push(tl[0]); if (b2.isLegal(tl[1])) { b2.push(tl[1]); if (b2.isLegal(tl[2]) && (b2.isCapture(tl[2]) || b2.givesCheck(tl[2]))) follow = b2.san(tl[2]); } }
+      }
+      add('threat', 100, `${last ? `${last} ` : ''}It threatens ${san}${follow ? ` (with ${follow} to follow)` : ''}${i.threat.gain >= MATE_CP / 2 ? ', with mate' : `, which would win about ${materialWords(Math.max(1, Math.round(i.threat.gain / 100)))}`} — deal with that first.`);
     } else {
       if (i.threat === null) add('no-threat', 15, `${last ? `${last} ` : ''}No direct threat: you're free to improve your position — bring out the piece that isn't playing yet.`);
       else if (last) add('last-move', 10, last);           // Stockfish hasn't looked: no claim either way
@@ -779,7 +859,33 @@ export function positionIdeas(i: IdeasInput): Ideas {
   const mat = material(board, me);
   const cp = i.cp ?? null;
   if (mat !== 0) add('material', 30, `Material: ${you(mat > 0 ? me : them)} ${mat > 0 ? 'are' : 'is'} up ${materialWords(Math.abs(mat))}.`);
+  // static vs dynamic (Silman): material lasts; activity, a loose king and development have to be used now
+  const dynamicFacts = (side: Color) => {
+    const other = opposite(side);
+    const facts: string[] = [];
+    if (activity(board, side) - activity(board, other) > 3) facts.push(`${side === me ? 'your' : 'their'} pieces are more active`);
+    const queensOn = board.pieces('queen', 'white').length + board.pieces('queen', 'black').length > 0;
+    const danger = (c: Color) => shieldDamage(board, c) + (castledLike(board, c) ? 0 : 1) + Math.max(0, kingPressure(board, c).attackers - kingPressure(board, c).defenders);
+    if (queensOn && danger(other) - danger(side) >= 2) facts.push(`${side === me ? 'their' : 'your'} king is the less safe one`);
+    if (board.fullmoveNumber <= 20 && piecesAtHome(board, other) - piecesAtHome(board, side) >= 2) facts.push(`${side === me ? 'you are' : 'they are'} ahead in development`);
+    return facts;
+  };
+  let dynamic = false;
   if (cp !== null && Math.abs(cp) < MATE_CP / 2) {
+    const mine = mat <= -1 && cp >= mat * 100 + 150 ? dynamicFacts(me) : [];
+    const theirs = mat >= 1 && cp <= mat * 100 - 150 ? dynamicFacts(them) : [];
+    if (mine.length) {
+      dynamic = true;
+      add('dynamic-comp', 70, `Your compensation for ${materialWords(-mat)} is dynamic: ${list(mine)}. Keep the initiative — every quiet move gives them time to consolidate, and then the material counts.`);
+    } else if (theirs.length) {
+      dynamic = true;
+      add('dynamic-comp-theirs', 70, `Their compensation for ${materialWords(mat)} is dynamic: ${list(theirs)}. Consolidate — king safe, pieces developed, trade an active attacker — and your extra material will count.`);
+    } else if (mat >= 1 && cp >= 80) {
+      dynamic = true;
+      add('static-edge', 45, `Your edge is static: you're up ${materialWords(mat)}, and that doesn't go away. No need to hurry — keep everything safe, improve your pieces, then trade down.`);
+    }
+  }
+  if (cp !== null && Math.abs(cp) < MATE_CP / 2 && !dynamic) {
     if (mat <= -2 && cp >= -30) add('compensation', 70, "You're down material but doing fine — your pieces are compensating, so keep them active and avoid trades.");
     else if (mat >= 2 && cp <= 50) add('not-winning', 65, "You're up material, but it isn't winning yet — your opponent has activity for it. Trading pieces helps you.");
     else if (mat >= 2) add('up-trade', 45, 'Up material: trade pieces, not pawns — every trade makes your extra material count more.');
@@ -862,6 +968,26 @@ export function positionIdeas(i: IdeasInput): Ideas {
 
   // the pieces
   section = 'The pieces';
+  // a piece tied to a job (Hikaru's "octopus knight that can't leave"): the only guard of something attacked
+  for (const c of [me, them]) {
+    const o = opposite(c);
+    let tied: { guard: Square; unit: Square } | null = null;
+    for (const [sq, pc] of board.pieceMap()) {
+      if (pc.color !== c || pc.role === 'king' || !board.attackers(o, sq).length) continue;
+      const guards = board.attackers(c, sq);
+      if (guards.length !== 1) continue;
+      const g = board.pieceAt(guards[0]);
+      if (!g || g.role === 'king' || g.role === 'pawn') continue;
+      if (!tied || VALUE[pc.role] > VALUE[board.pieceAt(tied.unit)!.role]) tied = { guard: guards[0], unit: sq };
+    }
+    if (!tied) continue;
+    const g = board.pieceAt(tied.guard)!.role;
+    const u = board.pieceAt(tied.unit)!.role;
+    const minor = u === 'pawn' ? 10 : 0;                // a pawn's guard matters less than a piece's
+    add(c === me ? 'tied' : 'tied-theirs', (c === me ? 50 : 55) - minor, c === me
+      ? `Your ${g} on ${name(tied.guard)} is tied down: it's the only guard of your ${u} on ${name(tied.unit)}, which is attacked — if it moves, the ${u} on ${name(tied.unit)} falls.`
+      : `Their ${g} on ${name(tied.guard)} is the only guard of their ${u} on ${name(tied.unit)}: attack the ${u} again, or lure the ${g} away.`);
+  }
   for (const c of [me, them]) {
     for (const b of badBishops(board, c)) {
       // a "bad" bishop that guards a pawn under attack is doing a real job
@@ -883,7 +1009,7 @@ export function positionIdeas(i: IdeasInput): Ideas {
   if (open.length) {
     const rooksOn = board.pieces('rook', me).filter((r) => open.includes(file(r)));
     if (rooksOn.length) add('open-file-rook', 25, `Your rook already controls the open ${fileName(file(rooksOn[0]))} — use it to get to the 7th rank.`);
-    else add('open-file', 35, `The ${list(open.slice(0, 2).map(fileName))} ${open.length > 1 ? 'are' : 'is'} open: put a rook there first.`);
+    else if (has(board, me, 'rook')) add('open-file', 35, `The ${list(open.slice(0, 2).map(fileName))} ${open.length > 1 ? 'are' : 'is'} open: put a rook there first.`);
   }
   // rooks facing each other on an open file: don't be the one to take
   const facing = open.find((f) => board.pieces('rook', me).some((r) => file(r) === f) && board.pieces('rook', them).some((r) => file(r) === f));
@@ -899,7 +1025,7 @@ export function positionIdeas(i: IdeasInput): Ideas {
     const theirs = loosePieces(board, them).filter(exposed)[0];
     if (mine !== undefined) add('loose', attackedBy(them, mine) ? 85 : 40, `Your ${board.pieceAt(mine)!.role} on ${name(mine)} has no defender — loose pieces are what tactics hit first, so keep an eye on it every move.`);
     else if (qg !== undefined) add('queen-guarded', 70, `Your ${board.pieceAt(qg)!.role} on ${name(qg)} is attacked and only your queen guards it — the queen is a poor guard, because she can be chased away.`);
-    if (theirs !== undefined) add('loose-theirs', attackedBy(me, theirs) ? 70 : 35, `Their ${board.pieceAt(theirs)!.role} on ${name(theirs)} is undefended — that's where double attacks come from.`);
+    if (theirs !== undefined) add('loose-theirs', attackedBy(me, theirs) ? 70 : 35, `Their ${board.pieceAt(theirs)!.role} on ${name(theirs)} is undefended.`);
   }
 
   // kings and weaknesses
@@ -968,6 +1094,33 @@ export function positionIdeas(i: IdeasInput): Ideas {
 
   // the endgame: the king becomes a fighter, and passed pawns decide
   section = 'The endgame';
+  for (const e of endgameInsights(board, me, i.cp ?? null)) add(e.rule, e.weight, e.text);
+  // trading into a pawn ending: only as good as that pawn ending (Stockfish's score for the trade)
+  const bestCp = i.cp ?? null;
+  const topMove = i.bestLine?.[0] ?? i.alternatives?.[0]?.move;
+  /** A pawn ending's verdict in a few words, your point of view: "winning for you (+3.2)". */
+  const outlook = (v: number) => (v >= MATE_CP / 2 ? 'a forced mate for you' : v <= -MATE_CP / 2 ? 'a forced mate for your opponent'
+    : Math.abs(v) < 50 ? `about level (${pySigned(v / 100, 1)})`
+      : `${v >= 200 ? 'winning for you' : v <= -200 ? 'lost for you' : v > 0 ? 'better for you' : 'worse for you'} (${pySigned(v / 100, 1)})`);
+  for (const t of i.pawnTrades ?? []) {
+    if (t.cp === null || bestCp === null || !board.isLegal(t.move)) continue;
+    const mover = board.turn;
+    const pov = (v: number) => (mover === me ? v : -v);                  // the trading side's point of view
+    const lost = winChances(pov(bestCp)) - winChances(pov(t.cp));
+    const sanT = board.san(t.move);
+    if (lost >= MIN_CHANCES_LOST) {
+      add(mover === me ? 'pawn-trade-bad' : 'pawn-trade-bad-theirs', mover === me ? 75 : 40, mover === me
+        ? `Don't trade into the pawn ending with ${sanT}: that pawn ending is ${outlook(t.cp)} — keep the pieces on${topMove && board.isLegal(topMove) ? ` (Stockfish prefers ${board.san(topMove)})` : ''}.`
+        : `If they trade into the pawn ending with ${sanT}, it's ${outlook(t.cp)} — they should keep the pieces on.`);
+      break;
+    }
+    if (lost < 0.05 && pov(t.cp) >= 300) {
+      add(mover === me ? 'pawn-trade-good' : 'pawn-trade-good-theirs', mover === me ? 70 : 60, mover === me
+        ? `${sanT} trades into a pawn ending that's ${outlook(t.cp)} — when the pawn ending is won, trading is the simplest way.`
+        : `Watch out: ${sanT} would trade into a pawn ending that's ${outlook(t.cp)}.`);
+      break;
+    }
+  }
   for (const e of endgameNotes(board, me)) {
     // an outside passer says more than the plain "passed pawn" note about the same pawn: keep one
     const dup = points.findIndex((p) => (p.rule === 'passer' || p.rule === 'passer-theirs') && e.rule.startsWith('outside-passer')
@@ -978,6 +1131,7 @@ export function positionIdeas(i: IdeasInput): Ideas {
 
   // what Stockfish wants here
   section = 'What Stockfish wants';
+  let decision: 'only' | 'several' | 'normal' | null = null;
   const bestLine = i.bestLine?.length ? i.bestLine : i.alternatives?.length ? (i.alternatives[0].line ?? [i.alternatives[0].move]) : undefined;
   if (bestLine && board.isLegal(bestLine[0])) {
     const mover = board.turn;
@@ -994,7 +1148,6 @@ export function positionIdeas(i: IdeasInput): Ideas {
       b.push(m);
     }
     const r = why(move);
-    let text = `${mover === me ? 'Your' : "Your opponent's"} best move here is ${sans[0]}${r ? ` — it ${r}` : ''}.${sans.length > 1 ? ` The idea: ${sans.join(' ')}.` : ''}`;
     // the other good moves, or how much better the best one is
     const alts = (i.alternatives ?? []).filter((a) => a.move !== move && board.isLegal(a.move));
     const best = i.alternatives?.find((a) => a.move === move)?.cp ?? null;
@@ -1003,16 +1156,53 @@ export function positionIdeas(i: IdeasInput): Ideas {
     const next = alts[0];
     const nextGap = next ? gap(next) : null;
     const forMover = mover === me;
-    if (close.length) {
-      text += ` Just as good: ${list(close.map((a) => { const w = why(a.move); return `${board.san(a.move)}${w ? ` (${w})` : ''}`; }))}.`;
-    } else if (next && nextGap !== null && nextGap >= 100 && best !== null && Math.abs(best) < MATE_CP / 2) {
-      text += ` It's the only move that keeps things together — the next best, ${board.san(next.move)}, is about ${pySigned(nextGap / 100, 1).replace('+', '')} pawns worse`;
-      // and what goes wrong after it
-      const after = next.line?.length ? lineOutcome(i.fen, next.line, me, next.cp) : null;
+    const whose = forMover ? 'Your' : "Your opponent's";
+    const decided = best !== null && Math.abs(best) >= MATE_CP / 2;
+    // the decision this position asks for (Hikaru: reduce it to its one question)
+    decision = close.length ? 'several' : next && nextGap !== null && nextGap >= 100 && !decided ? 'only' : 'normal';
+    const isBreak = breakMoves(board, mover).includes(move);
+    let text: string;
+    if (decision === 'several') {
+      text = `Several moves are fine here — ${list([`${sans[0]}${r ? ` (${r})` : ''}`, ...close.map((a) => { const w = why(a.move); return `${board.san(a.move)}${w ? ` (${w})` : ''}`; })])} — so the plan matters more than one exact move.`;
+    } else if (decision === 'only') {
+      text = `${forMover ? 'One move holds here' : 'Your opponent has one good move here'}: ${sans[0]}${r ? ` — it ${r}` : ''}. The next best, ${board.san(next!.move)}, is about ${pySigned(nextGap! / 100, 1).replace('+', '')} pawns worse`;
+      // and what goes wrong after it (the contrast is the reason)
+      const after = next!.line?.length ? lineOutcome(i.fen, next!.line, me, next!.cp) : null;
       const wrong = after?.changes.find((c) => c.forMe !== forMover);
       text += wrong ? `: after ${after!.line}, ${wrong.text}.` : '.';
+    } else {
+      text = `${whose} best move here is ${sans[0]}${r ? ` — it ${r}` : ''}.${sans.length > 1 ? ` The idea: ${sans.join(' ')}.` : ''}`;
     }
-    add('stockfish', close.length || (nextGap ?? 0) >= 100 ? 50 : 45, text);
+    if (isBreak && decision !== 'several') text += ` ${sans[0]} is the pawn break this position turns on.`;
+    // Hikaru's safe way home: when winning, an equally good move that trades pieces is the practical choice
+    if (forMover && best !== null && best >= 150 && !decided) {
+      const trades = (line: string[] | undefined) => {
+        if (!line?.length) return 0;
+        const b2 = board.copy();
+        const n0 = nonPawnPieces(b2);
+        for (const m of line.slice(0, 4)) { if (!b2.isLegal(m)) break; b2.push(m); }
+        return n0 - nonPawnPieces(b2);
+      };
+      const simpler = close.find((a) => trades(a.line) >= 2 && trades(bestLine) < 2);
+      if (simpler) text += ` Simpler: ${board.san(simpler.move)} is just as good and trades pieces — when you're winning, that's the safe way home.`;
+    }
+    add('stockfish', decision === 'only' ? 70 : decision === 'several' ? 50 : 45, text);
+    // an in-between move: they just took on a square, and Stockfish plays a forcing move before taking back
+    const prior2 = i.before && i.theirMove ? Board.fromFen(i.before) : null;
+    if (prior2 && forMover && prior2.isLegal(i.theirMove!) && prior2.isCapture(i.theirMove!)) {
+      const sq = i.theirMove!.slice(2, 4);
+      const forcing = board.givesCheck(move) || board.isCapture(move) || moveReasons(board, move).some((x) => /^(attacks|forks)/.test(x));
+      const lb = board.copy();
+      let retake = -1;
+      for (const [k, m] of bestLine.slice(0, 5).entries()) {
+        if (!lb.isLegal(m)) break;
+        if (k > 0 && k % 2 === 0 && m.slice(2, 4) === sq && lb.isCapture(m)) { retake = k; break; }
+        lb.push(m);
+      }
+      if (move.slice(2, 4) !== sq && forcing && retake > 0) {
+        add('intermezzo', 80, `Don't take back on ${sq} yet: ${sans[0]} first — an in-between move${r ? ` (it ${r})` : ''} — and you still recapture after.`);
+      }
+    }
 
     // why it works: what the line changes, and the plan behind it
     const outcome = lineOutcome(i.fen, bestLine, me, best ?? cp);
@@ -1031,11 +1221,19 @@ export function positionIdeas(i: IdeasInput): Ideas {
     const whoseMove = forMover ? 'Your' : "Your opponent's";
     if (gains.length && outcome.line) {
       // the plan says it already: drop the plain "passed pawn" note for the same side
-      if (gains[0].kind === 'passer') {
+      if (gains[0].kind === 'passer' || gains[0].kind === 'push-passer') {
         const dup = points.findIndex((p) => p.rule === (forMover ? 'passer' : 'passer-theirs'));
         if (dup >= 0) points.splice(dup, 1);
       }
-      add('payoff', 75, `${whoseMove} plan: ${planOf(outcome.changes, forMover)}. After ${outcome.line}, ${list(gains.map((g) => g.text))}.`
+      // forced, or Stockfish's likely line: every move of the mover's a check or a capture, or not
+      const fb = board.copy();
+      let forced = true;
+      for (const [k, m] of bestLine.slice(0, 6).entries()) {
+        if (!fb.isLegal(m)) break;
+        if (k % 2 === 0 && !(fb.givesCheck(m) || fb.isCapture(m))) { forced = false; break; }
+        fb.push(m);
+      }
+      add('payoff', 75, `${whoseMove} plan: ${planOf(outcome.changes, forMover)}. ${forced ? `It's forced: after ${outcome.line},` : `Stockfish's likely line: ${outcome.line} —`} ${list(gains.map((g) => g.text))}.`
         + (stops ? ` ${sans[0]} also stops ${stops}.` : ''));
     } else if (stops) {
       add('payoff', 70, `${sans[0]} is mainly a defensive move: it stops ${stops}.`);
@@ -1055,15 +1253,38 @@ export function positionIdeas(i: IdeasInput): Ideas {
   const phase = phaseOf(board);
   if (phase !== 'middlegame') for (const p of points) p.weight = Math.max(0, Math.min(100, p.weight + (PHASE_SHIFT[phase][p.rule] ?? 0)));
 
-  // the key ideas: the most important few (never "who has what"), then the rest by topic
-  const ranked = points.map((p, k) => ({ p, k })).filter(({ p }) => p.section !== 'Who has what' && p.weight >= KEY_MIN)
-    .sort((a, b) => b.p.weight - a.p.weight || a.k - b.k).slice(0, KEY_COUNT).map(({ p }) => p);
+  // the key ideas. With Stockfish's lines: the coach's order — what they want (Gotham), the decision this
+  // position asks for (Hikaru's one question), what's urgent, the plan behind the best move, and one fact the
+  // lines actually use (a concrete weakness, not an abstract one). Without them: the strongest few.
+  let ranked: IdeaPoint[];
+  if (decision !== null) {
+    const touched = lineSquares(i.fen, [bestLine, i.alternatives?.[1]?.line]);
+    const passedB = i.threat?.line?.length ? passTurn(board) : null;
+    if (passedB) for (const sq of lineSquares(passedB.fen(), [i.threat!.line])) touched.add(sq);
+    const named = (p: IdeaPoint) => squaresNamed(p.text);
+    const grounded = (p: IdeaPoint) => CONCRETE.has(p.rule) || (named(p).length > 0 && named(p).some((sq) => touched.has(sq)));
+    const pick = (rule: string) => points.find((p) => p.rule === rule);
+    const used = new Set<IdeaPoint>();
+    const take = (p: IdeaPoint | undefined) => { if (p && !used.has(p)) used.add(p); };
+    take(pick('threat'));
+    take(pick('stockfish'));
+    for (const p of points.filter((x) => CONCRETE.has(x.rule) && x.weight >= 75).sort((a, b) => b.weight - a.weight)) take(p);
+    take(pick('payoff'));
+    const fact = points.filter((p) => !used.has(p) && !NOT_KEY.has(p.rule) && p.weight >= KEY_MIN && grounded(p))
+      .sort((a, b) => b.weight - a.weight)[0];
+    take(fact);
+    ranked = [...used].slice(0, KEY_COUNT);
+  } else {
+    ranked = points.map((p, k) => ({ p, k })).filter(({ p }) => p.section !== 'Who has what' && p.weight >= KEY_MIN)
+      .sort((a, b) => b.p.weight - a.p.weight || a.k - b.k).slice(0, KEY_COUNT).map(({ p }) => p);
+  }
   const sections = SECTIONS.map((title) => ({
     title,
     points: points.filter((p) => p.section === title && !ranked.includes(p))
       .map((p, k) => ({ p, k })).sort((a, b) => b.p.weight - a.p.weight || a.k - b.k).slice(0, SECTION_MAX).map(({ p }) => p.text),
   })).filter((x) => x.points.length);
-  const summary = cp !== null ? evalWords(cp) : 'No evaluation for this position yet.';
+  const reason = cp !== null ? mainReason(board, me, cp) : null;
+  const summary = cp !== null ? `${evalWords(cp)}${reason ? ` ${reason}` : ''}` : 'No evaluation for this position yet.';
   return { summary, key: ranked.map((p) => p.text), sections, points };
 }
 
@@ -1261,14 +1482,23 @@ export function passTurn(board: Board): Board | null {
 }
 
 /** Their last move in a few words ("Their last move, Nf5, attacks your queen."). */
-function lastMoveNote(board: Board, move: string): string | null {
+/** What their last move did, in words. before: the position before it (to see a capture); recapture: your
+ *  move before it captured on the same square. */
+function lastMoveNote(board: Board, move: string, before: Board | null = null, recapture = false): string | null {
   const to = parse(move.slice(2, 4));
   const p = board.pieceAt(to);
   if (!p) return null;
   if (p.role === 'king' && Math.abs(file(to) - file(parse(move.slice(0, 2)))) === 2) return 'Their last move was castling.';
   const targets = board.attacks(to).map((t) => board.pieceAt(t)).filter((q) => q && q.color !== p.color && q.role !== 'pawn');
+  const check = board.isCheck() ? ' with check' : '';
+  const took = before && before.isLegal(move) && before.isCapture(move)
+    ? (before.isEnPassant(move) ? 'pawn' : before.pieceAt(to)?.role ?? null) : null;
+  if (took) {
+    return `Their last move ${recapture ? 'recaptures' : 'captures'} your ${took} on ${name(to)}${check}`
+      + `${targets.length ? `, and now attacks your ${targets[0]!.role}` : ''}.`;
+  }
   const what = targets.length ? `attacks your ${targets[0]!.role}` : `brings the ${p.role} to ${name(to)}`;
-  return `Their last move ${what}.`;
+  return `Their last move ${what}${check}.`;
 }
 
 /** Mobility of the pieces (not pawns or king): squares they reach that aren't taken by their own side. */
@@ -1279,6 +1509,25 @@ function activity(board: Board, c: Color): number {
     n += board.attacks(sq).filter((t) => board.pieceAt(t)?.color !== c).length;
   }
   return n;
+}
+
+/** Why the evaluation is what it is, in one sentence: the one of Gotham's four criteria (material, king safety,
+ *  activity, space) that favours the side Stockfish prefers — or nothing, when none clearly does. */
+export function mainReason(board: Board, me: Color, cp: number): string | null {
+  if (Math.abs(cp) < 50 || Math.abs(cp) >= MATE_CP / 2) return null;
+  const them = opposite(me);
+  const side = cp > 0 ? me : them;
+  const sign = side === me ? 1 : -1;
+  const yours = side === me ? 'your' : 'their';
+  const mat = material(board, me) * sign;
+  if (mat >= 1) return `The main reason: the extra material${mat >= 3 ? '' : ` (${materialWords(mat)})`}.`;
+  const act = (activity(board, me) - activity(board, them)) * sign;
+  if (act > 3) return `The main reason: ${yours} pieces are more active.`;
+  const queensOff = !board.pieces('queen', 'white').length && !board.pieces('queen', 'black').length;
+  const danger = (c: Color) => shieldDamage(board, c) + (castledLike(board, c) ? 0 : 1) + Math.max(0, kingPressure(board, c).attackers - kingPressure(board, c).defenders);
+  if (!queensOff && (danger(opposite(side)) - danger(side)) >= 2) return `The main reason: ${side === me ? 'your opponent\'s' : 'your'} king is less safe.`;
+  if ((space(board, me) - space(board, them)) * sign >= 2) return `The main reason: ${yours === 'your' ? 'you have' : 'they have'} more space.`;
+  return null;
 }
 
 /** The four things a coach weighs (material, king safety, activity, space), each in a line. */
@@ -1518,7 +1767,7 @@ function snapshot(board: Board): Snapshot {
   };
 }
 
-export type ChangeKind = 'mate' | 'material' | 'king' | 'passer' | 'weakness' | 'outpost' | 'rook' | 'activity' | 'development' | 'trade' | 'castle';
+export type ChangeKind = 'mate' | 'material' | 'king' | 'passer' | 'push-passer' | 'stop-passer' | 'weakness' | 'outpost' | 'rook' | 'activity' | 'development' | 'trade' | 'castle';
 
 /** One thing a line changes, from `me`'s point of view: good for you or for your opponent. */
 export interface LineChange {
@@ -1580,11 +1829,12 @@ export function lineOutcome(fen: string, line: string[], me: Color, cp: number |
     // passed pawns: a new one, or one going a long way
     const fresh = s1.passed[c].filter((p) => !s0.passed[c].includes(p) && relRank(p, c) >= 3)
       .sort((a, b2) => relRank(b2, c) - relRank(a, c))[0];
+    // (three different plans: making one, pushing one you have, getting rid of theirs)
     if (fresh !== undefined && s1.passed[c].length >= s0.passed[c].length) {
-      add('passer', c === me, 70, s0.passed[c].length === s1.passed[c].length ? `${whose(c)} passed pawn reaches ${name(fresh)}`
-        : `${who(c)} ${c === me ? 'get' : 'gets'} a passed pawn on ${name(fresh)}`);
+      if (s0.passed[c].length === s1.passed[c].length) add('push-passer', c === me, 70, `${whose(c)} passed pawn reaches ${name(fresh)}`);
+      else add('passer', c === me, 70, `${who(c)} ${c === me ? 'get' : 'gets'} a passed pawn on ${name(fresh)}`);
     } else if (s1.passed[c].length < s0.passed[c].length) {
-      add('passer', c !== me, 60, `${c === me ? 'your' : 'their'} passed pawn is gone`);
+      add('stop-passer', c !== me, 60, `${c === me ? 'your' : 'their'} passed pawn is gone`);
     }
     // pawn weaknesses left behind
     const weak = s1.weak[c].filter((w) => !s0.weak[c].includes(w));
@@ -1610,6 +1860,7 @@ export function lineOutcome(fen: string, line: string[], me: Color, cp: number |
 
 const PLAN_WORDS: Record<ChangeKind, string> = {
   mate: 'go for mate', material: 'win material', king: 'attack the king', passer: 'create a passed pawn and push it',
+  'push-passer': 'push the passed pawn', 'stop-passer': 'get rid of the enemy passed pawn',
   weakness: 'leave their pawns weak', outpost: 'plant a knight on an outpost', rook: 'take the open lines with the rooks',
   activity: 'activate the pieces', development: 'finish developing', trade: 'trade down while ahead', castle: 'get the king safe',
 };

@@ -168,7 +168,7 @@ function Overview({ R, exKind, setExKind, exFilter, setExFilter, onReview }: {
   const shownOf = (k: 'material' | 'opportunism') => ((kinds[k].examples as Example[] | undefined) ?? []).filter((e) => e.verified !== false);
   let list = shownOf(exKind);
   if (exFilter && SEG_FILTER[exFilter]) list = list.filter(SEG_FILTER[exFilter]);
-  const accuracyTrend = R.per_game.map((g) => g.accuracy).filter((a): a is number => a !== null);
+  const accuracyTrend = R.per_game.filter((g) => g.accuracy !== null).map((g) => ({ date: g.date, value: g.accuracy! }));
   return (
     <>
       <section className="weak-section">
@@ -177,7 +177,7 @@ function Overview({ R, exKind, setExKind, exFilter, setExFilter, onReview }: {
           <StatCard title="Accuracy" state={R.accuracy.state} headline={fmt(ac?.mean_game_accuracy)} unit="per game" wide
             games={R.accuracy.n_games} moves={R.accuracy.n_moves_included}
             sub={<>Average per-move accuracy {fmt(ac?.mean_move_accuracy)}. This app's own game formula: not comparable with Lichess or Chess.com.</>}>
-            {R.accuracy.state !== 'suppressed' && <TrendSpark values={accuracyTrend} label="Accuracy, rolling 10-game mean" />}
+            {R.accuracy.state !== 'suppressed' && <TrendSpark points={accuracyTrend} label="Accuracy, rolling 10-game mean" />}
           </StatCard>
           <StatCard title="Worst move per game" state={R.worst_move.state} headline={fmt(wm?.pct_games_max_ge_20, 0)} unit="% of games"
             games={R.worst_move.n_games} moves={R.worst_move.n_moves_included}

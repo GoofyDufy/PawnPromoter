@@ -23,6 +23,16 @@ export interface ButtonDef {
 
 export const pct = (n: number, d: number) => (d ? `${Math.round((100 * n) / d)}%` : '–');
 
+/** The timed mode: seconds per decision you can pick (0 = untimed), and the setting it's kept in. */
+export const CLOCK_PRESETS = [0, 10, 15, 20, 30, 45, 60, 90, 120];
+export const CLOCK_SETTING = 'trainer_clock';
+export const CLOCK_MAX = 600;
+const CLOCK_TICK_MS = 100;
+
+/** Where a drill is, for the clock: your decision (runs), the engine or the opponent (paused), or no
+ *  decision at all — finding a position, or the result (no clock). */
+export type ClockPhase = 'run' | 'pause' | 'off';
+
 /** '24. Qh4 g6 25. Qxe4' — numbered from the position's real move number. */
 export function numbered(start: Board, moves: string[]): string {
   const b = start.copy();
@@ -93,8 +103,97 @@ export abstract class TrainerBase {
   };
 
   protected changed(): void {
+    this.syncClock();
     this.version += 1;
     for (const l of this.listeners) l();
+  }
+
+  // ---------- the clock (timed mode) ----------
+
+  /** The clock is counting down now (false: paused while the engine or the opponent moves). */
+  get clockRunning(): boolean {
+    return this.clockDeadline !== null;
+  }
+
+  /** Seconds per decision; 0 = untimed. Shared by the three drills (Settings: trainer_clock). */
+  clockLimit = 0;
+  /** Milliseconds left for this decision; null = no clock shown. */
+  clockLeft: number | null = null;
+  /** This round ran out of time (the drill reveals the answer and scores it as missed). */
+  timedOut = false;
+  private clockDeadline: number | null = null;       // performance.now() when it runs out, while running
+  private clockTimer: ReturnType<typeof setInterval> | null = null;
+
+  /** Where the drill is, for the clock (see ClockPhase). */
+  protected abstract clockPhase(): ClockPhase;
+  /** Time ran out on your decision: score it as missed and show the answer. */
+  protected abstract timeUp(): Promise<void> | void;
+
+  private clockChosen = false;                       // set here this session: a slow load mustn't undo it
+
+  async loadClock(): Promise<void> {
+    const s = await this.client.service('getSettings', [CLOCK_SETTING]);
+    if (this.clockChosen) return;
+    this.clockLimit = Math.max(0, Math.min(CLOCK_MAX, Number(s[CLOCK_SETTING]) || 0));
+    this.changed();
+  }
+
+  /** Change the time per decision (0: untimed); the decision on the board starts over with it. */
+  setClock(seconds: number): void {
+    this.clockChosen = true;
+    this.clockLimit = Math.max(0, Math.min(CLOCK_MAX, Math.round(seconds) || 0));
+    void this.client.service('setSettings', { [CLOCK_SETTING]: String(this.clockLimit) });
+    if (this.clockPhase() !== 'off') this.freshClock();
+    else this.stopClock();
+    this.changed();
+  }
+
+  /** A new decision starts (a round, your next move in a line, the second step): the full time again. */
+  protected freshClock(): void {
+    this.stopClock();
+    this.timedOut = false;
+    if (this.clockLimit > 0) this.clockLeft = this.clockLimit * 1000;
+  }
+
+  private stopClock(): void {
+    if (this.clockTimer !== null) clearInterval(this.clockTimer);
+    this.clockTimer = null;
+    this.clockDeadline = null;
+    this.clockLeft = null;
+  }
+
+  /** Runs, pauses or hides the clock to match the drill (called on every change). */
+  private syncClock(): void {
+    const phase = this.clockPhase();
+    if (phase === 'off' || this.clockLeft === null) {
+      if (this.clockLeft !== null || this.clockTimer !== null) this.stopClock();
+      return;
+    }
+    const run = phase === 'run' && !this.exploring && this.clockLeft > 0;   // at 0 it never restarts
+    if (run && this.clockDeadline === null) {
+      this.clockDeadline = performance.now() + this.clockLeft;
+      this.clockTimer = setInterval(() => this.tick(), CLOCK_TICK_MS);
+    } else if (!run && this.clockDeadline !== null) {
+      this.clockLeft = Math.max(0, this.clockDeadline - performance.now());
+      this.clockDeadline = null;
+      if (this.clockTimer !== null) clearInterval(this.clockTimer);
+      this.clockTimer = null;
+    }
+  }
+
+  private tick(): void {
+    if (this.clockDeadline === null) return;
+    const left = this.clockDeadline - performance.now();
+    if (left > 0) {
+      this.clockLeft = left;
+      this.version += 1;                               // redraw the clock (no other change)
+      for (const l of this.listeners) l();
+      return;
+    }
+    this.stopClock();
+    this.clockLeft = 0;
+    this.timedOut = true;
+    void this.timeUp();
   }
 
   protected setStatus(text: string, tone: Tone = 'normal', detail?: string): void {
@@ -237,6 +336,7 @@ export abstract class TrainerBase {
   /** Keyboard: y / n / h / Enter / space / ← → (each drill uses what it needs). */
   key(_key: string): void {}
   dispose(): void {
+    this.stopClock();
     this.token = {};
     this.explorer.dispose();
   }

@@ -16,6 +16,8 @@ import * as myOpenings from '../core/myOpenings';
 import * as openingLibrary from '../core/openingLibrary';
 import { readGame } from '../core/pgn';
 import type { Db } from '../core/sqlite';
+import { parseComment } from 'chessops/pgn';
+import { baseSecondsOf } from '../core/boardSides';
 
 export interface ReviewGameRow {
   id: string;
@@ -83,7 +85,14 @@ export interface ReviewGame {
   notes: Record<number, string>;
   url: string;
   result: string;            // win / loss / draw (your side)
+  /** The mover's clock after each move (seconds, from [%clk]; null where the PGN has none). */
+  clocks: (number | null)[];
+  /** The starting time (seconds), for the clocks before each side's first move. */
+  baseSeconds: number | null;
+  players: Record<'white' | 'black', { name: string; rating: number | null }>;
 }
+
+const rating = (s: string | undefined) => (s && /^\d+$/.test(s) ? Number(s) : null);
 
 const number = (ply: number) => `${Math.floor(ply / 2) + 1}${ply % 2 === 0 ? '.' : '...'}`;
 
@@ -95,13 +104,16 @@ export function reviewGame(conn: Db, gameId: string): ReviewGame | null {
   const parsed = readGame(g.pgn);
   const ucis: string[] = [];
   const sans: string[] = [];
+  const clocks: (number | null)[] = [];
   if (parsed) {
     const board = Board.fromFen(parsed.startFen, parsed.chess960);
-    for (const m of parsed.mainline) {
+    const nodes = [...parsed.raw.moves.mainline()];
+    for (const [i, m] of parsed.mainline.entries()) {
       if (!board.isLegal(m)) break;              // a damaged PGN: keep the moves up to there
       sans.push(board.san(m));
       board.push(m);
       ucis.push(m);
+      clocks.push((nodes[i]?.comments ?? []).map((c) => parseComment(c).clock).find((c) => c !== undefined) ?? null);
     }
   }
   const evals: Record<number, EvalRow> = {};
@@ -131,6 +143,11 @@ export function reviewGame(conn: Db, gameId: string): ReviewGame | null {
     id: g.id, title, accuracy: parts.length ? `Accuracy — ${parts.join(' · ')}` : '', opening: openingText(conn, { id: g.id, pgn: g.pgn }, prep, sans, myColor),
     ucis, sans, evals, myColor, prep, amazing: amazingMoves, puzzles: gamePuzzles(conn, gameId, evals),
     notes: gameNotes.forGame(conn, gameId), url: g.chess_com_url, result: String(g.result ?? ''),
+    clocks, baseSeconds: baseSecondsOf(g.time_control),
+    players: {
+      white: { name: white, rating: rating(parsed?.headers.get('WhiteElo')) },
+      black: { name: black, rating: rating(parsed?.headers.get('BlackElo')) },
+    },
   };
 }
 

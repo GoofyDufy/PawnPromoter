@@ -156,7 +156,7 @@ button { font: inherit; }
 .board-row { display: flex; gap: 8px; }
 /* the board fits the window: its height leaves room for the title, the line above
    the board and the buttons and text below it; its width for the sidebar and a side card */
-:root { --board: max(260px, min(460px, calc(100vh - 300px), calc(100vw - 940px))); }
+:root { --board: max(260px, min(460px, calc(100vh - 352px), calc(100vw - 940px))); }   /* 52px: the strips above and below */
 .board-wrap { position: relative; width: var(--board); aspect-ratio: 1; }
 .board { width: 100%; height: 100%; }
 .promotion { position: absolute; inset: 0; background: rgb(0 0 0 / 0.45); display: flex; align-items: center;
@@ -339,11 +339,11 @@ button.chip { cursor: pointer; }
 /* ---------- Game Review ---------- */
 .review-head { min-height: 72px; margin-bottom: 6px; display: flex; flex-direction: column; gap: 2px; }
 .review-head .game-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.puzzles.review { --board: max(220px, min(560px, calc(100cqh - 172px), calc(100cqw - 630px)));
+.puzzles.review { --board: max(220px, min(560px, calc(100cqh - 224px), calc(100cqw - 630px)));
   grid-template-columns: minmax(220px, 280px) auto minmax(300px, 640px); justify-content: center; }
 /* a game open, the list folded into a rail: the board and the commentary get its room */
 .puzzles.review.list-closed { grid-template-columns: 64px auto minmax(300px, 640px);
-  --board: max(220px, min(620px, calc(100cqh - 172px), calc(100cqw - 460px))); }
+  --board: max(220px, min(620px, calc(100cqh - 224px), calc(100cqw - 460px))); }
 /* the buttons under the board stay on one row */
 .review-buttons { flex-wrap: nowrap; gap: 4px; }
 .review-buttons .btn { padding: 6px 9px; white-space: nowrap; }
@@ -693,3 +693,37 @@ cg-board square.coach-hl { background: rgb(255 196 0 / 0.5); box-shadow: inset 0
 .masters .wdl { width: 90px; height: 10px; border: 1px solid var(--ink-2); }
 .masters .wdl .w { background: #f4f1ea; } .masters .wdl .d { background: #9a9a9a; opacity: 1; } .masters .wdl .b { background: #2b2b2b; }
 .masters-games { font-size: 0.9em; }
+
+/* ---------- Tactics & Threats: timed mode ---------- */
+.clock-picker { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.clock-picker select { flex: 1 1 auto; min-width: 0; }
+.clock-picker input { width: 72px; }
+.trainer-clock { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: none; font-variant-numeric: tabular-nums; }
+.trainer-clock .clock-time { font-weight: 600; min-width: 4.2em; }
+.trainer-clock .clock-track { width: 120px; height: 8px; border-radius: 4px; background: var(--panel-2); overflow: hidden; }
+.trainer-clock .clock-track > span { display: block; height: 100%; background: var(--accent); transition: width 0.1s linear; }
+.trainer-clock.short .clock-time { color: var(--amber); }
+.trainer-clock.short .clock-track > span { background: var(--amber); }
+.trainer-clock.low .clock-time { color: var(--bad); }
+.trainer-clock.low .clock-track > span { background: var(--bad); }
+@media (prefers-reduced-motion: reduce) { .trainer-clock .clock-track > span { transition: none; } }
+
+/* ---------- the strips above and below a board: player, pieces taken, clock (PlayerStrip.tsx) ---------- */
+.player-strip { display: flex; align-items: center; gap: 8px; height: 26px; margin-left: 30px;   /* past the evaluation bar */
+  width: var(--board); max-width: calc(100% - 30px); font-size: var(--t14); min-width: 0; }
+.strip-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; border: 1px solid var(--ink-2); }
+.strip-dot.white { background: #ffffff; }
+.strip-dot.black { background: #19212c; }
+.strip-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 0 1 auto; }
+.strip-rating { font-weight: 400; color: var(--ink-2); }
+.strip-captured { display: flex; align-items: center; flex: 1 1 auto; min-width: 0; height: 20px; overflow: hidden; }
+.strip-captured.cg-wrap piece { position: static; display: inline-block; width: 18px; height: 18px; flex: none; background-size: cover;
+  transform: none; will-change: auto; }
+.strip-captured.cg-wrap piece.same { margin-left: -8px; }          /* repeats overlap, like a hand of cards */
+.strip-lead { margin-left: 4px; font-size: var(--t12); font-weight: 600; color: var(--ink-2); }
+.strip-clock { margin-left: auto; flex: none; font-weight: 600; font-variant-numeric: tabular-nums; padding: 1px 8px; border-radius: 4px;
+  background: var(--panel-2); color: var(--ink-2); min-width: 4.5em; text-align: right; }
+.strip-clock.to-move { background: var(--ink); color: var(--panel); }
+
+.board-stack { display: flex; flex-direction: column; gap: 2px; }
+.ideas-key.think-first p { margin: 2px 0 8px; }

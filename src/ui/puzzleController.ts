@@ -27,7 +27,7 @@ import {
 } from '../data/services';
 import { Analysis } from './analysis';
 import type { Arrow } from './Board';
-import { beforeLast, CoachIdeas } from './coachIdeas';
+import { beforeLast, CoachIdeas, lastWasRecapture } from './coachIdeas';
 
 export const NEAR_BEST_CP = 50;      // a try within half a pawn of the best move is flagged as near-best
 export const MAIN_LINE_PLIES = 12;   // how far the step-through main line goes after your best move
@@ -159,7 +159,7 @@ export class PuzzleController {
     const b = this.board;
     const atStart = b.fen() === Board.fromFen(p.fen).fen();
     void this.coachIdeas.explain({ fen: b.fen(), me, cp: atStart ? p.eval_before_cp : null, theirMove: b.turn === me ? b.moveStack.at(-1) : undefined,
-      before: beforeLast(b) })
+      before: beforeLast(b), recapture: b.turn === me && lastWasRecapture(b) })
       .then(() => this.changed());
   }
 

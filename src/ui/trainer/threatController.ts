@@ -14,7 +14,7 @@ import * as explain from '../../core/explain';
 import { pyFixed } from '../../core/format';
 import * as threat from '../../core/threat';
 import type { Arrow } from '../Board';
-import { pct, TrainerBase } from './base';
+import { type ClockPhase, pct, TrainerBase } from './base';
 
 const MAX_TRIES = 30;                    // candidates checked before taking either kind
 const GIVE_UP_TRIES = 80;
@@ -136,6 +136,7 @@ export class ThreatController extends TrainerBase {
     this.shownThreat = null;
     this.seen.add(r.cand.fen);
     this.state = 'naming';
+    this.freshClock();
     this.orientation = this.board.turn;
     // their move: the position with you passing, so you can move their pieces
     const passed = threat.passed(this.board);
@@ -148,6 +149,19 @@ export class ThreatController extends TrainerBase {
     this.buttons = [{ id: 'none', label: 'No threat  (N)' }];
     this.changed();
     void this.prepare();
+  }
+
+  // ---------- the clock: naming the threat and answering it are timed; the checks and the verdict aren't ----------
+
+  protected clockPhase(): ClockPhase {
+    return ['naming', 'answering'].includes(this.state) ? 'run'
+      : ['judging_threat', 'named', 'judging_answer'].includes(this.state) ? 'pause' : 'off';
+  }
+
+  /** Out of time: naming — you didn't see it (the threat is shown); answering — the best answer is shown. */
+  protected async timeUp(): Promise<void> {
+    if (this.state === 'naming') this.threatNamed(null, false, 0, true);
+    else if (this.state === 'answering' && this.assessment) await this.answered(this.assessment.best, false, 0, true);
   }
 
   private async noThreat(): Promise<void> {
@@ -184,10 +198,14 @@ export class ThreatController extends TrainerBase {
   }
 
   /** Step 1 done: say whether you saw it, show the threat, then ask for your answer. */
-  private threatNamed(move: string | null, real: boolean, gain: number): void {
+  private threatNamed(move: string | null, real: boolean, gain: number, timedOut = false): void {
     const a = this.assessment!;
     let text: string;
-    if (move === null) {                                   // "No threat"
+    if (timedOut) {
+      this.found = false;
+      this.shownThreat = a.has_threat ? a.threats[0] : null;
+      text = `⏱ Time's up — ${a.has_threat ? `their threat: ${threat.describe(this.board, a.threats[0])}` : 'there was no real threat here'}.`;
+    } else if (move === null) {                            // "No threat"
       this.found = !a.has_threat;
       text = this.found ? '✓ Right — no real threat here.' : `✗ There is one: ${threat.describe(this.board, a.threats[0])}.`;
       this.shownThreat = a.has_threat ? a.threats[0] : null;
@@ -224,6 +242,7 @@ export class ThreatController extends TrainerBase {
   private startAnswer(): void {
     if (this.state !== 'named') return;
     this.state = 'answering';
+    this.freshClock();
     this.setStatus(this.shownThreat ? `Now deal with it: ${threat.describe(this.board, this.shownThreat)}.` : 'Now play a good move.', 'normal',
       this.shownThreat ? 'Your move. Red arrow: their threat.' : 'Your move.');
     this.show(this.board, { lastMove: this.previous, arrows: this.threatArrows(), movable: this.board.turn });
@@ -231,7 +250,8 @@ export class ThreatController extends TrainerBase {
     this.changed();
   }
 
-  private async answered(move: string, good: boolean, loss: number): Promise<void> {
+  /** timedOut: no answer in time — `move` is then the best answer, shown, and scored as missed. */
+  private async answered(move: string, good: boolean, loss: number, timedOut = false): Promise<void> {
     const a = this.assessment!;
     const cand = this.cand!;
     this.state = 'result';
@@ -244,7 +264,8 @@ export class ThreatController extends TrainerBase {
     s.best = Math.max(s.best, s.streak);
     const san = this.board.san(move);
     const best = this.board.san(a.best);
-    const verdict = good && move === a.best ? `✓ ${san} — the best answer.`
+    const verdict = timedOut ? `⏱ Time's up — the best answer: ${best}.`
+      : good && move === a.best ? `✓ ${san} — the best answer.`
       : good ? `✓ ${san} — a good answer (only ${pyFixed(loss / 100, 1)} pawns off ${best}).`
         : `✗ ${san} is ${pyFixed(loss / 100, 1)} pawns worse than ${best}.`;
     this.setStatus(`${this.found ? '✓ Threat' : '✗ Threat'} · ${verdict}`,
@@ -269,7 +290,7 @@ export class ThreatController extends TrainerBase {
     this.showView(1);                                     // stay on your answer
     this.changed();
     void this.refreshScores();
-    void this.explainAnswer(move, good, detail);
+    void this.explainAnswer(move, good || timedOut, detail);     // timed out: why the best answer works
   }
 
   /** Why your answer was weak (or why the best one works), and the line that punishes a weak one. */

@@ -97,7 +97,7 @@ describe('the ideas of a position', () => {
   it('material, a passed pawn, an outpost, a king left in the centre', () => {
     const t = text(coach.positionIdeas({ fen: 'r1bqk2r/pp3ppp/3p4/2pN4/2P1P3/8/PP3PPP/R2QKB1R w KQkq - 0 12', me: 'white', cp: 250 }));
     expect(t).toMatch(/Material: you are up/);
-    expect(t).toMatch(/Up material: trade pieces, not pawns/);
+    expect(t).toMatch(/Your edge is static: you're up .*, and that doesn't go away.*then trade down/);   // Silman: static, so no hurry
     expect(t).toMatch(/clear advantage|winning/);
     expect(t).toMatch(/Your opponent's king is still in the centre/);
   });
@@ -343,10 +343,13 @@ describe('why a move is good', () => {
     const fen = 'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 2 3';
     const close = coach.positionIdeas({ fen, me: 'white', cp: 40, alternatives: [{ move: 'f1b5', cp: 40 }, { move: 'f1c4', cp: 30 }, { move: 'd2d4', cp: 10 }] });
     const sf = close.points.find((p) => p.rule === 'stockfish')!.text;
-    expect(sf).toMatch(/^Your best move here is Bb5 — it develops the bishop and pins|^Your best move here is Bb5 — it develops the bishop/);
-    expect(sf).toMatch(/Just as good: Bc4 \(develops the bishop\)/);
+    // several moves within 0.4: it's a planning position, and the Coach says so (Hikaru: the one question)
+    expect(sf).toMatch(/^Several moves are fine here — Bb5 \(develops the bishop/);
+    expect(sf).toMatch(/Bc4 \(develops the bishop\)/);
+    expect(sf).toMatch(/the plan matters more than one exact move/);
     const only = coach.positionIdeas({ fen, me: 'white', cp: 40, alternatives: [{ move: 'f1b5', cp: 40 }, { move: 'a2a3', cp: -90 }] });
-    expect(only.points.find((p) => p.rule === 'stockfish')!.text).toMatch(/only move that keeps things together — the next best, a3, is about 1\.3 pawns worse/);
+    expect(only.points.find((p) => p.rule === 'stockfish')!.text).toMatch(/^One move holds here: Bb5 — .*The next best, a3, is about 1\.3 pawns worse/);
+    expect(only.key[0]).toMatch(/^One move holds here: Bb5/);              // the decision leads
   });
 
   it('pawn breaks say what they would do', () => {
@@ -395,9 +398,11 @@ describe('why the best move works: the payoff of its line', () => {
     expect(passer.changes.map((c) => c.text)).toContain('you get a passed pawn on c5');
   });
 
-  it('the plan and its payoff lead the key ideas', () => {
+  it('the decision, then the plan and its payoff, lead the key ideas', () => {
     const ideas = coach.positionIdeas({ fen: fork, me: 'white', cp: 500, alternatives: [{ move: 'b5c7', cp: 500, line: ['b5c7', 'e8d8', 'c7a8'] }] });
-    expect(ideas.key[0]).toBe('Your plan: win material. After 30.Nc7+ Kd8 31.Nxa8, you win a rook.');
+    expect(ideas.key[0]).toMatch(/^Your best move here is Nc7\+ — it forks the king and the rook on a8/);
+    expect(ideas.key[1]).toBe('Your plan: win material. It\'s forced: after 30.Nc7+ Kd8 31.Nxa8, you win a rook.');
+    expect(ideas.key.length).toBeLessThanOrEqual(3);
     expect(coach.planOf(coach.lineOutcome(fork, ['b5c7', 'e8d8', 'c7a8'], 'white', 500).changes, true)).toBe('win material');
   });
 
@@ -518,5 +523,106 @@ describe('the Coach only names pawn moves that exist', () => {
     expect(coach.canReach(b, 'white', 'a4')).toBe(true);
     expect(coach.canReach(b, 'black', 'b5')).toBe(false);     // blocked by the white pawn on b5
     expect(coach.canReach(b, 'white', 'c4')).toBe(false);     // no c-pawn
+  });
+});
+
+describe('the Coach only names pieces that are on the board', () => {
+  it('no "put a rook there" without a rook', () => {
+    // open d-file, White has no rooks (queen, bishop and knight only)
+    const noRook = coach.positionIdeas({ fen: '2r3k1/pp3ppp/2n1b3/8/8/2N1B3/PP3PPP/3Q2K1 w - - 0 20', me: 'white' });
+    expect(noRook.points.some((p) => p.rule === 'open-file')).toBe(false);
+    const withRook = coach.positionIdeas({ fen: '2r3k1/pp3ppp/2n1b3/8/8/2N1B3/PP3PPP/R2Q2K1 w - - 0 20', me: 'white' });
+    expect(withRook.points.find((p) => p.rule === 'open-file')?.text).toMatch(/put a rook there/);
+  });
+
+  it('an IQP blockade with "a piece" when there is no knight', () => {
+    // White IQP on d4; Black has bishops and rooks but no knights
+    const iqp = coach.structure(Board.fromFen('r2q1rk1/pp2bppp/4b3/8/3P4/3B4/PP3PPP/R1BQ1RK1 w - - 0 14'))!;
+    expect(iqp.key).toBe('iqp');
+    expect(iqp.plan('black')).toMatch(/blockade the pawn with a piece/);
+  });
+});
+
+describe('passed-pawn plans say which plan it is', () => {
+  const plan = (fen: string, line: string[]) => coach.planOf(coach.lineOutcome(fen, line, 'white', 0).changes, true);
+
+  it('taking their passed pawn is not "create a passed pawn" (you have none)', () => {
+    expect(plan('8/6k1/8/p7/8/8/5K2/R7 w - - 0 50', ['a1a5'])).toBe('get rid of the enemy passed pawn');
+  });
+
+  it('pushing the passed pawn you already have', () => {
+    expect(plan('6k1/8/8/P7/8/8/5K2/8 w - - 0 50', ['a5a6'])).toBe('push the passed pawn');
+  });
+
+  it('really creating one', () => {
+    expect(plan('6k1/8/8/1p6/P1P5/8/5K2/8 w - - 0 50', ['a4b5'])).toBe('create a passed pawn and push it');
+  });
+});
+
+describe('their last move says what it captured', () => {
+  // 1.e4 e5 2.Nf3 Nc6 3.Bb5 a6 4.Bxc6 dxc6: Black recaptures on c6
+  const before = 'r1bqkbnr/1ppp1ppp/p1B5/4p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 0 4';
+  const after = 'r1bqkbnr/1pp2ppp/p1p5/4p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 5';
+  const note = (recapture: boolean, b: string | null = before) =>
+    coach.positionIdeas({ fen: after, me: 'white', theirMove: 'd7c6', before: b ?? undefined, recapture }).points.find((p) => p.section === 'What your opponent wants')?.text ?? '';
+
+  it('a recapture says so, naming your piece and the square', () => {
+    expect(note(true)).toMatch(/^Their last move recaptures your bishop on c6\./);
+  });
+
+  it('a plain capture', () => {
+    expect(note(false)).toMatch(/^Their last move captures your bishop on c6\./);
+  });
+
+  it('without the position before, no claim about a capture', () => {
+    expect(note(false, null)).not.toMatch(/captures/);
+  });
+});
+
+describe('more tactical motifs (the concept library)', () => {
+  const why = (fen: string, uci: string) => coach.moveReasons(board(fen), uci);
+
+  it('a discovered check, and a double check', () => {
+    expect(why('4k3/8/8/8/4N3/8/8/K3R3 w - - 0 1', 'e4c5')).toContain('gives a discovered check from the rook on e1');
+    expect(why('4k3/8/8/8/4N3/8/8/K3R3 w - - 0 1', 'e4f6')[0]).toBe('gives double check — the king has to move');
+    expect(why('4k3/8/8/8/4N3/8/8/K3R3 w - - 0 1', 'e4f6')).not.toContain('gives check');
+  });
+
+  it('a discovered attack', () => {
+    expect(why('k7/6r1/8/8/3N4/8/1B6/K7 w - - 0 1', 'd4b5')).toContain('uncovers an attack by the bishop on b2 on the rook on g7');
+  });
+
+  it('removing the only defender', () => {
+    expect(why('4k3/3n4/8/1B2b3/8/8/8/4Q2K w - - 0 1', 'b5d7')).toContain('removes the only defender of the bishop on e5');
+  });
+
+  it('trapping a piece: taking a defended pawn is no escape', () => {
+    expect(why('7k/8/4N3/b1P5/8/P7/1P6/6K1 w - - 0 1', 'b2b4')).toContain('traps the bishop on a5');
+  });
+});
+
+describe('static vs dynamic, and the in-between move', () => {
+  // the Danish: 1.e4 e5 2.d4 exd4 3.c3 dxc3 4.Bc4 cxb2 5.Bxb2 — two pawns for development and an open king
+  const danish = 'rnbqkbnr/pppp1ppp/8/8/2B1P3/8/PB3PPP/RN1QK1NR b KQkq - 0 5';
+  const rules = (fen: string, me: 'white' | 'black', cp: number) => coach.positionIdeas({ fen, me, cp }).points.map((p) => p.rule);
+
+  it('a gambit\'s compensation is dynamic, for either side', () => {
+    expect(rules(danish, 'white', 0)).toContain('dynamic-comp');
+    expect(rules(danish, 'black', 0)).toContain('dynamic-comp-theirs');
+    expect(rules(danish, 'white', 0)).not.toContain('compensation');
+  });
+
+  it('no compensation claim when the engine says the material counts', () => {
+    expect(rules(danish, 'white', -250)).not.toContain('dynamic-comp');
+  });
+
+  it('an in-between check before taking back', () => {
+    // 4...dxe5 took the knight; 5.Qh5+ g6 6.dxe5 still takes back
+    const before = 'rnbqkbnr/ppp3pp/3p4/4N3/3P4/8/PPP2PPP/RNBQKB1R b KQkq - 0 4';
+    const fen = 'rnbqkbnr/ppp3pp/8/4p3/3P4/8/PPP2PPP/RNBQKB1R w KQkq - 0 5';
+    const ideas = coach.positionIdeas({ fen, me: 'white', cp: 0, before, theirMove: 'd6e5', bestLine: ['d1h5', 'g7g6', 'd4e5'] });
+    expect(ideas.points.find((p) => p.rule === 'intermezzo')?.text).toMatch(/Don't take back on e5 yet: Qh5\+ first — an in-between move/);
+    const plain = coach.positionIdeas({ fen, me: 'white', cp: 0, before, theirMove: 'd6e5', bestLine: ['d4e5', 'd8d1', 'e1d1'] });
+    expect(plain.points.some((p) => p.rule === 'intermezzo')).toBe(false);
   });
 });

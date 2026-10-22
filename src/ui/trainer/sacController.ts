@@ -17,7 +17,7 @@ import { pySigned } from '../../core/format';
 import * as lichessPuzzles from '../../core/lichessPuzzles';
 import * as sac from '../../core/sac';
 import type { SacCandidateView } from '../../data/trainerServices';
-import { numbered, TrainerBase } from './base';
+import { type ClockPhase, numbered, TrainerBase } from './base';
 
 const REPLY_DELAY_MS = 500;
 const THEIR_SAC_DELAY_MS = 900;
@@ -269,6 +269,7 @@ export class SacController extends TrainerBase {
     void this.client.service('sacGameMoves', this.cand).then((m) => { if (token === this.token) this.gameMoves = m; });
     if (this.side === 'attack') {
       this.state = 'sac';
+      this.freshClock();
       this.show(this.board, { movable: this.me });
       this.setStatus(`${this.me === WHITE ? 'White' : 'Black'} to move — find the sacrifice!!`, 'sac',
         'A piece sacrifice works here. Find it, then find each follow-up against the best defence.');
@@ -282,6 +283,26 @@ export class SacController extends TrainerBase {
     this.buttons = [];
     this.changed();
     void this.prepare();                             // the next one, while you play
+  }
+
+  // ---------- the clock: finding the sacrifice and each move are timed; their moves and the engine aren't ----------
+
+  protected clockPhase(): ClockPhase {
+    return ['sac', 'sac_missed', 'move', 'missed'].includes(this.state) ? 'run'
+      : ['their_sac', 'thinking', 'judging'].includes(this.state) ? 'pause' : 'off';
+  }
+
+  /** Out of time: counted like a miss (a hint), and the move is shown and played — the line goes on. */
+  protected timeUp(): void {
+    const finding = this.state === 'sac' || this.state === 'sac_missed';
+    if (!finding && this.state !== 'move' && this.state !== 'missed') return;
+    if (!this.missedHere) {
+      this.misses += 1;
+      this.missedHere = true;
+    }
+    this.state = finding ? 'sac_missed' : 'missed';
+    this.setStatus(`⏱ Time's up — ${finding ? "here's the sacrifice" : "here's the move"}.`, 'warning');
+    this.showMove();
   }
 
   /** Defend: they sacrifice; then it's your move. */
@@ -308,6 +329,7 @@ export class SacController extends TrainerBase {
     }
     this.setBar(stepInfo.best_cp, this.me, stepInfo.mate);
     this.state = 'move';
+    this.freshClock();
     this.movable = this.me;
     this.setStatus(`They sacrificed: ${san}!! Find the best defence.`, 'sac', `${note ? `${note}\n` : ''}Defence 1 — accept it, or decline it?`);
     this.changed();
@@ -405,6 +427,7 @@ export class SacController extends TrainerBase {
     }
     this.setBar(stepInfo.best_cp, this.me, stepInfo.mate);
     this.state = 'move';
+    this.freshClock();                                 // your next move: the full time again
     this.movable = this.me;
     const notes = [note, theirNote].filter(Boolean).join('\n');
     this.setStatus(`They played ${san}. Your move — ${this.side === 'defend' ? 'keep defending' : 'keep it going'}.`, 'normal',

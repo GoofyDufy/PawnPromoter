@@ -45,7 +45,7 @@ describe('CoachIdeas', () => {
     await c.explain({ fen: Board.fromFen().fen(), me: 'white', cp: 30, bestLine: ['e2e4', 'e7e5'],
       alternatives: [{ move: 'e2e4', cp: 30 }, { move: 'd2d4', cp: 25 }] });
     expect(asked).toBe(0);
-    expect(c.ideas?.points.find((p) => p.rule === 'stockfish')?.text).toMatch(/Your best move here is e4/);
+    expect(c.ideas?.points.find((p) => p.rule === 'stockfish')?.text).toMatch(/(Your best move here is|Several moves are fine here —|One move holds here:) e4/);
   });
 
   it('without an engine: the board\'s ideas only', async () => {

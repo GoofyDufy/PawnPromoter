@@ -189,6 +189,12 @@ Openings are grouped by family × colour in both.
   locked and open centres — each also recognised with colours reversed; healthy
   pawn majorities (a–c / e–h, doubled pawns don't count) are an Ideas point once
   the queens are off.
+  Endgames (2026-10-21, from ENDGAME-EXPLAINER.md, `core/endgame.ts`): the ending's
+  family, opposite-coloured bishops, the rule of the square (exact, pawn endings),
+  rook-pawn and wrong-bishop corner draws, stalemate traps, Lucena / Philidor on exact
+  matches only (silent when the engine's score disagrees), and captures that trade into
+  a pawn ending — CoachIdeas has the engine score them; the Coach warns when the trade
+  throws the advantage away (≥ 0.2 winning chances) and says so when the pawn ending wins.
   **💡 Ideas** (Game Review, remembered as `review_ideas`): the Coach on the
   position itself — who's better in human terms, structure and plans for both
   sides, pawn breaks, space, passed pawns, bad bishops / stuck knights /

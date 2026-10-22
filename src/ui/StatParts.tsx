@@ -96,11 +96,22 @@ export function WeaknessRow({ rank, segment, cost, detail, selected, onClick }: 
   );
 }
 
-/** A rolling 10-game mean of one per-game value, oldest to latest; one engine setting, so no breaks. */
-export function TrendSpark({ values, label }: { values: number[]; label: string }) {
-  if (values.length < 10) return <p className="note">The trend line appears after 10 games.</p>;
+/** "Oct 10" (with the year when the dates span more than one). */
+function shortDates(isos: string[]): string[] {
+  const ds = isos.map((s) => new Date(s));
+  const years = new Set(ds.map((d) => d.getFullYear())).size > 1;
+  return ds.map((d) => d.toLocaleDateString(undefined, years ? { month: 'short', day: 'numeric', year: 'numeric' } : { month: 'short', day: 'numeric' }));
+}
+
+/** A rolling 10-game mean of one per-game value, oldest to latest, dated by the newest game in each
+ *  window; one engine setting, so no breaks. */
+export function TrendSpark({ points, label }: { points: { date: string; value: number }[]; label: string }) {
+  if (points.length < 10) return <p className="note">The trend line appears after 10 games.</p>;
+  const values = points.map((p) => p.value);
   const roll: number[] = [];
   for (let i = 9; i < values.length; i++) roll.push(values.slice(i - 9, i + 1).reduce((a, b) => a + b, 0) / 10);
+  const mid = Math.floor((roll.length - 1) / 2);
+  const [first, middle, lastDate] = shortDates([points[9].date, points[mid + 9].date, points[points.length - 1].date]);
   const lo = Math.floor(Math.min(...roll) / 5) * 5;
   const hi = Math.max(Math.ceil(Math.max(...roll) / 5) * 5, lo + 5);
   const [W, H, L, R, T, B] = [640, 120, 28, 8, 8, 18];
@@ -109,11 +120,13 @@ export function TrendSpark({ values, label }: { values: number[]; label: string 
   const line = roll.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('');
   const last = roll[roll.length - 1];
   return (
-    <svg className="spark" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${label}, from ${fmt(roll[0])} to ${fmt(last)}`}>
+    <svg className="spark" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${label}, from ${fmt(roll[0])} on ${first} to ${fmt(last)} on ${lastDate}`}>
       <line x1={L} x2={W - R} y1={y(hi)} y2={y(hi)} className="spark-rule" />
       <line x1={L} x2={W - R} y1={y(lo)} y2={y(lo)} className="spark-rule" />
       <text x={0} y={y(hi) + 3}>{hi}</text><text x={0} y={y(lo) + 3}>{lo}</text>
-      <text x={L} y={H - 2}>oldest</text><text x={W - R} y={H - 2} textAnchor="end">latest</text>
+      <text x={L} y={H - 2}>{first}</text>
+      {roll.length >= 5 && <text x={x(mid)} y={H - 2} textAnchor="middle">{middle}</text>}
+      <text x={W - R} y={H - 2} textAnchor="end">{lastDate}</text>
       <path d={`${line}L${x(roll.length - 1).toFixed(1)},${H - B}L${L},${H - B}Z`} className="area" />
       <path d={line} className="curve" />
       <circle cx={x(roll.length - 1)} cy={y(last)} r={3.5} className="end" />

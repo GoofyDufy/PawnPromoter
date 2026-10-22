@@ -10,6 +10,8 @@
 import { MATE_CP, MIN_CHANCES_LOST, winChances } from '../core/analyzer';
 import { phase } from '../core/stats';
 import { Board, type Color } from '../core/chess';
+import { captures, clocksAt } from '../core/boardSides';
+import type { SideView } from './PlayerStrip';
 import type { Engine } from '../core/engine';
 import { pySigned } from '../core/format';
 import type { DbClient } from '../data/client';
@@ -18,7 +20,7 @@ import * as coach from '../core/coach';
 import * as explain from '../core/explain';
 import * as openingCommentary from '../core/openingCommentary';
 import { Analysis, ideaChips } from './analysis';
-import { beforeLast, CoachIdeas } from './coachIdeas';
+import { beforeLast, CoachIdeas, lastWasRecapture } from './coachIdeas';
 import type { Arrow } from './Board';
 
 export const GRAPH_CLAMP = 600;                 // the graph shows evaluations within ±6 pawns
@@ -501,7 +503,8 @@ export class ReviewController {
     const board = this.board;
     // your move after theirs: what their move wants (what they'd play if they could move again)
     const theirMove = board.turn === g.myColor && this.ply > 0 ? g.ucis[this.ply - 1] : undefined;
-    await this.coachIdeas.explain({ fen: board.fen(), me: g.myColor, cp: this.evalAtPly(), theirMove, before: beforeLast(board) });
+    await this.coachIdeas.explain({ fen: board.fen(), me: g.myColor, cp: this.evalAtPly(), theirMove, before: beforeLast(board),
+      recapture: theirMove ? lastWasRecapture(board) : false });
   }
 
   /** The whole game, as a coach would sum it up (📋 Game summary). */
@@ -553,6 +556,24 @@ export class ReviewController {
     const b = this.badge(this.ply - 1);
     const arrows = this.topMoves && this.analysis.peeking ? this.analysis.arrows() : this.arrows;
     return { fen: this.board.fen(), lastMove: last, orientation, arrows, badges: b && last ? [{ square: last.slice(2, 4), text: b[0], color: b[1] }] : [] };
+  }
+
+  /** The strips above and below the board: names, ratings, each clock at this move (in analysis: at the
+   *  move it started from) and the pieces each side has taken on the board shown. */
+  sides(): Record<Color, SideView> | null {
+    const g = this.game;
+    // a game loaded by an older database worker (the page was updated without a reload) has no players or
+    // clocks: no strips, rather than a screen that won't open
+    if (!g?.players) return null;
+    const v = this.view();
+    const taken = captures(v.fen);
+    const clock = clocksAt(g.clocks ?? [], g.baseSeconds ?? null, this.analysis.active ? this.anaFromPly : this.ply);
+    const turn = v.fen.split(' ')[1] === 'w' ? 'white' : 'black';
+    const side = (c: Color): SideView => ({
+      name: g.players[c].name, rating: g.players[c].rating, clock: clock[c], captured: taken[c],
+      lead: c === 'white' ? taken.diff : -taken.diff, toMove: turn === c,
+    });
+    return { white: side('white'), black: side('black') };
   }
 
   /** A move played on the board: in analysis, for either side; otherwise it starts analysis there. */

@@ -16,7 +16,7 @@ import { Board } from '../Board';
 import { EvalBar } from '../EvalBar';
 import { PlayDialog } from '../PlayDialog';
 import { type Filters, PuzzleController } from '../puzzleController';
-import { IdeasPanel } from '../SquareText';
+import { IdeasPanel, plusCoach, useCoachFocus } from '../SquareText';
 
 const SOURCE_OPTIONS = [MY_GAMES, LICHESS, BOTH_SOURCES];
 const KIND_OPTIONS = [ALL_KINDS, ...KINDS, MULTI_STEP];
@@ -102,7 +102,7 @@ export function PuzzleScreen({ c, onReview }: { c: PuzzleController; onReview: (
   };
   const done = c.state === 'done';
   // the Coach's ideas follow the board once the puzzle is over; squares light while you point at them
-  const [lit, setLit] = useState<string[] | null>(null);
+  const { lit, litArrows, setLit } = useCoachFocus();
   const shownFen = p ? c.board.fen() : '';
   useEffect(() => { void c.coachIdeas.load(); }, [c]);
   useEffect(() => { setLit(null); c.explainIdeas(); }, [c, done, shownFen]);
@@ -164,7 +164,7 @@ export function PuzzleScreen({ c, onReview }: { c: PuzzleController; onReview: (
           </div>
           <div className="board-row">
             <EvalBar cpWhite={evalWhite} mate={analysing ? c.analysis.evalMate : null} orientation={c.orientation} />
-            <Board fen={p ? c.board.fen() : EMPTY_BOARD} orientation={c.orientation} lastMove={last} arrows={c.boardArrows()}
+            <Board fen={p ? c.board.fen() : EMPTY_BOARD} orientation={c.orientation} lastMove={last} arrows={plusCoach(c.boardArrows(), litArrows)}
               movable={analysing ? 'both' : p && c.state === 'solving' ? c.board.turn : null}
               onMove={(uci) => void c.onMove(uci)} highlights={lit ?? NO_SQUARES} />
           </div>
@@ -189,7 +189,7 @@ export function PuzzleScreen({ c, onReview }: { c: PuzzleController; onReview: (
         <div className="card commentary-card" aria-label="Commentary">
           <p className={`status ${c.status.tone}`} role="status">{c.status.text}</p>
           {c.explanation && <p className="explanation">{c.explanation}</p>}
-          {done && !analysing && <IdeasPanel ideas={c.coachIdeas} onToggle={(on) => void c.coachIdeas.set(on)} onSquares={setLit} />}
+          {done && !analysing && <IdeasPanel ideas={c.coachIdeas} onToggle={(on) => void c.coachIdeas.set(on)} onSquares={setLit} fen={p ? c.board.fen() : null} />}
           {c.details?.note && <div className="puzzle-note"><div className="section">📝 Your note on this position</div><p className="pre">{c.details.note}</p></div>}
           {analysing && (
             <div className="ideas">

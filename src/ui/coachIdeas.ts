@@ -6,13 +6,15 @@
 import { scoreToCp } from '../core/analyzer';
 import { Board, type Color } from '../core/chess';
 import * as coach from '../core/coach';
+import { pawnEndingTrades } from '../core/endgame';
 import type { Engine } from '../core/engine';
 import type { DbClient } from '../data/client';
 
 const PLAN_DEPTH = 12;                           // Stockfish's plan for the position
 const THREAT_DEPTH = 10;                         // what their last move threatens
 const TOP_MOVES = 3;                             // Stockfish's choices the Coach explains
-const STILL_WORKS = 50;                          // a threat the best move leaves standing costs less than this
+const STILL_WORKS = 50;
+const MAX_TRADES = 2;                            // captures into a pawn ending the engine checks                          // a threat the best move leaves standing costs less than this
 
 /** The position before the board's last move, if it has one (its move history). */
 export function beforeLast(board: Board): string | undefined {
@@ -20,6 +22,15 @@ export function beforeLast(board: Board): string | undefined {
   const b = board.cloneWithHistory();
   b.pop();
   return b.fen();
+}
+
+/** The board's last move recaptured: the move before it captured on the same square. */
+export function lastWasRecapture(board: Board): boolean {
+  if (board.moveStack.length < 2) return false;
+  const b = board.cloneWithHistory();
+  const last = b.pop();
+  const prev = b.pop();
+  return last.slice(2, 4) === prev.slice(2, 4) && b.isCapture(prev);
 }
 
 export interface IdeasPosition {
@@ -32,6 +43,8 @@ export interface IdeasPosition {
   bestLine?: string[];
   /** The position before the last move (what's new gets said first). */
   before?: string;
+  /** Their last move was a recapture (lastWasRecapture). */
+  recapture?: boolean;
   /** Stockfish's top moves, when the screen already has them (cp: your point of view; line: its line). */
   alternatives?: { move: string; cp: number | null; line?: string[] }[];
 }
@@ -83,13 +96,14 @@ export class CoachIdeas {
     this.token = token;
     let cp = pos.cp ?? null;
     const theirMove = pos.theirMove;           // undefined: no "What your opponent wants"
-    this.ideas = coach.positionIdeas({ fen: pos.fen, me: pos.me, cp, theirMove, bestLine: pos.bestLine, alternatives: pos.alternatives, before: pos.before });
+    this.ideas = coach.positionIdeas({ fen: pos.fen, me: pos.me, cp, theirMove, bestLine: pos.bestLine, alternatives: pos.alternatives, before: pos.before, recapture: pos.recapture });
     this.onChange();                             // the board's ideas now, Stockfish's plan when it's ready
     const board = Board.fromFen(pos.fen);
     let bestLine = pos.bestLine;
     let alternatives = pos.alternatives;
-    let threat: { move: string; gain: number } | null = null;
+    let threat: { move: string; gain: number; line?: string[] } | null = null;
     let prevents: { move: string; gain: number } | null = null;
+    const pawnTrades: { move: string; cp: number | null }[] = [];
     if (this.engine && !board.isGameOver()) {
       try {
         if (!bestLine || !alternatives || cp === null) {
@@ -103,10 +117,10 @@ export class CoachIdeas {
         const mover = board.turn;
         const forMover = (v: number | null) => (v === null ? null : mover === pos.me ? v : -v);
         const passed = coach.passTurn(board);
-        let faced: { move: string; gain: number } | null = null;
+        let faced: { move: string; gain: number; line?: string[] } | null = null;
         if (passed && !passed.isGameOver()) {
           const [info] = await this.engine.analyse(passed, { depth: THREAT_DEPTH });
-          if (info?.pv.length) faced = { move: info.pv[0], gain: scoreToCp(info.score, passed.turn) + (forMover(cp) ?? 0) };
+          if (info?.pv.length) faced = { move: info.pv[0], gain: scoreToCp(info.score, passed.turn) + (forMover(cp) ?? 0), line: info.pv };
         }
         if (theirMove && faced) threat = faced;
         // … and whether the best move stops it (prophylaxis)
@@ -122,12 +136,21 @@ export class CoachIdeas {
             if (reply && scoreToCp(reply.score, mover) >= bestCp - STILL_WORKS) prevents = faced;
           }
         }
+        // captures that would trade into a pawn ending: what Stockfish thinks of that pawn ending
+        for (const m of pawnEndingTrades(board).slice(0, MAX_TRADES)) {
+          const known = alternatives?.find((a) => a.move === m);
+          if (known) pawnTrades.push({ move: m, cp: known.cp });
+          else {
+            const [info] = await this.engine.analyse(board, { depth: PLAN_DEPTH }, 1, [m]);
+            if (info) pawnTrades.push({ move: m, cp: scoreToCp(info.score, pos.me) });
+          }
+        }
       } catch {
         /* the board's ideas only */
       }
     }
     if (token !== this.token) return;            // moved on meanwhile
-    const full = coach.positionIdeas({ fen: pos.fen, me: pos.me, cp, bestLine, alternatives, theirMove, threat, prevents, before: pos.before });
+    const full = coach.positionIdeas({ fen: pos.fen, me: pos.me, cp, bestLine, alternatives, theirMove, threat, prevents, before: pos.before, recapture: pos.recapture, pawnTrades });
     this.cache.set(key, full);
     this.ideas = full;
     this.onChange();

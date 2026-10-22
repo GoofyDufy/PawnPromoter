@@ -10,9 +10,11 @@ import { type Idea, IdeasEngine, lineText } from '../../core/engineIdeas';
 import { sharedEngine } from '../../engine/stockfish';
 import type { DbClient } from '../../data/client';
 import { type Arrow, Board } from '../Board';
-import { beforeLast, CoachIdeas } from '../coachIdeas';
+import { beforeLast, CoachIdeas, lastWasRecapture } from '../coachIdeas';
 import { EvalBar } from '../EvalBar';
-import { IdeasPanel } from '../SquareText';
+import { PlayerStrip, type SideView } from '../PlayerStrip';
+import { captures } from '../../core/boardSides';
+import { IdeasPanel, plusCoach, useCoachFocus } from '../SquareText';
 
 const COLORS: Arrow['brush'][] = ['green', 'blue', 'grey'];
 const DOT = { green: '#15781b', blue: '#003088', grey: '#8d8d8d' } as Record<string, string>;
@@ -31,8 +33,9 @@ export function AnalysisScreen({ client }: { client: DbClient }) {
   const ideasEngine = useRef<IdeasEngine | null>(null);
   // the Coach's ideas for the position ("you" = the side at the bottom), from the lines Stockfish shows
   const [, redraw] = useReducer((n: number) => n + 1, 0);
-  const coachIdeas = useMemo(() => new CoachIdeas(client, 'analysis_ideas', null, redraw), [client]);
-  const [lit, setLit] = useState<string[] | null>(null);
+  // the shared engine: its own searches (threats, trades into a pawn ending) queue after this board's lines
+  const coachIdeas = useMemo(() => new CoachIdeas(client, 'analysis_ideas', sharedEngine(), redraw), [client]);
+  const { lit, litArrows, setLit } = useCoachFocus();
   useEffect(() => { void coachIdeas.load(); }, [coachIdeas]);
 
   const board = useMemo(() => {
@@ -41,6 +44,13 @@ export function AnalysisScreen({ client }: { client: DbClient }) {
     return b;
   }, [start, moves, at]);
   const fen = board.fen();
+  // the strips: the pieces each side has taken (a free board has no players or clocks)
+  const sides = useMemo(() => {
+    const t = captures(fen);
+    const side = (c: Color): SideView => ({ name: c === 'white' ? 'White' : 'Black', rating: null, clock: null, captured: t[c],
+      lead: c === 'white' ? t.diff : -t.diff, toMove: board.turn === c });
+    return { white: side('white'), black: side('black') };
+  }, [fen, board]);
 
   useEffect(() => {
     ideasEngine.current = new IdeasEngine(sharedEngine(), (forFen, d, list) => {
@@ -94,7 +104,7 @@ export function AnalysisScreen({ client }: { client: DbClient }) {
     const cpWhite = planReady && best ? best.cp_white : null;
     void coachIdeas.explain({ fen, me, cp: cpWhite === null ? null : me === 'white' ? cpWhite : -cpWhite,
       theirMove: board.turn === me && at ? moves[at - 1] : undefined, bestLine: planReady && best ? best.pv : undefined,
-      before: beforeLast(board), alternatives: planReady ? ideas.map((k) => ({ move: k.move, cp: me === 'white' ? k.cp_white : -k.cp_white, line: k.pv })) : undefined });
+      before: beforeLast(board), recapture: board.turn === me && at > 0 && lastWasRecapture(board), alternatives: planReady ? ideas.map((k) => ({ move: k.move, cp: me === 'white' ? k.cp_white : -k.cp_white, line: k.pv })) : undefined });
     // once per position and side, and again when Stockfish's line is deep enough (not on every new depth)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [coachIdeas, fen, orientation, planReady]);
@@ -107,10 +117,14 @@ export function AnalysisScreen({ client }: { client: DbClient }) {
       <h1>Analysis board</h1>
       <p className="lede">Move either side. Stockfish shows its top lines as arrows; ← and → step through the moves.</p>
       <div className="analysis">
-        <div className="board-row">
-          <EvalBar cpWhite={best ? best.cp_white : null} mate={best?.mate} orientation={orientation} />
-          <Board fen={fen} orientation={orientation} movable="both" onMove={play}
-            lastMove={at ? moves[at - 1] : null} arrows={arrows} highlights={lit ?? NO_SQUARES} />
+        <div className="board-stack">
+          <PlayerStrip color={orientation === 'white' ? 'black' : 'white'} side={sides[orientation === 'white' ? 'black' : 'white']} />
+          <div className="board-row">
+            <EvalBar cpWhite={best ? best.cp_white : null} mate={best?.mate} orientation={orientation} />
+            <Board fen={fen} orientation={orientation} movable="both" onMove={play}
+              lastMove={at ? moves[at - 1] : null} arrows={plusCoach(arrows, litArrows)} highlights={lit ?? NO_SQUARES} />
+          </div>
+          <PlayerStrip color={orientation} side={sides[orientation]} />
         </div>
         <div className="card">
           <h2>Stockfish {depth ? <span className="note">· depth {depth}</span> : <span className="note">· thinking…</span>}</h2>
@@ -127,7 +141,7 @@ export function AnalysisScreen({ client }: { client: DbClient }) {
               ))}
             </div>
           )}
-          <IdeasPanel ideas={coachIdeas} onToggle={(on) => void coachIdeas.set(on)} onSquares={setLit} />
+          <IdeasPanel ideas={coachIdeas} onToggle={(on) => void coachIdeas.set(on)} onSquares={setLit} fen={fen} />
           <div className="row" style={{ marginTop: 14 }}>
             <button type="button" className="btn secondary" onClick={() => setAt(0)} disabled={!at} aria-label="Start">⏮</button>
             <button type="button" className="btn secondary" onClick={() => setAt(at - 1)} disabled={!at} aria-label="Back">◀</button>

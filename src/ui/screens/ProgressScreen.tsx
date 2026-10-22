@@ -28,6 +28,13 @@ export interface ProgressActions {
   analyze: () => void;
 }
 
+const progressThemesOf = (client: DbClient) => client.service('progressThemes');
+
+/** How many of your games have this mistake in them: a red bar (more is worse). */
+function ShareBar({ share }: { share: number }) {
+  return <span className="progress-bar"><span style={{ width: `${Math.min(100, Math.round(share * 100))}%`, background: 'var(--bad)' }} /></span>;
+}
+
 function Bar({ hits, total, rated }: { hits: number; total: number; rated: boolean }) {
   const rate = total ? hits / total : 0;
   return <span className="progress-bar"><span style={{ width: `${Math.round(rate * 100)}%`, background: rated && total ? rateColor(rate) : 'var(--line)' }} /></span>;
@@ -38,7 +45,7 @@ export function ProgressScreen({ client, actions }: { client: DbClient; actions:
   const [tclass, setTclass] = useState<string | null>(null);
   const [goal, setGoal] = useState<string | null>(null);
   const [data, setData] = useState<(Progress & { goalText: string }) | null>(null);
-  const [themes, setThemes] = useState<{ skills: { name: string; hits: number; total: number }[]; rows: ThemeRowView[] } | null>(null);
+  const [themes, setThemes] = useState<Awaited<ReturnType<typeof progressThemesOf>> | null>(null);
   const [week, setWeek] = useState<WeekView | null>(null);
   const [lichessStatus, setLichessStatus] = useState<Record<string, string>>({});
   const [busyTheme, setBusyTheme] = useState<string | null>(null);
@@ -135,6 +142,28 @@ export function ProgressScreen({ client, actions }: { client: DbClient; actions:
 
       {view === 'Themes' && themes && (
         <div className="stats-column">
+          <div className="card stats-card">
+            <h2>In your games — costliest first</h2>
+            <p className="note">Your mistakes in real games (every puzzle made from them), by theme, from {themes.games.analysed.toLocaleString()} analysed games.
+              The bar is the share of games with at least one. Ordered by how many points each kind of mistake costs you per game.
+              Practice: puzzles of that theme. Review: your latest one, in the game.</p>
+            {!themes.games.rows.length && <p>Analyze some games on Import &amp; Analyze to see the themes of your mistakes here.</p>}
+            {themes.games.rows.map((r) => (
+              <div key={r.tag} className="theme-row">
+                <span className="theme-name">{r.tag}{r.yours ? '  (your tag)' : ''}</span>
+                <ShareBar share={r.share} />
+                <span className="theme-rate">{`${r.perTen.toFixed(1)} per 10 games · −${r.pointsPerGame.toFixed(2)} pts/game`}</span>
+                <span className={`theme-note note${r.trend === 'fewer' ? ' ok' : r.trend === 'more' ? ' error' : ''}`}>
+                  {r.recentPerTen === null ? 'last 30 days: under 10 analysed games'
+                    : `30 days: ${r.recentPerTen.toFixed(1)} per 10${r.trend === 'fewer' ? ' — fewer than before' : r.trend === 'more' ? ' — more than before' : r.trend === 'same' ? ' — about the same' : ''}`}
+                </span>
+                <span className="theme-buttons">
+                  <button type="button" className="btn small" onClick={() => actions.practiceTheme(r.tag)}>Practice</button>
+                  {r.latest && <button type="button" className="btn secondary small" onClick={() => actions.reviewGame(r.latest!.gameId, r.latest!.fen)}>Review</button>}
+                </span>
+              </div>
+            ))}
+          </div>
           <div className="card stats-card">
             <h2>Seeing the board</h2>
             <p className="note">From the Tactics &amp; Threats page: do you notice what's going on before you move?</p>

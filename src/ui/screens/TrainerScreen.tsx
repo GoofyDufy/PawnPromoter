@@ -9,9 +9,9 @@ import type { DbClient } from '../../data/client';
 import { IDEA_BRUSHES, RANKS } from '../analysis';
 import { Board } from '../Board';
 import { EvalBar } from '../EvalBar';
-import type { TrainerBase } from '../trainer/base';
+import { CLOCK_MAX, CLOCK_PRESETS, type TrainerBase } from '../trainer/base';
 import { PlayDialog } from '../PlayDialog';
-import { IdeasPanel } from '../SquareText';
+import { IdeasPanel, plusCoach, useCoachFocus } from '../SquareText';
 import { LICHESS_BATCH, SAC_SIDES, SAC_SOURCES, SacController } from '../trainer/sacController';
 import type { SpotController } from '../trainer/spotController';
 import type { ThreatController } from '../trainer/threatController';
@@ -23,6 +23,51 @@ const MODES = [TACTIC, THREAT, SACRIFICE];
 const OLD_NAMES: Record<string, string> = { 'Is there a tactic?': TACTIC, "What's the threat?": THREAT, 'Make it work': SACRIFICE };
 const DOT: Record<string, string> = { green: '#15781b', blue: '#003088', grey: '#8d8d8d' };
 const NO_SQUARES: string[] = [];
+
+const clockText = (ms: number) => {
+  const s = Math.ceil(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+};
+
+/** Timed mode: off, a preset, or your own number of seconds per decision (shared by the three drills). */
+function ClockPicker({ t }: { t: TrainerBase }) {
+  const [custom, setCustom] = useState(false);
+  const isPreset = CLOCK_PRESETS.includes(t.clockLimit);
+  const showInput = custom || !isPreset;
+  return (
+    <div className="clock-picker">
+      <label htmlFor="trainer-clock" className="note">Clock</label>
+      <select id="trainer-clock" value={showInput ? 'custom' : String(t.clockLimit)}
+        onChange={(e) => {
+          if (e.target.value === 'custom') { setCustom(true); if (isPreset) t.setClock(t.clockLimit || 15); return; }
+          setCustom(false);
+          t.setClock(Number(e.target.value));
+        }}>
+        {CLOCK_PRESETS.map((sec) => <option key={sec} value={sec}>{sec ? `${sec} seconds` : 'Off — untimed'}</option>)}
+        <option value="custom">Custom…</option>
+      </select>
+      {showInput && (
+        <input type="number" aria-label="Seconds per decision" min={1} max={CLOCK_MAX} value={t.clockLimit || ''}
+          onChange={(e) => t.setClock(Number(e.target.value))} />
+      )}
+      {showInput && <span className="note">seconds</span>}
+    </div>
+  );
+}
+
+/** The time left for this decision: a draining bar (amber under 5 s, red under 3 s). */
+function ClockBar({ t }: { t: TrainerBase }) {
+  if (t.clockLeft === null || !t.clockLimit) return null;
+  const left = t.clockLeft;
+  const tone = left <= 3000 ? 'low' : left <= 5000 ? 'short' : '';
+  return (
+    <div className={`trainer-clock ${tone}`} role="timer" aria-label={`${Math.ceil(left / 1000)} seconds left`}>
+      <span className="clock-time">⏱ {clockText(left)}</span>
+      {!t.clockRunning && left > 0 && <span className="note">paused</span>}
+      <span className="clock-track"><span style={{ width: `${Math.max(0, Math.min(100, (100 * left) / (t.clockLimit * 1000)))}%` }} /></span>
+    </div>
+  );
+}
 
 export interface Trainers {
   spot: SpotController;
@@ -47,12 +92,12 @@ export function TrainerScreen({ client, trainers, onReview }: {
   const t: TrainerBase | null = mode === THREAT ? trainers.threat : mode === SACRIFICE ? trainers.sac : mode ? trainers.spot : null;
   useSyncExternalStore(t ? t.subscribe : () => () => {}, () => t?.version ?? 0);
   // the Coach's ideas once the answer is shown; squares light while you point at them
-  const [lit, setLit] = useState<string[] | null>(null);
+  const { lit, litArrows, setLit } = useCoachFocus();
   const answerShown = !!t && !t.liveAnalysis() && !!t.stockfishLines();
   useEffect(() => { if (t) void t.coachIdeas.load(); }, [t]);
   useEffect(() => { setLit(null); t?.explainIdeas(); }, [t, answerShown, t?.fen]);
 
-  useEffect(() => { if (t) void t.onShown(); }, [t]);
+  useEffect(() => { if (t) void t.loadClock().then(() => t.onShown()); }, [t]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -94,6 +139,7 @@ export function TrainerScreen({ client, trainers, onReview }: {
           <div className="segmented" role="tablist" aria-label="Drill">
             {MODES.map((m) => <button key={m} type="button" role="tab" aria-selected={mode === m} aria-checked={mode === m} onClick={() => choose(m)}>{m}</button>)}
           </div>
+          <ClockPicker t={t} />
           <h2>{t.title}</h2>
           {sac && <div className="sac-switches">
             <div className="segmented" role="radiogroup" aria-label="Side">
@@ -117,10 +163,10 @@ export function TrainerScreen({ client, trainers, onReview }: {
         </div>
 
         <div className="card board-card">
-          <div className="row puzzle-head"><span className="note game-label">{t.source}</span></div>
+          <div className="row puzzle-head"><span className="note game-label">{t.source}</span><ClockBar t={t} /></div>
           <div className="board-row">
             <EvalBar cpWhite={t.evalWhite} mate={t.evalWhite === null ? null : t.evalMate} orientation={t.orientation} blank={t.evalWhite === null} />
-            <Board fen={t.fen ?? '8/8/8/8/8/8/8/8 w - - 0 1'} orientation={t.orientation} lastMove={t.lastMove} arrows={t.arrows}
+            <Board fen={t.fen ?? '8/8/8/8/8/8/8/8 w - - 0 1'} orientation={t.orientation} lastMove={t.lastMove} arrows={plusCoach(t.arrows, litArrows)}
               movable={t.fen ? t.movable : null} onMove={(uci) => void t.onMove(uci)} highlights={lit ?? NO_SQUARES} />
           </div>
           <div className="row puzzle-buttons">
@@ -157,7 +203,7 @@ export function TrainerScreen({ client, trainers, onReview }: {
                 ))}
               </div>
             )}
-            {lines && <IdeasPanel ideas={t.coachIdeas} onToggle={(on) => void t.coachIdeas.set(on)} onSquares={setLit} />}
+            {lines && <IdeasPanel ideas={t.coachIdeas} onToggle={(on) => void t.coachIdeas.set(on)} onSquares={setLit} fen={t.fen} />}
             {lines && (
               <div className="ideas stockfish-lines">
                 <div className="row"><strong>Stockfish</strong><span className="note">{lines.header}</span></div>

@@ -14,7 +14,7 @@ import { Board, parseSquare, WHITE } from '../../core/chess';
 import * as spot from '../../core/spot';
 import { pyFixed } from '../../core/format';
 import type { Arrow } from '../Board';
-import { numbered, pct, TrainerBase } from './base';
+import { type ClockPhase, numbered, pct, TrainerBase } from './base';
 
 // candidates to classify before accepting a round of the other kind: real (forcing)
 // tactics are ~1 in 7 of the likely-tactic positions; quiet positions are easy to find
@@ -95,6 +95,21 @@ export class SpotController extends TrainerBase {
     else if (k === 'ArrowRight') this.step(1);
   }
 
+  // ---------- the clock: your call and your moves are timed; the engine's checks and replies aren't ----------
+
+  protected clockPhase(): ClockPhase {
+    return ['question', 'move', 'missed'].includes(this.state) ? 'run' : ['judging', 'reply'].includes(this.state) ? 'pause' : 'off';
+  }
+
+  /** Out of time: a miss — no call made counts as the wrong call — and the answer is shown. */
+  protected async timeUp(): Promise<void> {
+    const v = this.verdict;
+    if (!v || !['question', 'move', 'missed'].includes(this.state)) return;
+    if (this.state === 'question') this.saidTactic = !v.is_tactic;
+    this.missedAny = true;
+    await this.showResult(this.tried.get(0) ?? v.best, false, null, this.board);
+  }
+
   press(id: string): Promise<void> | void {
     if (this.explorePress(id, () => this.redrawResult())) return;
     if (id === 'yes') return this.answer(true);
@@ -147,6 +162,7 @@ export class SpotController extends TrainerBase {
     this.hinted = false;
     this.ply = 0;
     this.state = 'question';
+    this.freshClock();
     this.seen.add(this.cand.fen);
     this.orientation = this.board.turn;
     this.show(this.board);
@@ -242,6 +258,7 @@ export class SpotController extends TrainerBase {
     this.ply += 2;
     this.hint = 0;
     this.state = 'move';
+    this.freshClock();                    // your next move in the line: the full time again
     this.show(this.cur, { lastMove: reply, movable: this.cur.turn });
     this.setStatus(`Opponent played ${san}. Your move.`, 'normal', '');
     this.moveButtons();
@@ -326,7 +343,9 @@ export class SpotController extends TrainerBase {
     const multi = v.is_tactic && v.my_moves > 1;
     const lineText = numbered(this.board, v.solution);
     let verdictMove: string;
-    if (multi) {
+    if (this.timedOut) {
+      verdictMove = `⏱ Time's up. ${multi ? `The line: ${lineText}.` : v.is_tactic ? `The tactic: ${this.board.san(v.best)}.` : `The best move: ${this.board.san(v.best)}.`}`;
+    } else if (multi) {
       verdictMove = good && scoredGood ? `✓ Solved — all ${v.my_moves} moves right.`
         : good ? `✓ Solved, with ${this.hinted ? 'a hint' : 'retries'} (only a clean run scores the moves).` : `✗ Not solved. The line: ${lineText}.`;
     } else {

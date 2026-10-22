@@ -23,7 +23,7 @@ import { LibraryDialog } from '../LibraryDialog';
 import { Modal } from '../Modal';
 import { PlayDialog } from '../PlayDialog';
 import { SaveDialog } from '../SaveDialog';
-import { IdeasPanel } from '../SquareText';
+import { IdeasPanel, plusCoach, useCoachFocus } from '../SquareText';
 
 type Dialog =
   | { kind: 'save'; text: string; source: 'file' | 'paste' }
@@ -377,7 +377,7 @@ export function DrillScreen({ c, client, onReview }: { c: DrillController; clien
   const full = c.fullLine();
   const d = c.drill;
   // the Coach's ideas once a line is finished; squares light while you point at them
-  const [lit, setLit] = useState<string[] | null>(null);
+  const { lit, litArrows, setLit } = useCoachFocus();
   const lineOver = !!d?.finished;
   useEffect(() => { void c.coachIdeas.load(); }, [c]);
   useEffect(() => { setLit(null); c.explainIdeas(); }, [c, lineOver, board.fen, c.view]);
@@ -484,7 +484,7 @@ export function DrillScreen({ c, client, onReview }: { c: DrillController; clien
           </div>
           <div className="board-row">
             <Board fen={board.fen} orientation={board.orientation} lastMove={board.lastMove} movable={board.movable}
-              arrows={board.arrows} snapBack={c.misses} onMove={(uci) => void c.onMove(uci)} highlights={lit ?? NO_SQUARES} />
+              arrows={plusCoach(board.arrows, litArrows)} snapBack={c.misses} onMove={(uci) => void c.onMove(uci)} highlights={lit ?? NO_SQUARES} />
           </div>
           <div className="row puzzle-buttons">
             {buttons.toggle && <button type="button" className="btn secondary" onClick={() => c.toggleFullLine()}>{c.showFullLine ? 'Hide full line' : 'Show full line'}</button>}
@@ -521,7 +521,7 @@ export function DrillScreen({ c, client, onReview }: { c: DrillController; clien
               ))}
             </div>
           )}
-          {lineOver && c.view !== TREE && <IdeasPanel ideas={c.coachIdeas} onToggle={(on) => void c.coachIdeas.set(on)} onSquares={setLit} />}
+          {lineOver && c.view !== TREE && <IdeasPanel ideas={c.coachIdeas} onToggle={(on) => void c.coachIdeas.set(on)} onSquares={setLit} fen={board.fen} />}
           {c.view === TREE && c.tree.showsIdeas() && (
             <div className="ideas">
               <div className="note">{c.tree.ideasHeader}</div>

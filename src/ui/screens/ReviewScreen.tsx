@@ -10,8 +10,9 @@ import type { NoteView } from '../../data/reviewServices';
 import { TIME_FILTERS } from '../../core/models';
 import { IDEA_BRUSHES } from '../analysis';
 import { Board } from '../Board';
-import { IdeasPanel, SquareText } from '../SquareText';
+import { IdeasPanel, SquareText, plusCoach, useCoachFocus } from '../SquareText';
 import { EvalBar } from '../EvalBar';
+import { PlayerStrip } from '../PlayerStrip';
 import { Modal } from '../Modal';
 import {
   AMAZING_COLOR, BEST_COLOR, BOOK_COLOR, ERROR, INFO, LEFT_PREP, ONLY_COLOR, type ReviewController, WARNING,
@@ -184,7 +185,7 @@ export function ReviewScreen({ r, client, onOpenPuzzle, onPuzzlesChanged }: {
   // the games list folds away once a game is open (more room for the board); ☰ Games opens it again
   const [listOpen, setListOpen] = useState(true);
   // squares lit on the board while you point at the Coach's words (cleared when the position changes)
-  const [lit, setLit] = useState<string[] | null>(null);
+  const { lit, litArrows, setLit } = useCoachFocus();
   useEffect(() => setLit(null), [r.ply, r.game]);
   const movesBox = useRef<HTMLOListElement>(null);
 
@@ -209,6 +210,7 @@ export function ReviewScreen({ r, client, onOpenPuzzle, onPuzzlesChanged }: {
 
   const g = r.game;
   const v = r.view();
+  const sides = r.sides();
   const tone = r.status.tone;
   const statusStyle = typeof tone === 'object' ? { color: tone.color } : undefined;
   const chips = r.topMoveChips();
@@ -284,11 +286,13 @@ export function ReviewScreen({ r, client, onOpenPuzzle, onPuzzlesChanged }: {
               return <div className="puzzle-flag empty note">{(r.ply % 2 === 0) === (g.myColor === 'white') ? 'No saved analysis for this move' : "Your opponent's move"}</div>;
             })()}
           </div>
+          {sides && <PlayerStrip color={v.orientation === 'white' ? 'black' : 'white'} side={sides[v.orientation === 'white' ? 'black' : 'white']} />}
           <div className="board-row">
             <EvalBar cpWhite={r.evalWhite()} mate={r.analysis.active ? r.analysis.evalMate : null} orientation={v.orientation} />
-            <Board fen={v.fen} orientation={v.orientation} lastMove={v.lastMove} arrows={v.arrows} badges={v.badges} highlights={lit ?? NO_SQUARES}
+            <Board fen={v.fen} orientation={v.orientation} lastMove={v.lastMove} arrows={plusCoach(v.arrows, litArrows)} badges={v.badges} highlights={lit ?? NO_SQUARES}
               movable={g ? 'both' : null} onMove={(uci) => r.onMove(uci)} />
           </div>
+          {sides && <PlayerStrip color={v.orientation} side={sides[v.orientation]} />}
           <div className="row puzzle-buttons review-buttons">
             {([['⏮', -999, 'Start'], ['←', -1, 'Back'], ['→', 1, 'Forward'], ['⏭', 999, 'End']] as const).map(([t, d, label]) => (
               <button key={t} type="button" className="btn secondary" aria-label={label} onClick={() => r.step(d)} disabled={!g}>{t}</button>
@@ -317,9 +321,9 @@ export function ReviewScreen({ r, client, onOpenPuzzle, onPuzzlesChanged }: {
           ) : (<>
             <p className={`status ${typeof tone === 'string' ? tone : ''}`} style={statusStyle} role="status">{r.status.text}</p>
             {r.detail && <p className="explanation">{r.detail}</p>}
-            {r.why && <p className={`why ${r.why.startsWith('Working') ? 'note' : ''}`}><SquareText text={r.why} onSquares={setLit} /></p>}
+            {r.why && <p className={`why ${r.why.startsWith('Working') ? 'note' : ''}`}><SquareText text={r.why} onSquares={setLit} fen={v.fen} /></p>}
             {g && (
-              <IdeasPanel ideas={{ on: r.ideasOn, ideas: r.ideas }} onToggle={(on) => void r.setIdeas(on)} onSquares={setLit}
+              <IdeasPanel ideas={{ on: r.ideasOn, ideas: r.ideas }} onToggle={(on) => void r.setIdeas(on)} onSquares={setLit} fen={v.fen}
                 extra={<button type="button" className={`chip summary-toggle${r.summaryOn ? ' on' : ''}`} aria-pressed={r.summaryOn}
                   onClick={() => r.toggleSummary()}>📋 {r.summaryOn ? 'Hide the summary' : 'Game summary'}</button>}>
                 {(() => {

@@ -3,7 +3,12 @@
  * every first try at a puzzle, grouped by the puzzle's tags — its kind, type,
  * phase, Lichess themes and your own tags (puzzleTags.ts). Plus the two
  * "seeing" skills from the Tactics & Threats page. No engine involved.
+ *
+ * And (a web-app addition) the same themes in your actual games: every puzzle
+ * made from your games is a real mistake you made, so grouping those by tag
+ * says which kinds of mistake cost you the most, and whether that's changing.
  */
+import { winChances } from './analyzer';
 import * as db from './db';
 import * as lichessPuzzles from './lichessPuzzles';
 import type { Puzzle } from './models';
@@ -104,4 +109,61 @@ export function skills(conn: Db): Skill[] {
     new Skill('Spotting tactics', s.spotted, s.tactics),
     new Skill('Not crying wolf (quiet positions)', s.quiet - s.false_alarms, s.quiet),
   ];
+}
+
+// ---------- the same themes, in your games ----------
+
+export interface GameExample { gameId: string; fen: string; playedAt: string; played: string; best: string }
+
+export class GameThemeRow {
+  mistakes = 0;
+  games = new Set<string>();
+  points = 0;                // share of a point thrown away, summed (weekly.ts's cost)
+  recent_mistakes = 0;       // in games of the last 30 days
+  latest: GameExample | null = null;
+
+  constructor(readonly tag: string, readonly yours = false) {}
+}
+
+export interface GameThemes {
+  analysed: number;          // analysed games (the denominator)
+  recent_analysed: number;   // of those, played in the last 30 days
+  rows: GameThemeRow[];      // costliest per game first
+}
+
+/** Your mistakes in real games (the puzzles made from them), by theme. */
+export function gameThemeRows(conn: Db, sinceRecent: string): GameThemes {
+  const user = new Map<string, Set<string>>();
+  for (const [tag, keys] of puzzleTags.allUserTags(conn)) {
+    for (const k of keys) {
+      if (!user.has(k)) user.set(k, new Set());
+      user.get(k)!.add(tag);
+    }
+  }
+  const analysed = conn.get('SELECT COUNT(DISTINCT game_id) AS n FROM move_evaluations')!.n as number;
+  const recentAnalysed = conn.get(`SELECT COUNT(DISTINCT e.game_id) AS n FROM move_evaluations e JOIN games g ON g.id = e.game_id
+    WHERE g.played_at >= ?`, [sinceRecent])!.n as number;
+  const rows = new Map<string, GameThemeRow>();
+  for (const r of conn.all(`SELECT p.*, g.played_at AS game_played_at FROM puzzles p JOIN games g ON g.id = p.source_game_id
+      ORDER BY g.played_at`)) {
+    const p = db.rowToPuzzle(r);
+    const auto: [string, boolean][] = puzzleTags.autoTags(p, false, stats.isEndgame(p.fen))
+      .filter((t) => !NOT_THEMES.has(t.toLowerCase())).map((t) => [t, false]);
+    const have = new Set(auto.map(([t]) => t.toLowerCase()));
+    const mine: [string, boolean][] = [...(user.get(puzzleTags.key(p)) ?? [])]
+      .filter((t) => !have.has(t.toLowerCase())).map((t) => [t, true]);
+    const cost = r.eval_before_cp === null || r.eval_after_cp === null ? 0
+      : Math.max(0, (winChances(r.eval_before_cp) - winChances(r.eval_after_cp)) / 2);
+    const recent = r.game_played_at >= sinceRecent;
+    for (const [tag, yours] of [...auto, ...mine]) {
+      if (!rows.has(tag.toLowerCase())) rows.set(tag.toLowerCase(), new GameThemeRow(tag, yours));
+      const row = rows.get(tag.toLowerCase())!;
+      row.mistakes += 1;
+      row.games.add(r.source_game_id);
+      row.points += cost;
+      row.recent_mistakes += recent ? 1 : 0;
+      row.latest = { gameId: r.source_game_id, fen: r.fen, playedAt: r.game_played_at, played: r.played_move_san ?? '', best: r.correct_move_san ?? '' };
+    }
+  }
+  return { analysed, recent_analysed: recentAnalysed, rows: [...rows.values()].sort((a, b) => b.points - a.points || b.mistakes - a.mistakes) };
 }
