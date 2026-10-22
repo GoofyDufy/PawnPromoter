@@ -115,6 +115,12 @@ export async function checkTactics(engine: Engine, board: Board, ideas: coach.Id
   return out;
 }
 
+/** Their tactics that don't work, said again with the reason and out of the key ideas (positionIdeas' `revised`). */
+function revisedTactics(verdicts: TacticVerdict[]): Record<string, { text: string; weight: number }> {
+  return Object.fromEntries(verdicts.filter((v) => v.verdict === 'fails')
+    .map((v) => [v.text, { text: `${v.text.replace(/\.$/, '')} — but ${v.why}.`, weight: 30 }]));
+}
+
 type Stoppable = { stoppable(board: Board, limit: { depth?: number; time?: number }, multipv?: number): { result: Promise<InfoLine[]>; stop: () => void } };
 
 /** The position before the board's last move, if it has one (its move history). */
@@ -268,6 +274,7 @@ export class CoachIdeas {
     let full = coach.positionIdeas(draft);
     // the check: advice Stockfish contradicts here is left out
     let overruled: string[] = [];
+    let verified: string[] = [];
     let revised: Record<string, { text: string; weight: number }> = {};
     this.adviceVerdicts = [];
     this.tacticVerdicts = [];
@@ -280,12 +287,10 @@ export class CoachIdeas {
       }
       if (token !== this.token) return;
       overruled = this.adviceVerdicts.filter((v) => v.verdict === 'contradicted').map((v) => v.rule);
-      // their tactic that doesn't work: said again with the reason, out of the key ideas
-      revised = Object.fromEntries(this.tacticVerdicts.filter((v) => v.verdict === 'fails')
-        .map((v) => [v.text, { text: `${v.text.replace(/\.$/, '')} — but ${v.why}.`, weight: 30 }]));
-      if (overruled.length || Object.keys(revised).length) full = coach.positionIdeas({ ...draft, overruled, revised });
+      revised = revisedTactics(this.tacticVerdicts);
+      verified = this.adviceVerdicts.filter((v) => v.verdict === 'agrees').map((v) => v.rule);
+      if (overruled.length || verified.length || Object.keys(revised).length) full = coach.positionIdeas({ ...draft, overruled, verified, revised });
     }
-    const input = { ...draft, overruled, revised };
     this.ideas = full;
     const engine = this.engine as (Engine & Partial<Stoppable>) | null;
     if (!deep || !engine?.stoppable || board.isGameOver()) {
@@ -310,8 +315,24 @@ export class CoachIdeas {
     if (lines.length && (lines[0].depth ?? 0) >= 14) {           // (cut short by the time cap: still deeper than the quick pass)
       const deepLines = lines.map((l) => ({ line: l.pv, cp: scoreToCp(l.score, pos.me) }));
       const plan = coach.deepPlan(pos.fen, deepLines, pos.me);
-      const deeper = coach.positionIdeas({ ...input, cp: deepLines[0].cp ?? cp, bestLine: lines[0].pv,
-        alternatives: deepLines.map((l) => ({ move: l.line[0], cp: l.cp, line: l.line })), deep: plan });
+      const deepAlts = deepLines.map((l) => ({ move: l.line[0], cp: l.cp, line: l.line }));
+      const deepDraft = { ...draft, cp: deepLines[0].cp ?? cp, bestLine: lines[0].pv, alternatives: deepAlts, deep: plan,
+        deepLine: lines[0].pv.slice(0, coach.DEEP_PLIES) };
+      // the check again, against the deeper lines (the plan comes from them, so the advice beside it should too)
+      let checked = { overruled, verified, revised };
+      try {
+        const raw = coach.positionIdeas(deepDraft);
+        const advice = await checkAdvice(engine, board, raw, pos.me, deepAlts);
+        const tactics = await checkTactics(engine, board, raw, pos.me, deepDraft.cp);
+        if (token !== this.token) return;
+        this.adviceVerdicts = advice;
+        this.tacticVerdicts = tactics;
+        checked = { overruled: advice.filter((v) => v.verdict === 'contradicted').map((v) => v.rule),
+          verified: advice.filter((v) => v.verdict === 'agrees').map((v) => v.rule), revised: revisedTactics(tactics) };
+      } catch {
+        /* the quick check's verdicts stand */
+      }
+      const deeper = coach.positionIdeas({ ...deepDraft, ...checked });
       this.cache.set(key, deeper);
       this.ideas = deeper;
     }

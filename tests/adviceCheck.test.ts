@@ -26,7 +26,7 @@ describe('checking advice against Stockfish', () => {
 
   it('the advice says which moves follow it', () => {
     const p = ideas.points.find((x) => x.rule === 'open-file')!;
-    expect(p.text).toMatch(/(is|are) open: a rook there would be well placed/);
+    expect(p.text).toMatch(/(is|are) open\.$/);              // (not confirmed yet: said as the fact)
     expect(p.advice!('a1b1')).toBe(true);
     expect(p.advice!('e1d2')).toBe(false);
   });
@@ -102,7 +102,7 @@ describe("checking their tactics against Stockfish", () => {
   it('a pinned attacker can\'t take', async () => {
     // a white bishop on b5 pins the black knight on d7 to the king on e8: the knight "forks" nothing it can take
     const fen = '4k3/3n4/8/1B6/8/8/8/4K3 w - - 0 1';
-    const fakeIdeas = { summary: '', key: [], sections: [], points: [{ section: '', rule: 'forked', weight: 98, text: 'x.', cash: ['d7b6'] }] };
+    const fakeIdeas = { summary: '', key: [], sections: [], me: 'white' as const, points: [{ section: '', rule: 'forked', weight: 98, text: 'x.', cash: ['d7b6'] }] };
     const v = await checkTactics(fake(0), Board.fromFen(fen), fakeIdeas, 'white', 0);
     expect(v[0]).toMatchObject({ verdict: 'fails', why: "the knight on d7 is pinned, so it can't take" });
   });

@@ -86,7 +86,7 @@ describe('the ideas of a position', () => {
   const text = (ideas: coach.Ideas) => [ideas.summary, ...ideas.key, ...ideas.sections.flatMap((s) => [s.title, ...s.points])].join('\n');
 
   it('an isolated d-pawn position: plans for both sides, breaks, open files', () => {
-    const ideas = coach.positionIdeas({ fen: 'r1bq1rk1/pp2bppp/2n2n2/3p4/3P4/2NB1N2/PP3PPP/R1BQ1RK1 w - - 0 10', me: 'white', cp: 35,
+    const ideas = coach.positionIdeas({ fen: 'r1bq1rk1/pp2bppp/2n2n2/3p4/3P4/2NB1N2/PP3PPP/R1BQ1RK1 w - - 0 10', me: 'white', cp: 35, verified: ['open-file'],
       bestLine: ['a2a3', 'a7a6', 'f1e1'] });
     const t = text(ideas);
     expect(ideas.summary).toMatch(/slightly better \(\+0\.3\) — but an edge that small/);
@@ -146,8 +146,10 @@ describe('more position ideas', () => {
     const t = text(coach.positionIdeas({ fen: '4r1k1/pp3ppp/2p5/8/3P4/2B5/PPB2PPP/2K1R2R w - - 0 20', me: 'white', cp: 60 }));
     expect(t).toMatch(/Your rooks face each other on the e-file: don't be the one to trade/);
     expect(t).toMatch(/You have the bishop pair/);
-    const race = text(coach.positionIdeas({ fen: 'r4rk1/ppp2ppp/8/8/8/8/PPP2PPP/2KR3R w - - 0 15', me: 'white', cp: 0 }));
+    const race = text(coach.positionIdeas({ fen: 'r4rk1/ppp2ppp/8/8/8/8/PPP2PPP/2KR3R w - - 0 15', me: 'white', cp: 0, verified: ['race'] }));
     expect(race).toMatch(/castled on opposite sides: it's a race/);
+    expect(text(coach.positionIdeas({ fen: 'r4rk1/ppp2ppp/8/8/8/8/PPP2PPP/2KR3R w - - 0 15', me: 'white', cp: 0 })))
+      .toMatch(/castled on opposite sides: whoever gets an attack going first usually wins/);       // (not confirmed: the fact)
     expect(coach.backwardPawns(board('4k3/8/2p5/1p1p4/1P1P4/2P5/8/4K3 w - - 0 1'), 'black')).toEqual([sq('c6')]);   // c5 covered by b4/d4
     expect(coach.backwardPawns(board('4k3/8/3p4/2p1p3/2P1P3/8/8/4K3 w - - 0 1'), 'black').map((s) => s)).toEqual([sq('d6')]);
   });
@@ -161,7 +163,8 @@ describe('more position ideas', () => {
     const hanging = (move: string, gain: number) => text(coach.positionIdeas({ fen: '4k3/8/8/8/4N3/8/2b5/4K3 w - - 0 1', me: 'white', cp: -600,
       theirMove: 'b1c2', threat: { move, gain } }));
     expect(hanging('c2e4', 700)).toMatch(/It threatens Bxe4, which wins your knight —/);           // not "7 points of material"
-    expect(hanging('c2d3', 300)).toMatch(/It threatens Bd3, which Stockfish rates at about 3 pawns' worth for them —/);
+    // a quiet move that wins nothing is their idea, not a threat to deal with first
+    expect(hanging('c2d3', 300)).toMatch(/Their idea: Bd3 — Stockfish rates it at about 3 pawns' worth for them, so it's worth knowing before you choose your move\./);
     expect(text(coach.positionIdeas({ fen: Board.fromFen().fen(), me: 'white', cp: 20 }))).not.toMatch(/What your opponent wants/);   // not after a move of theirs
     expect(text(coach.positionIdeas({ fen: Board.fromFen().fen(), me: 'white', cp: 20, theirMove: null, threat: null })))
       .toMatch(/No direct threat: you're free to improve your position/);
@@ -319,7 +322,7 @@ describe('more of a strong player\'s checklist', () => {
 
   it('their move on the wing, met in the centre', () => {
     const t = text(coach.positionIdeas({ fen: 'rnbq1rk1/ppp1pp1p/5np1/3p4/3P4/5N2/PPP1PPPP/RNBQKB1R w KQ - 0 5', me: 'white', cp: 20,
-      theirMove: 'g7g6', threat: null }));
+      theirMove: 'g7g6', threat: null, verified: ['flank-centre'] }));
     expect(t).toMatch(/strike in the centre: c4 and e4/);
     expect(t).toMatch(/leaves h6 with no pawn to guard it ever again/);     // next to their king: it matters
     const away = text(coach.positionIdeas({ fen: 'rnbqkb1r/ppp1pp1p/5np1/3p4/3P4/5N2/PPP1PPPP/RNBQKB1R w KQkq - 0 4', me: 'white', cp: 20,
@@ -572,8 +575,11 @@ describe('the Coach only names pieces that are on the board', () => {
     // open d-file, White has no rooks (queen, bishop and knight only)
     const noRook = coach.positionIdeas({ fen: '2r3k1/pp3ppp/2n1b3/8/8/2N1B3/PP3PPP/3Q2K1 w - - 0 20', me: 'white' });
     expect(noRook.points.some((p) => p.rule === 'open-file')).toBe(false);
-    const withRook = coach.positionIdeas({ fen: '2r3k1/pp3ppp/2n1b3/8/8/2N1B3/PP3PPP/R2Q2K1 w - - 0 20', me: 'white' });
+    const withRook = coach.positionIdeas({ fen: '2r3k1/pp3ppp/2n1b3/8/8/2N1B3/PP3PPP/R2Q2K1 w - - 0 20', me: 'white', verified: ['open-file'] });
     expect(withRook.points.find((p) => p.rule === 'open-file')?.text).toMatch(/a rook there would be well placed/);
+    // not confirmed by Stockfish: the fact, not the instruction
+    expect(coach.positionIdeas({ fen: '2r3k1/pp3ppp/2n1b3/8/8/2N1B3/PP3PPP/R2Q2K1 w - - 0 20', me: 'white' }).points.find((p) => p.rule === 'open-file')?.text)
+      .toBe('The c-file is open.');
   });
 
   it('an IQP blockade with "a piece" when there is no knight', () => {
@@ -747,12 +753,14 @@ describe('the big audit\'s fixes (6,500 positions checked against Stockfish)', (
   });
 
   it('an outpost a knight can reach, with its route', () => {
-    expect(coach.positionIdeas({ fen: '4k3/pp3ppp/8/8/4P3/8/PP3PPP/1N2K3 w - - 0 20', me: 'white' }).points.find((p) => p.rule === 'outpost')?.text)
-      .toBe('d5 is an outpost — your knight on b1 can get there via c3, and no pawn can chase it away.');
+    const outpost = (verified?: string[]) => coach.positionIdeas({ fen: '4k3/pp3ppp/8/8/4P3/8/PP3PPP/1N2K3 w - - 0 20', me: 'white', verified })
+      .points.find((p) => p.rule === 'outpost')?.text;
+    expect(outpost(['outpost'])).toBe('d5 is an outpost — your knight on b1 can get there via c3, and no pawn can chase it away.');
+    expect(outpost()).toBe('d5 is an outpost: no pawn can chase a knight from there.');            // (not confirmed: the fact)
   });
 
   it('blockade their passer only when it is coming and a piece can get in front', () => {
-    const said = (fen: string) => coach.positionIdeas({ fen, me: 'white' }).points.find((p) => p.rule === 'passer-theirs');
+    const said = (fen: string) => coach.positionIdeas({ fen, me: 'white', verified: ['passer-theirs'] }).points.find((p) => p.rule === 'passer-theirs');
     expect(said('4k3/8/8/8/3p4/8/8/3RK3 w - - 0 40')?.text).toBe("Your opponent's passed pawn on d4 is coming: blockade it with a piece on d3.");
     const far = said('4k3/8/8/8/3p4/8/8/R3K3 w - - 0 40')!;
     expect(far.text).toBe("Your opponent's passed pawn on d4 is the long-term danger — keep a piece able to stop it.");

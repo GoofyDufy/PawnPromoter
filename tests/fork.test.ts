@@ -132,3 +132,22 @@ describe('their other tactics', () => {
     expect(rule(fen, 'counterattack', { cp: 37, threat: { move: 'b4d2', gain: 10000 }, bestLine: ['d6c8', 'a8c8'], alternatives: [{ move: 'd6c8', cp: 37 }] })).toBeUndefined();
   });
 });
+
+describe('a real threat, or just their idea', () => {
+  const said = (fen: string, threat: { move: string; gain: number; line?: string[] }) =>
+    coach.positionIdeas({ fen, me: Board.fromFen(fen).turn, theirMove: null, threat }).points.find((p) => p.rule === 'threat' || p.rule === 'threat-idea')!;
+
+  it('a pawn about to promote is a threat even before it takes anything', () => {
+    expect(said('4k3/8/8/8/8/8/1p6/4K3 w - - 0 1', { move: 'b2b1q', gain: 800 }).rule).toBe('threat');
+  });
+
+  it('a mate is a threat', () => {
+    expect(said('3r2k1/5ppp/8/8/8/8/5PPP/6K1 w - - 0 1', { move: 'd8d1', gain: 10000 }).rule).toBe('threat');
+  });
+
+  it('a quiet move that wins nothing is their idea: no "deal with that first", no tactics-first', () => {
+    const p = said('k7/1b6/8/8/8/8/8/K6Q w - - 0 1', { move: 'b7c6', gain: 300, line: ['b7c6', 'h1h2', 'a8b7'] });
+    expect(p.rule).toBe('threat-idea');
+    expect(p.text).not.toMatch(/deal with that first/);
+  });
+});

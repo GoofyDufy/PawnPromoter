@@ -576,6 +576,13 @@ cg-board square.coach-hl { background: rgb(255 196 0 / 0.5); box-shadow: inset 0
 .game-summary p { margin: 0; }
 .summary-takeaways { margin: 2px 0 0; padding-left: 18px; }
 .move-link { border: 0; background: none; color: var(--accent); font: inherit; font-weight: 600; padding: 0 3px; cursor: pointer; text-decoration: underline dotted; }
+.move-link.on { color: var(--ink); background: var(--panel-2, rgba(127, 127, 127, 0.15)); border-radius: 4px; text-decoration: none; }
+.line-preview { margin-top: 6px; }
+.coach-ideas .line-preview-board { width: min(300px, 100%); margin-top: 8px; }
+.coach-ideas .line-preview-board .board-wrap { width: 100%; }
+.line-preview-steps { gap: 6px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
+.line-preview-moves { margin: 6px 0 0; line-height: 1.8; }
+.line-preview-moves .move-no { color: var(--ink-2); font-size: 13px; margin-right: 2px; }
 .summary-praise { margin: 0 0 4px; padding-left: 18px; }
 
 /* ---------- report components (StatParts.tsx, UI.md) ---------- */

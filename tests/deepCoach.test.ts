@@ -28,19 +28,21 @@ const STONEWALL = {
 };
 
 describe('the plan Stockfish\'s good lines share', () => {
-  it('a knight rerouted, said with its route', () => {
+  it('the themes, not the moves: a knight rerouted, a file taken, a weakness left behind', () => {
     expect(coach.deepPlan(KNIGHT.fen, KNIGHT.lines, 'white'))
-      .toMatch(/^The idea here: reroute your knight h4–g6–e7–c6 \(from 3 squares to 8\) — every good line Stockfish finds does this\.$/);
+      .toBe("The idea here: reroute your knight to c6 via e7, take the b-file with a rook and leave them with an isolated pawn on b5 — most of Stockfish's good lines do this.");
   });
 
   it('a piece and a pawn break, in the order they come', () => {
     const plan = coach.deepPlan(STONEWALL.fen, STONEWALL.lines, 'white')!;
-    expect(plan).toMatch(/^The idea here: .*c4 break/);
+    expect(plan).toMatch(/^The idea here: bring your light-squared bishop to life, strike with c4 and trade off the dark-squared bishops/);
     expect(plan).toMatch(/most of Stockfish's good lines do this\.$/);
   });
 
   it('from the other side, it\'s their idea', () => {
-    expect(coach.deepPlan(KNIGHT.fen, KNIGHT.lines.map((l) => ({ ...l, cp: -l.cp })), 'black')).toMatch(/^Their idea: reroute their knight h4–g6/);
+    const theirs = coach.deepPlan(KNIGHT.fen, KNIGHT.lines.map((l) => ({ ...l, cp: -l.cp })), 'black')!;
+    expect(theirs).toMatch(/^Their idea: reroute their knight to c6 via e7/);
+    expect(theirs).toMatch(/leave you with an isolated pawn on b5/);
   });
 
   it('a line that wins material is a tactic, not a plan', () => {
@@ -107,6 +109,46 @@ describe('Deep coach in the Ideas', () => {
     expect(deepAsked).toBeGreaterThan(0);
     expect(pending).toContain(true);                    // "Deep coach is reading Stockfish's lines…" was shown
     expect(c.deepPending).toBe(false);
-    expect(c.ideas?.key.join(' ')).toMatch(/reroute your knight h4–g6–e7–c6/);
+    expect(c.ideas?.key.join(' ')).toMatch(/reroute your knight to c6 via e7/);
+    // "see where it leads": the deep line, for the preview board, and whose side you are
+    expect(c.ideas?.deepLine).toEqual(KNIGHT.lines[0].line.slice(0, coach.DEEP_PLIES));
+    expect(c.ideas?.me).toBe('white');
+  });
+});
+
+describe('Deep coach checks the advice again, against its deeper lines', () => {
+  const store = new Map<string, string>();
+  beforeEach(() => {
+    store.clear();
+    (globalThis as { localStorage?: unknown }).localStorage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => store.set(k, v) };
+  });
+  afterEach(() => { delete (globalThis as { localStorage?: unknown }).localStorage; });
+
+  // White has a rook and open files: "a rook there would be well placed" — or not, depending on the search
+  const FEN = '4k3/p7/8/8/8/8/P7/R3K3 w - - 0 30';
+  const line = (pv: string[], cp: number): InfoLine => ({ pv, score: new PovScore(Score.cp(cp), 'white'), depth: 18 });
+  const client = { service: async (n: string) => (n === 'getSettings' ? { analysis_ideas: '1' } : undefined) } as unknown as DbClient;
+
+  it('a verdict the deeper lines overturn: left out at first, then confirmed', async () => {
+    const fake = {
+      // the quick pass: king moves on top, and every rook move to the file clearly worse
+      analyse: async (b: Board, _l: unknown, multipv?: number, rootMoves?: string[]) => {
+        if (rootMoves?.length) return [line([rootMoves[0]], -250)];
+        if (b.turn !== 'white') return [{ pv: b.legalMoves().slice(0, 1), score: new PovScore(Score.cp(0), b.turn) }];
+        return [line(['e1d2', 'e8d7'], 30), line(['e1e2', 'e8d7'], 25), line(['e1f2', 'e8d7'], 20)].slice(0, multipv ?? 1);
+      },
+      // the deep pass: a rook move to the open file is Stockfish's best
+      stoppable: () => ({ result: Promise.resolve([line(['a1b1', 'e8d7', 'b1b7', 'd7c6', 'b7a7', 'c6b6', 'a7a3', 'b6b5'], 60),
+        line(['e1d2', 'e8d7', 'd2c3', 'd7c6', 'c3b4', 'c6b6', 'a1f1', 'b6c6'], 30)]), stop: () => {} }),
+    };
+    const shown: (string | undefined)[] = [];
+    const c: CoachIdeas = new CoachIdeas(client, 'analysis_ideas', fake as unknown as Engine,
+      () => shown.push(c.ideas?.points.find((p) => p.rule === 'open-file')?.text));
+    await c.load();
+    setDeepCoach(true);
+    await new Promise((r) => setTimeout(r, 0));
+    await c.explain({ fen: FEN, me: 'white' });
+    expect(shown).toContain(undefined);                                 // the quick check left it out
+    expect(c.ideas?.points.find((p) => p.rule === 'open-file')?.text).toMatch(/(is|are) open: a rook there would be well placed\./);   // confirmed by the deep lines
   });
 });

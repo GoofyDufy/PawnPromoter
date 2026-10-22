@@ -9,9 +9,9 @@
  * ("13.Nf3 Bd7"). A bare square after "on", "hits", "to"… is a place, not a
  * move ("a knight on d5"), and stays a highlight.
  */
-import { type ReactNode, useCallback, useEffect, useState, useSyncExternalStore } from 'react';
-import { Board } from '../core/chess';
-import type { Arrow } from './Board';
+import { type ReactNode, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import { Board, type Color } from '../core/chess';
+import { type Arrow, Board as BoardView } from './Board';
 import { deepCoach, onDeepCoach, setDeepCoach } from './coachIdeas';
 
 // a square, or a move ending on one ("d4", "Nxd4", "exd5", "Qh5+", "e8=Q"), not inside a word or a number
@@ -149,10 +149,56 @@ function writeFlag(key: string, on: boolean): void {
   try { localStorage.setItem(key, on ? '1' : '0'); } catch { /* this session only */ }
 }
 
+/** Deep coach's "where it leads": Stockfish's line from the position, on a small board of its own (the screen's board
+ *  stays put) — opened at the end of the line, then stepped back and forth or clicked to any move. */
+function LinePreview({ fen, line, orientation }: { fen: string; line: string[]; orientation: Color }) {
+  const [open, setOpen] = useState(false);
+  const steps = useMemo(() => {
+    const b = Board.fromFen(fen);
+    const out: { fen: string; san: string; uci: string; label: string }[] = [];
+    for (const m of line) {
+      if (!b.isLegal(m)) break;
+      const n = b.fullmoveNumber;
+      const label = b.turn === 'white' ? `${n}.` : out.length ? '' : `${n}...`;
+      const san = b.san(m);
+      b.push(m);
+      out.push({ fen: b.fen(), san, uci: m, label });
+    }
+    return out;
+  }, [fen, line]);
+  const [ply, setPly] = useState(steps.length);            // 0 = the position now; steps.length = where the line ends
+  if (!steps.length) return null;
+  const at = Math.max(0, Math.min(ply, steps.length));
+  const shownFen = at === 0 ? fen : steps[at - 1].fen;
+  return (
+    <div className="ideas-section line-preview">
+      <button type="button" className={`chip ideas-toggle${open ? ' on' : ''}`} aria-expanded={open} onClick={() => { setOpen(!open); setPly(steps.length); }}>
+        {open ? '▼ Hide the line' : '▶ See where it leads'}
+      </button>
+      {open && (<>
+        <div className="line-preview-board"><BoardView fen={shownFen} orientation={orientation} lastMove={at > 0 ? steps[at - 1].uci : null} /></div>
+        <div className="row line-preview-steps" role="group" aria-label="Step through Stockfish's line">
+          <button type="button" className="btn small secondary" title="The position now" disabled={at === 0} onClick={() => setPly(0)}>⏮</button>
+          <button type="button" className="btn small secondary" title="Back a move" disabled={at === 0} onClick={() => setPly(at - 1)}>◀</button>
+          <button type="button" className="btn small secondary" title="Forward a move" disabled={at === steps.length} onClick={() => setPly(at + 1)}>▶</button>
+          <button type="button" className="btn small secondary" title="Where the line ends" disabled={at === steps.length} onClick={() => setPly(steps.length)}>⏭</button>
+          <span className="note">{at === steps.length ? "Where Stockfish's line ends" : at === 0 ? 'The position now' : `After ${steps[at - 1].label}${steps[at - 1].san}`}</span>
+        </div>
+        <p className="line-preview-moves">
+          {steps.map((s, k) => (
+            <span key={k}>{s.label && <span className="move-no">{s.label}</span>}
+              <button type="button" className={`move-link${k + 1 === at ? ' on' : ''}`} onClick={() => setPly(k + 1)}>{s.san}</button>{' '}</span>
+          ))}
+        </p>
+      </>)}
+    </div>
+  );
+}
+
 /** The 💡 Ideas toggle and, when on, the Coach's ideas for the position: the key few first, the
  *  rest folded under "More" (shared by the screens). */
 export function IdeasPanel({ ideas, onToggle, onSquares, fen, extra, children }: {
-  ideas: { on: boolean; ideas: { summary: string; key: string[]; sections: { title: string; points: string[] }[] } | null; deepPending?: boolean };
+  ideas: { on: boolean; ideas: { summary: string; key: string[]; sections: { title: string; points: string[] }[]; deepLine?: string[]; me?: Color } | null; deepPending?: boolean };
   onToggle: (on: boolean) => void;
   onSquares: OnFocus;
   /** The position the ideas are about: moves in them get arrows. */
@@ -202,6 +248,7 @@ export function IdeasPanel({ ideas, onToggle, onSquares, fen, extra, children }:
             <ul>{shown.key.map((p) => <li key={p}><SquareText text={p} onSquares={onSquares} fen={fen} /></li>)}</ul>
           </div>
         )}
+        {shown.deepLine && fen && <LinePreview key={`${fen}|${shown.deepLine.join(' ')}`} fen={fen} line={shown.deepLine} orientation={shown.me ?? 'white'} />}
         {more > 0 && (
           <details className="ideas-more">
             <summary>More ({more})</summary>
