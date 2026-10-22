@@ -43,7 +43,7 @@ export function onDeepCoach(f: () => void): () => void {
 }
 
 /** What Stockfish says about one piece of the Coach's advice in a position. */
-export interface AdviceVerdict { rule: string; text: string; verdict: 'agrees' | 'contradicted' | 'unverifiable'; gap?: number }
+export interface AdviceVerdict { rule: string; text: string; verdict: 'agrees' | 'contradicted' | 'unverifiable'; gap?: number; moves?: string[] }
 
 /** The Coach's advice against Stockfish (your move only): a piece of advice agrees when one of Stockfish's top moves
  *  follows it, or when the best move that follows it (searched among just those moves) is within CHECK_MARGIN of its
@@ -62,7 +62,7 @@ export async function checkAdvice(engine: Engine, board: Board, ideas: coach.Ide
     seen.add(p.rule);
     const follows = legal.filter((m) => p.advice!(m));
     if (!follows.length) { out.push({ rule: p.rule, text: p.text, verdict: 'unverifiable' }); continue; }
-    if (alternatives!.some((a) => follows.includes(a.move) && a.cp !== null && a.cp >= best - STILL_WORKS)) { out.push({ rule: p.rule, text: p.text, verdict: 'agrees' }); continue; }
+    if (alternatives!.some((a) => follows.includes(a.move) && a.cp !== null && a.cp >= best - STILL_WORKS)) { out.push({ rule: p.rule, text: p.text, verdict: 'agrees', moves: follows }); continue; }
     if (searches >= MAX_CHECKS) { out.push({ rule: p.rule, text: p.text, verdict: 'unverifiable' }); continue; }
     searches += 1;
     const [info] = await engine.analyse(board, { depth: CHECK_DEPTH }, 1, follows);
@@ -70,7 +70,7 @@ export async function checkAdvice(engine: Engine, board: Board, ideas: coach.Ide
     const cp = scoreToCp(info.score, me);
     const gap = best - cp;
     const mateLost = best >= MATE_CP / 2 && cp < MATE_CP / 2;
-    out.push({ rule: p.rule, text: p.text, verdict: gap > CHECK_MARGIN || mateLost ? 'contradicted' : 'agrees', gap });
+    out.push({ rule: p.rule, text: p.text, verdict: gap > CHECK_MARGIN || mateLost ? 'contradicted' : 'agrees', gap, moves: follows });
   }
   return out;
 }

@@ -91,7 +91,7 @@ describe('the ideas of a position', () => {
     const t = text(ideas);
     expect(ideas.summary).toMatch(/slightly better \(\+0\.3\) — but an edge that small/);
     expect(t).toMatch(/This is an isolated queen's pawn position\. For you: keep the pieces on.*For your opponent: trade pieces and blockade/);
-    expect(t).toMatch(/The c-file and e-file are open: put a rook there first\./);
+    expect(t).toMatch(/The e-file is open: a rook there would be well placed\./);   // (the c-file: no rook gets there this move)
     expect(t).toMatch(/Your best move here is a3\. The idea: a3 a6 Re1\./);
   });
 
@@ -100,7 +100,7 @@ describe('the ideas of a position', () => {
     expect(t).toMatch(/Material: you are up/);
     expect(t).toMatch(/Your edge is static: you're up .*, and that doesn't go away.*then trade down/);   // Silman: static, so no hurry
     expect(t).toMatch(/clear advantage|winning/);
-    expect(t).toMatch(/Your opponent's king is still in the centre/);
+    expect(t).toMatch(/Your opponent's king hasn't castled yet/);   // (it still can: a heads-up, not "go after it")
   });
 
   it('who is better, in words', () => {
@@ -573,7 +573,7 @@ describe('the Coach only names pieces that are on the board', () => {
     const noRook = coach.positionIdeas({ fen: '2r3k1/pp3ppp/2n1b3/8/8/2N1B3/PP3PPP/3Q2K1 w - - 0 20', me: 'white' });
     expect(noRook.points.some((p) => p.rule === 'open-file')).toBe(false);
     const withRook = coach.positionIdeas({ fen: '2r3k1/pp3ppp/2n1b3/8/8/2N1B3/PP3PPP/R2Q2K1 w - - 0 20', me: 'white' });
-    expect(withRook.points.find((p) => p.rule === 'open-file')?.text).toMatch(/put a rook there/);
+    expect(withRook.points.find((p) => p.rule === 'open-file')?.text).toMatch(/a rook there would be well placed/);
   });
 
   it('an IQP blockade with "a piece" when there is no knight', () => {
@@ -731,5 +731,31 @@ describe('static vs dynamic, and the in-between move', () => {
     expect(ideas.points.find((p) => p.rule === 'intermezzo')?.text).toMatch(/Don't take back on e5 yet: Qh5\+ first — an in-between move/);
     const plain = coach.positionIdeas({ fen, me: 'white', cp: 0, before, theirMove: 'd6e5', bestLine: ['d4e5', 'd8d1', 'e1d1'] });
     expect(plain.points.some((p) => p.rule === 'intermezzo')).toBe(false);
+  });
+});
+
+describe('the big audit\'s fixes (6,500 positions checked against Stockfish)', () => {
+  it('tactics first: in a tactical moment the slow advice waits, in one line', () => {
+    // their knight on d7 forks your queen and rook, and Bxd4+ hits back (from your puzzles)
+    const fen = 'r4rk1/pp1N1ppp/1qp1pb2/5n1Q/3P1P2/2B4P/PPP3P1/1RR3K1 b - - 7 21';
+    const ideas = coach.positionIdeas({ fen, me: 'black', cp: 130, theirMove: null, threat: { move: 'd7b6', gain: 774 },
+      bestLine: ['f6d4', 'g1h2', 'b6c7'], alternatives: [{ move: 'f6d4', cp: 130 }, { move: 'b6d8', cp: -400 }] });
+    const rules = ideas.points.map((p) => p.rule);
+    expect(rules).toContain('counterattack');
+    expect(rules.filter((r) => ['open-file', 'outpost', 'bad-bishop', 'structure', 'space', 'breaks'].includes(r))).toEqual([]);
+    expect(ideas.points.find((p) => p.rule === 'later')?.text ?? '').toMatch(/^Once that's dealt with: /);
+  });
+
+  it('an outpost a knight can reach, with its route', () => {
+    expect(coach.positionIdeas({ fen: '4k3/pp3ppp/8/8/4P3/8/PP3PPP/1N2K3 w - - 0 20', me: 'white' }).points.find((p) => p.rule === 'outpost')?.text)
+      .toBe('d5 is an outpost — your knight on b1 can get there via c3, and no pawn can chase it away.');
+  });
+
+  it('blockade their passer only when it is coming and a piece can get in front', () => {
+    const said = (fen: string) => coach.positionIdeas({ fen, me: 'white' }).points.find((p) => p.rule === 'passer-theirs');
+    expect(said('4k3/8/8/8/3p4/8/8/3RK3 w - - 0 40')?.text).toBe("Your opponent's passed pawn on d4 is coming: blockade it with a piece on d3.");
+    const far = said('4k3/8/8/8/3p4/8/8/R3K3 w - - 0 40')!;
+    expect(far.text).toBe("Your opponent's passed pawn on d4 is the long-term danger — keep a piece able to stop it.");
+    expect(far.advice).toBeUndefined();
   });
 });

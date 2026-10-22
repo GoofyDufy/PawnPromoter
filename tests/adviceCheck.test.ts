@@ -7,7 +7,7 @@ import { type Engine, type InfoLine, PovScore, Score } from '../src/core/engine'
 import type { DbClient } from '../src/data/client';
 import { CoachIdeas, checkAdvice, checkTactics } from '../src/ui/coachIdeas';
 
-// White: a rook and open files on the board — the Coach says "put a rook there first"
+// White: a rook and open files on the board — the Coach says "a rook there would be well placed"
 const FEN = '4k3/p7/8/8/8/8/P7/R3K3 w - - 0 30';
 const line = (pv: string[], cp: number): InfoLine => ({ pv, score: new PovScore(Score.cp(cp), 'white'), depth: 12 });
 
@@ -26,7 +26,7 @@ describe('checking advice against Stockfish', () => {
 
   it('the advice says which moves follow it', () => {
     const p = ideas.points.find((x) => x.rule === 'open-file')!;
-    expect(p.text).toMatch(/(is|are) open: put a rook there first/);
+    expect(p.text).toMatch(/(is|are) open: a rook there would be well placed/);
     expect(p.advice!('a1b1')).toBe(true);
     expect(p.advice!('e1d2')).toBe(false);
   });

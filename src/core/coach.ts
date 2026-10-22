@@ -350,6 +350,18 @@ function knightSquares(board: Board, sq: Square, c: Color): number {
   return board.attacks(sq).filter((t) => board.pieceAt(t)?.color !== c && !covered.has(t)).length;
 }
 
+const JUMPS = [[1, 2], [2, 1], [2, -1], [1, -2], [-1, -2], [-2, -1], [-2, 1], [-1, 2]];
+const jumps = (sq: Square) => JUMPS.map(([df, dr]) => [file(sq) + df, rank(sq) + dr]).filter(([f, r]) => f >= 0 && f <= 7 && r >= 0 && r <= 7).map(([f, r]) => at(f, r));
+
+/** A knight's way to `to` in one or two moves (the squares it lands on), through squares not taken by its own side
+ *  and not covered by an enemy pawn; null when it's further. */
+export function knightRoute(board: Board, from: Square, to: Square, c: Color): Square[] | null {
+  if (jumps(from).includes(to)) return [to];
+  const covered = pawnAttacks(board, opposite(c));
+  const mid = jumps(from).find((m) => board.pieceAt(m)?.color !== c && !covered.has(m) && jumps(m).includes(to));
+  return mid === undefined ? null : [mid, to];
+}
+
 /** Knights with at most one safe square to go to. */
 export function stuckKnights(board: Board, c: Color): Square[] {
   return board.pieces('knight', c).filter((n) => knightSquares(board, n, c) <= 1);
@@ -902,10 +914,18 @@ const CONCRETE = new Set(['threat', 'forked', 'counterattack', 'skewered', 'pinn
   'lucena', 'philidor', 'philidor-available', 'square-runs', 'square-runs-theirs', 'wrong-bishop', 'wrong-bishop-theirs', 'rook-pawn-draw',
   'rook-pawn-draw-theirs', 'compensation', 'not-winning', 'race', 'down-keep', 'up-trade', 'intermezzo', 'dynamic-comp', 'dynamic-comp-theirs', 'static-edge']);
 /** Never a key idea on their own (background, or said by the decision / plan already). */
-const NOT_KEY = new Set(['criteria', 'stockfish', 'payoff', 'last-move', 'no-threat', 'material', 'space', 'breaks', 'breaks-theirs',
+const NOT_KEY = new Set(['later', 'criteria', 'stockfish', 'payoff', 'last-move', 'no-threat', 'material', 'space', 'breaks', 'breaks-theirs',
   'endgame-family', 'king-safety-off']);
 const SECTIONS = ['What your opponent wants', 'Who has what', 'The situation', 'Plans', 'The pieces', 'Kings and weaknesses', 'The endgame', 'What Stockfish wants'];
-const KEY_COUNT = 3;                   // key ideas shown first
+const KEY_COUNT = 3;
+/** Points that make a moment tactical (with weight 75 or more: real, not a tactic that fails), and the slow advice
+ *  that waits while it is (safety notes — loose pieces, the back rank, king and queen on a line — don't wait). */
+const TACTICAL = new Set(['threat', 'forked', 'counterattack', 'skewered', 'pinned-win']);
+const SLOW = new Set(['open-file', 'open-file-rook', 'outpost', 'bad-bishop', 'stuck-knight', 'chain-base', 'race', 'hook', 'bishop-pair',
+  'king-centre', 'passive-king', 'active-king', 'passer', 'passer-theirs', 'majority', 'majority-theirs', 'king-centre-theirs', 'shield-theirs',
+  'isolated', 'isolated-theirs', 'backward', 'backward-theirs', 'royal-line-theirs', 'fianchetto-holes', 'fianchetto-holes-theirs', 'structure',
+  'space', 'breaks', 'breaks-theirs', 'outpost-theirs', 'stuck-knight-theirs', 'bishop-pair-theirs', 'bad-bishop-theirs', 'doubled',
+  'doubled-theirs', 'colour-complex', 'colour-complex-theirs', 'tied', 'tied-theirs', 'chain-base', 'flank-centre']);                   // key ideas shown first
 const FRESH_BONUS = 15;                // something the last move changed counts for more
 // points about what a move did, not the position: never "new"
 // (and advice that hangs on the evaluation, or wording that shifts every move like the pawn breaks)
@@ -1120,6 +1140,8 @@ export function positionIdeas(i: IdeasInput): Ideas {
     const m = i.bestLine?.[0];
     return board.turn === me && m && board.isLegal(m) && toSq(m) === by ? ` — but you can just take it: ${board.san(m)}` : '';
   };
+  // one of your pieces (not a pawn) can step onto sq this move
+  const canReach = (sq: Square) => board.turn === me && board.legalMoves().some((m) => toSq(m) === sq && roleOf(m) !== 'pawn');
   // the moved piece lands on sq or bears on it afterwards
   const bearsOn = (m: string, sqs: Square[]) => {
     if (!board.isLegal(m)) return false;
@@ -1261,9 +1283,12 @@ export function positionIdeas(i: IdeasInput): Ideas {
     if (passed.length) {
       const far = passed.sort((a, b) => relRank(b, c) - relRank(a, c))[0];
       const w = 40 + 8 * (relRank(far, c) - 3);       // the further it's gone, the more it matters
+      const stop = far + (them === 'white' ? 8 : -8);
+      const blockade = c === them && relRank(far, them) >= 4 && canReach(stop);
       add(c === me ? 'passer' : 'passer-theirs', w, c === me ? `Your passed pawn on ${name(far)} is a real asset: push it when it's safe, with your pieces behind it.`
-        : `Your opponent's passed pawn on ${name(far)} needs watching: blockade it with a piece in front of it.`,
-        c === them ? (m) => roleOf(m) !== 'pawn' && toSq(m) === far + (them === 'white' ? 8 : -8) : undefined);
+        : blockade ? `Your opponent's passed pawn on ${name(far)} is coming: blockade it with a piece on ${name(stop)}.`
+        : `Your opponent's passed pawn on ${name(far)} is the long-term danger — keep a piece able to stop it.`,
+        blockade ? (m) => roleOf(m) !== 'pawn' && toSq(m) === stop : undefined);
     }
   }
   // a healthy pawn majority on a wing: a passed pawn in the making — once the queens are off (before
@@ -1281,8 +1306,11 @@ export function positionIdeas(i: IdeasInput): Ideas {
       const how = majorityHow(board, m, i.bestLine, i.alternatives, me);
       add(mine ? 'majority' : 'majority-theirs', weight, mine
         ? `You have a ${m.wing} pawn majority (${m.mine} against ${m.theirs}): ${why}. ${how}`
-        : `Your opponent has a ${m.wing} pawn majority (${m.mine} against ${m.theirs}): ${why}. Blockade the pawn with a clear road (${name(m.candidate)}) and keep active elsewhere.`,
-        mine ? undefined : (mv) => roleOf(mv) !== 'pawn' && toSq(mv) === m.candidate + (m.color === 'white' ? 8 : -8));
+        : relRank(m.candidate, m.color) >= 3 && canReach(m.candidate + (m.color === 'white' ? 8 : -8))
+          ? `Your opponent has a ${m.wing} pawn majority (${m.mine} against ${m.theirs}): ${why}. Its free pawn on ${name(m.candidate)} is moving: blockade it on ${name(m.candidate + (m.color === 'white' ? 8 : -8))}.`
+          : `Your opponent has a ${m.wing} pawn majority (${m.mine} against ${m.theirs}): ${why}. The free pawn on ${name(m.candidate)} is the one that becomes passed — keep it in view.`,
+        mine || relRank(m.candidate, m.color) < 3 || !canReach(m.candidate + (m.color === 'white' ? 8 : -8)) ? undefined
+          : (mv) => roleOf(mv) !== 'pawn' && toSq(mv) === m.candidate + (m.color === 'white' ? 8 : -8));
     }
   }
   // kings castled on opposite wings: a race
@@ -1336,14 +1364,21 @@ export function positionIdeas(i: IdeasInput): Ideas {
       else add('bad-bishop-theirs', 25, `Your opponent's bishop on ${name(b)} is bad (stuck behind its own pawns) — don't trade it off; keep the pawns fixed.`,
         (m) => toSq(m) !== b);
     }
-    for (const n of stuckKnights(board, c)) {
+    // (an undeveloped knight isn't stuck: before move 12, or still on its home rank, that's development)
+    for (const n of stuckKnights(board, c).filter((k) => board.fullmoveNumber > 12 && relRank(k, c) > 0)) {
       add(c === me ? 'stuck-knight' : 'stuck-knight-theirs', c === me ? 45 : 25, c === me ? `Your knight on ${name(n)} has nowhere to go — find it a better square.`
         : `Your opponent's knight on ${name(n)} has no good squares — keep it that way.`, c === me ? (m) => fromSq(m) === n : undefined);
     }
   }
   const posts = outpostSquares(board, me);
-  if (posts.length) add('outpost', 45, `${list(posts.slice(0, 2).map(name))} ${posts.length > 1 ? 'are outposts for your knights — squares no pawn can chase them from' : 'is an outpost for your knight — a square no pawn can chase it from'}.`,
-    (m) => roleOf(m) === 'knight' && posts.includes(toSq(m)));
+  // (only one a knight can get to within two moves: an outpost no knight can reach is a fact for later)
+  const route = posts.map((t) => board.pieces('knight', me).map((n) => ({ n, t, path: knightRoute(board, n, t, me) })).find((x) => x.path))
+    .find((x) => x !== undefined);
+  if (route) {
+    const [first] = route.path!;
+    add('outpost', 45, `${name(route.t)} is an outpost — your knight on ${name(route.n)} can get there${route.path!.length > 1 ? ` via ${name(first)}` : ''}, and no pawn can chase it away.`,
+      (m) => fromSq(m) === route.n && toSq(m) === first);
+  }
   const theirPosts = outpostSquares(board, them);
   if (theirPosts.length) add('outpost-theirs', 35, `Your opponent would love a knight on ${name(theirPosts[0])}: keep an eye on it.`);
   const open = openFiles(board);
@@ -1351,8 +1386,11 @@ export function positionIdeas(i: IdeasInput): Ideas {
     const rooksOn = board.pieces('rook', me).filter((r) => open.includes(file(r)));
     if (rooksOn.length) add('open-file-rook', 25, `Your rook already controls the open ${fileName(file(rooksOn[0]))} — use it to get to the 7th rank.`,
       (m) => fromSq(m) === rooksOn[0] && file(toSq(m)) === file(rooksOn[0]));
-    else if (has(board, me, 'rook')) add('open-file', 35, `The ${list(open.slice(0, 2).map(fileName))} ${open.length > 1 ? 'are' : 'is'} open: put a rook there first.`,
-      (m) => roleOf(m) === 'rook' && open.slice(0, 2).includes(file(toSq(m))));
+    else if (has(board, me, 'rook')) {
+      const onto = (m: string) => roleOf(m) === 'rook' && open.slice(0, 2).includes(file(toSq(m)));
+      const reachable = open.slice(0, 2).filter((f) => board.legalMoves().some((m) => onto(m) && file(toSq(m)) === f));
+      if (reachable.length) add('open-file', 35, `The ${list(reachable.map(fileName))} ${reachable.length > 1 ? 'are' : 'is'} open: a rook there would be well placed.`, onto);
+    }
   }
   // rooks facing each other on an open file: don't be the one to take
   const facing = open.find((f) => board.pieces('rook', me).some((r) => file(r) === f) && board.pieces('rook', them).some((r) => file(r) === f));
@@ -1379,7 +1417,9 @@ export function positionIdeas(i: IdeasInput): Ideas {
     const centreOpen = [3, 4].some((f) => !hasPawn(board, c, f));     // its own d- or e-pawn gone: a line toward it
     if (k !== undefined && !castledLike(board, c) && relRank(k, c) <= 1 && file(k) >= 3 && file(k) <= 4 && board.fullmoveNumber >= 8 && centreOpen
       && board.pieces('queen', opposite(c)).length) {     // (with the queens off, a central king is a good thing)
-      add(c === me ? 'king-centre' : 'king-centre-theirs', c === me ? 75 : 60, c === me ? 'Your king is still in the centre with lines open — castle soon.' : "Your opponent's king is still in the centre: open the centre files and go after it.",
+      const canCastle = c === them && board.hasCastlingRights(them) && board.fullmoveNumber < 15;
+      if (canCastle) add('king-centre-theirs', 40, "Your opponent's king hasn't castled yet — if it stays in the centre, the centre files are where to go after it.");
+      else add(c === me ? 'king-centre' : 'king-centre-theirs', c === me ? 75 : 60, c === me ? 'Your king is still in the centre with lines open — castle soon.' : "Your opponent's king is still in the centre: open the centre files and go after it.",
         c === me ? (m) => board.isCastling(m)
           : (m) => board.givesCheck(m) || (roleOf(m) === 'pawn' && file(fromSq(m)) >= 2 && file(fromSq(m)) <= 5 && (board.isCapture(m) || bearsOn(m, pawnsOf(board, them)))));
     }
@@ -1639,6 +1679,19 @@ export function positionIdeas(i: IdeasInput): Ideas {
   const phase = phaseOf(board);
   if (phase !== 'middlegame') for (const p of points) p.weight = Math.max(0, Math.min(100, p.weight + (PHASE_SHIFT[phase][p.rule] ?? 0)));
 
+  // tactics first: in a tactical moment (a real threat, a fork or skewer, a pin they can win, a counterattack, a
+  // winning sacrifice or a forced line) the slow positional advice waits — the most important of it in one line
+  const won = winningLine(board, bestLine, me, cp);
+  const tacticalNow = won !== null || points.some((p) => TACTICAL.has(p.rule) && p.weight >= 75)
+    || points.some((p) => p.rule === 'payoff' && /it's forced/.test(p.text));
+  if (tacticalNow) {
+    const slow = points.filter((p) => SLOW.has(p.rule)).sort((a, b) => b.weight - a.weight);
+    for (const p of slow) points.splice(points.indexOf(p), 1);
+    if (slow.length) {
+      const t = slow[0].text;
+      points.push({ section: 'Plans', rule: 'later', weight: 20, text: `Once that's dealt with: ${t[0].toLowerCase()}${t.slice(1)}` });
+    }
+  }
   // the key ideas. With Stockfish's lines: the coach's order — what they want (Gotham), the decision this
   // position asks for (Hikaru's one question), what's urgent, the plan behind the best move, and one fact the
   // lines actually use (a concrete weakness, not an abstract one). Without them: the strongest few.
@@ -1677,7 +1730,6 @@ export function positionIdeas(i: IdeasInput): Ideas {
       .map((p, k) => ({ p, k })).sort((a, b) => b.p.weight - a.p.weight || a.k - b.k).slice(0, SECTION_MAX).map(({ p }) => p.text),
   })).filter((x) => x.points.length);
   // the summary: what the best line wins, when that's why it's winning; else who's better and the static reason
-  const won = winningLine(board, bestLine, me, cp);
   const reason = cp !== null && !won ? mainReason(board, me, cp) : null;
   const summary = cp === null ? 'No evaluation for this position yet.'
     : won ?? `${evalWords(cp, material(board, me) >= 2)}${reason ? ` ${reason}` : ''}`;
