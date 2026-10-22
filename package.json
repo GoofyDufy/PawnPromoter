@@ -2,7 +2,7 @@
   "name": "pawn-promoter",
   "version": "0.1.0",
   "private": true,
-  "description": "Pawn Promoter — browser chess trainer that turns your own games into puzzles (web port of King Coach)",
+  "description": "KingSide Coach — browser chess trainer that turns your own games into puzzles (web port of King Coach)",
   "license": "GPL-3.0-or-later",
   "type": "module",
   "scripts": {

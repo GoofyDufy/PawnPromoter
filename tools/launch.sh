@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Opens Pawn Promoter in your browser (the desktop launcher runs this): starts
+# Opens KingSide Coach in your browser (the desktop launcher runs this): starts
 # the dev server on http://127.0.0.1:5173 if it isn't already running — the dev
 # server is what lets Your data → "Load from King Coach" read ~/Chess — then
 # opens the page. The server keeps running in the background; its log is in

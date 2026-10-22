@@ -136,7 +136,7 @@ export function App({ client }: { client: DbClient }) {
   return (
     <div className="app">
       <aside className="sidebar">
-        <div className="brand"><img src="./icons/pawn-promoter.svg" alt="" />Pawn Promoter</div>
+        <div className="brand"><img src="./icons/pawn-promoter.svg" alt="" />KingSide Coach</div>
         <nav className="nav" aria-label="Screens">
           {SCREENS.map((s) => (
             <button key={s.id} type="button" aria-current={s.id === screen ? 'page' : undefined} onClick={() => setScreen(s.id)}>

@@ -101,7 +101,7 @@ function LichessDialog({ onSaved, onClose }: { onSaved: (token: string, username
     <Modal title="Connect Lichess" onClose={onClose}>
       <p className="note pre">{'The Lichess Opening Explorer needs a free personal access token:\n'
         + '1. Sign in at lichess.org and open the token page (link below).\n'
-        + '2. Click New personal access token, name it Pawn Promoter, leave every permission box unchecked, and create it.\n'
+        + '2. Click New personal access token, name it KingSide Coach, leave every permission box unchecked, and create it.\n'
         + '3. Copy the token and paste it here.\n\n'
         + "It's saved only in this player's database in this browser."}</p>
       <p><a href={explorer.TOKEN_PAGE} target="_blank" rel="noopener">Open the Lichess token page</a></p>

@@ -1,4 +1,4 @@
-# Pawn Promoter
+# KingSide Coach
 
 A chess trainer that turns your own games into puzzles and drills your
 opening repertoire, built as a web app: Stockfish (WASM), SQLite (OPFS) and
