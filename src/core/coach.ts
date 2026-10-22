@@ -21,6 +21,7 @@ import { Board, type Color, opposite, type Role, type Square } from './chess';
 import { materialWords, type SolutionFacts } from './explain';
 import { pySigned } from './format';
 import { endgameInsights } from './endgame';
+import { clockText } from './boardSides';
 
 // ---------- squares ----------
 
@@ -1233,7 +1234,9 @@ export function positionIdeas(i: IdeasInput): Ideas {
         if (k % 2 === 0 && !(fb.givesCheck(m) || fb.isCapture(m))) { forced = false; break; }
         fb.push(m);
       }
-      add('payoff', 75, `${whoseMove} plan: ${planOf(outcome.changes, forMover)}. ${forced ? `It's forced: after ${outcome.line},` : `Stockfish's likely line: ${outcome.line} —`} ${list(gains.map((g) => g.text))}.`
+      const plies = outcome.line.split(' ').length;
+      add('payoff', 75, `${whoseMove} plan: ${planOf(outcome.changes, forMover)}`
+        + (forced ? `, and it's forced: ${walkThrough(i.fen, bestLine.slice(0, plies), gains, me)}` : `. Stockfish's likely line: ${outcome.line} — ${list(gains.map((g) => g.text))}.`)
         + (stops ? ` ${sans[0]} also stops ${stops}.` : ''));
     } else if (stops) {
       add('payoff', 70, `${sans[0]} is mainly a defensive move: it stops ${stops}.`);
@@ -1566,6 +1569,9 @@ export interface SummaryMove {
   amazing?: boolean;             // !! a sound sacrifice
   /** Your opponent's move just before this one (san), to name a mistake you punished. */
   theirSan?: string;
+  /** Seconds this move took, and your clock after it (from the game's [%clk]; null without one). */
+  spent?: number | null;
+  left?: number | null;
 }
 
 export interface GameSummary {
@@ -1575,6 +1581,8 @@ export interface GameSummary {
   /** moves: the mistakes named, to jump to (ply = moves played before it). */
   phases: { name: string; text: string; moves: { ply: number; label: string }[] }[];
   takeaways: string[];
+  /** How the clock went with your mistakes (rushed, or in time trouble); empty without clock data. */
+  clock: string[];
 }
 
 const moveNo = (ply: number) => `${Math.floor(ply / 2) + 1}${ply % 2 === 0 ? '.' : '...'}`;
@@ -1582,7 +1590,7 @@ const moveNo = (ply: number) => `${Math.floor(ply / 2) + 1}${ply % 2 === 0 ? '.'
 /** A post-game review the way a coach gives it: praise first, phase by phase, one line on why
  *  the game was won or lost (one oversight, or a slow slide, or the opening), then 1–2 lessons. */
 export function gameSummary(moves: SummaryMove[], result: string, phaseOf: (ply: number, fen: string) => string,
-  leftPrepAt: number | null = null): GameSummary {
+  leftPrepAt: number | null = null, baseSeconds: number | null = null): GameSummary {
   const mine = moves.filter((m) => m.cpAfter !== null);
   const lossOf = (m: SummaryMove) => Math.max(0, clamp(m.cpBefore) - clamp(m.cpAfter!));
   const drop = (m: SummaryMove) => chances(m.cpBefore) - chances(m.cpAfter!);
@@ -1635,7 +1643,41 @@ export function gameSummary(moves: SummaryMove[], result: string, phaseOf: (ply:
   const byPhase = phases.map((p) => ({ name: p.name, n: mine.filter((m) => phaseOf(m.ply, m.fenBefore) === p.name && lossOf(m) >= 150).length }))
     .sort((a, b) => b.n - a.n)[0];
   if (byPhase && byPhase.n >= 2 && takeaways.length < 2) takeaways.push(`Most of your mistakes came in the ${byPhase.name.toLowerCase()} — that's the part of your game to work on.`);
-  return { praise: whatWentWell(mine, result), verdict, phases, takeaways: takeaways.slice(0, 2) };
+  return { praise: whatWentWell(mine, result), verdict, phases, takeaways: takeaways.slice(0, 2), clock: clockNotes(mine, lossOf, baseSeconds) };
+}
+
+const secs = (s: number) => (s < 60 ? `${Math.round(s)}s` : clockText(s));
+
+/** Your mistakes and the clock: ones played much quicker than you usually move while time was there
+ *  (rushed), and ones made with the clock nearly gone (time trouble — a different lesson). Says nothing
+ *  without clock data, so no time claim is ever made up. */
+export function clockNotes(mine: SummaryMove[], lossOf: (m: SummaryMove) => number, baseSeconds: number | null): string[] {
+  const timed = mine.filter((m) => m.spent != null && m.left != null);
+  if (baseSeconds === null || timed.length < 10) return [];
+  const thinking = timed.filter((m) => m.ply >= 16);                     // past the opening's quick book moves
+  const pool = (thinking.length >= 5 ? thinking : timed).map((m) => m.spent!).sort((a, b) => a - b);
+  const typical = pool[Math.floor(pool.length / 2)];
+  const low = Math.max(20, baseSeconds * 0.1);
+  const errs = timed.filter((m) => lossOf(m) >= 150);
+  const label = (m: SummaryMove) => `${moveNo(m.ply)}${m.san}`;
+  const out: string[] = [];
+  // half your usual time or less, past the opening (quick book moves there are memory, not haste)
+  const rushed = errs.filter((m) => m.ply >= 16 && m.left! >= low && m.spent! <= typical * 0.5);
+  if (rushed.length) {
+    const which = rushed.length === errs.length ? (errs.length === 1 ? 'Your mistake' : `All ${errs.length} of your mistakes`)
+      : `${rushed.length} of your ${errs.length} mistakes`;
+    const named = rushed.slice(0, 3).map((m, k) => `${label(m)} (${secs(m.spent!)}${k === 0 ? `, with ${clockText(m.left!)} left` : ''})`);
+    out.push(`Too fast: ${which} came in a few seconds — ${list(named)}. You usually take about ${secs(typical)} a move, and the time was there. `
+      + 'Before any capture, check or move that leaves something undefended, take ten seconds for a blunder check: what does it leave hanging, and what are their checks and captures?');
+  }
+  const trouble = errs.filter((m) => m.left! < low);
+  if (trouble.length) {
+    const longest = [...timed].sort((a, b) => b.spent! - a.spent!)[0];
+    const named = trouble.slice(0, 3).map((m) => `${label(m)} (${clockText(m.left!)} left)`);
+    out.push(`Time trouble: ${list(named)} came with the clock nearly gone — that's the clock, not your chess.`
+      + (longest.spent! >= Math.max(30, baseSeconds * 0.1) && !trouble.includes(longest) ? ` Your longest think was ${secs(longest.spent!)} on ${label(longest)}; budget your time so the big moments don't arrive with an empty clock.` : ' Budget your time so the big moments don\'t arrive with an empty clock.'));
+  }
+  return out;
 }
 
 /** Up to three things that went well, about the chess itself — not a count of good moves. */
@@ -1788,6 +1830,72 @@ const LINE_MAX = 10;                   // … carried on while the last move was
 
 /** What a line changes, read at a quiet moment (not in the middle of a trade). cp: the evaluation at the
  *  end of the line, your point of view — a material gain is only claimed when it backs it. */
+const PROMOTED: Record<string, string> = { q: 'queen', r: 'rook', b: 'bishop', n: 'knight' };
+
+/** A forced line talked through move by move, the way a coach walks a tactic at the board: what each
+ *  of the mover's moves does, why the reply is the one they have to play, and what's left at the end —
+ *  "30.Nc7+ forks the king and the rook on a8. The king has to move (30...Kd8), and 31.Nxa8 takes the
+ *  rook — you come out a rook up." Each move keeps its number, so it still gets its arrow. */
+export function walkThrough(fen: string, line: string[], gains: LineChange[], me: Color | null = null): string {
+  const b = Board.fromFen(fen);
+  const mover = b.turn;
+  const [they, their] = me !== null && me !== mover ? ['you', 'your'] : ['they', 'the'];   // who answers
+  const clauses: string[] = [];
+  let mated = false;
+  let took = false;                      // the mover's last move was a capture (so the reply can take back)
+  for (const [k, m] of line.entries()) {
+    if (!b.isLegal(m)) break;
+    const n = b.fullmoveNumber;
+    const san = b.turn === 'white' ? `${n}.${b.san(m)}` : `${n}...${b.san(m)}`;
+    const to = parse(m.slice(2, 4));
+    if (b.turn === mover) {
+      took = b.isCapture(m);
+      const why = moveReasons(b, m);
+      const taken = b.pieceAt(to) ?? (b.isEnPassant(m) ? { role: 'pawn' as Role } : undefined);
+      const pick = (re: RegExp) => why.find((r) => re.test(r));
+      let what: string;
+      if (why[0] === 'mates') { what = 'is mate'; mated = true; }
+      else if (pick(/^gives double check/)) what = 'is double check';
+      else if (pick(/^gives a discovered check/)) what = `is ${pick(/^gives a discovered check/)!.replace(/^gives /, '')}`;
+      else if (pick(/^forks/)) what = `${taken ? `takes the ${taken.role} and ` : ''}${pick(/^forks/)}`;
+      else if (pick(/^removes the only defender/)) what = `${taken ? `takes the ${taken.role} and ` : ''}${pick(/^removes/)}`;
+      else if (pick(/^uncovers/)) what = pick(/^uncovers/)!;
+      else if (pick(/^traps/)) what = pick(/^traps/)!;
+      else if (taken) what = `takes the ${taken.role}${b.givesCheck(m) ? ' with check' : ''}`;
+      else if (b.givesCheck(m)) what = 'is check';
+      else if (m.length === 5) what = `promotes to a ${PROMOTED[m[4]]}`;
+      else what = why.find((r) => !/^(develops|brings the knight|takes space)/.test(r)) ?? '';
+      clauses.push(what ? `${san} ${what}` : k === 0 ? san : `then ${san}`);
+    } else {
+      // the reply: why it's the one they have to play
+      const checked = b.isCheck();
+      const only = b.legalMoves().length === 1;
+      const piece = b.pieceAt(parse(m.slice(0, 2)))!;
+      const prev = line[k - 1];
+      let reply: string;
+      if (prev && m.slice(2, 4) === prev.slice(2, 4) && b.isCapture(m) && took) reply = `${they} take back (${san})`;
+      else if (only) reply = `${checked ? 'the only way out is' : 'the only move is'} ${san}`;
+      else if (checked && piece.role === 'king') reply = `${their} king has to ${b.isCapture(m) ? 'take' : 'move'} (${san})`;
+      else if (checked && !b.isCapture(m)) reply = `${they} have to block (${san})`;
+      else if (b.isCapture(m)) reply = `${they} take the ${b.pieceAt(to)?.role ?? 'pawn'} (${san})`;
+      else reply = `${they} play ${san}`;
+      clauses.push(reply);
+    }
+    b.push(m);
+  }
+  // mover's move, then "reply, and next move", and so on
+  let text = '';
+  for (const [k, c] of clauses.entries()) {
+    if (k === 0) text = c;
+    else if (k % 2 === 1) text += `. ${c[0].toUpperCase()}${c.slice(1)}`;
+    else text += `, and ${c}`;
+  }
+  const g = gains[0];
+  const won = g && g.kind === 'material' && g.forMe === true && /^you win (.+)$/.exec(g.text);
+  const end = mated ? '' : won && !/points/.test(won[1]) ? `you come out ${won[1].replace(/^the queen$/, 'a queen')} up` : list(gains.map((x) => x.text));
+  return `${text}${end ? ` — ${end}` : ''}.`;
+}
+
 export function lineOutcome(fen: string, line: string[], me: Color, cp: number | null = null): LineOutcome {
   const start = Board.fromFen(fen);
   const b = start.copy();

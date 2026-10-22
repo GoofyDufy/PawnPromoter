@@ -10,7 +10,7 @@
 import { MATE_CP, MIN_CHANCES_LOST, winChances } from '../core/analyzer';
 import { phase } from '../core/stats';
 import { Board, type Color } from '../core/chess';
-import { captures, clocksAt } from '../core/boardSides';
+import { captures, clocksAt, secondsSpent } from '../core/boardSides';
 import type { SideView } from './PlayerStrip';
 import type { Engine } from '../core/engine';
 import { pySigned } from '../core/format';
@@ -519,13 +519,15 @@ export class ReviewController {
     const g = this.game;
     if (!g || !this.summaryOn) return null;
     if (this.summaryCache?.gameId === g.id) return this.summaryCache.summary;
+    const spent = g.clocks ? secondsSpent(g.clocks, g.baseSeconds, g.increment ?? 0) : [];
     const moves: coach.SummaryMove[] = Object.entries(g.evals).map(([p, ev]) => {
       const ply = Number(p);
       return { ply, fenBefore: ev.fen_before, san: g.sans[ply], move: g.ucis[ply], cpBefore: ev.cp_before, cpAfter: ev.cp_after,
-        only: this.only(ply), amazing: !!g.amazing[ply], theirSan: ply > 0 ? g.sans[ply - 1] : undefined };
+        only: this.only(ply), amazing: !!g.amazing[ply], theirSan: ply > 0 ? g.sans[ply - 1] : undefined,
+        spent: spent[ply] ?? null, left: g.clocks?.[ply] ?? null };
     }).sort((a, b) => a.ply - b.ply);
     const left = g.prep && g.prep.reason === 'you' ? g.prep.departure : null;
-    const summary = coach.gameSummary(moves, g.result, phase, left);
+    const summary = coach.gameSummary(moves, g.result, phase, left, g.baseSeconds ?? null);
     this.summaryCache = { gameId: g.id, summary };
     return summary;
   }

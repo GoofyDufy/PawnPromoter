@@ -343,6 +343,7 @@ export function ReviewScreen({ r, client, onOpenPuzzle, onPuzzlesChanged }: {
                         </p>
                       ))}
                       {sum.takeaways.length > 0 && <ul className="summary-takeaways">{sum.takeaways.map((t) => <li key={t}>{t}</li>)}</ul>}
+                      {sum.clock.map((t) => <p key={t} className="summary-phase"><strong>⏱ Clock:</strong> {t}</p>)}
                     </div>
                   );
                 })()}

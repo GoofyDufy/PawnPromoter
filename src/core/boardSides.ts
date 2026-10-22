@@ -62,3 +62,18 @@ export function baseSecondsOf(timeControl: string | null | undefined): number | 
   const m = /^(\d+)(?:\+\d+)?$/.exec(timeControl ?? '');
   return m ? parseInt(m[1], 10) : null;
 }
+
+/** The increment of a "base+increment" time control, in seconds (0 when there is none). */
+export function incrementOf(timeControl: string | null | undefined): number {
+  const m = /^\d+\+(\d+)$/.exec(timeControl ?? '');
+  return m ? parseInt(m[1], 10) : 0;
+}
+
+/** Seconds each move took: the mover's clock before it, less the clock after, plus the increment
+ *  ([%clk] already includes it). null where either clock is missing. */
+export function secondsSpent(clocks: (number | null)[], baseSeconds: number | null, increment: number): (number | null)[] {
+  return clocks.map((c, ply) => {
+    const prev = ply >= 2 ? clocks[ply - 2] : baseSeconds;
+    return c === null || prev === null ? null : Math.max(0, prev - c + increment);
+  });
+}

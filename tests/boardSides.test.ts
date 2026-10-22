@@ -1,6 +1,6 @@
 // The strips beside the board: captured pieces, material lead, and each side's clock at a move.
 import { describe, expect, it } from 'vitest';
-import { baseSecondsOf, captures, clockText, clocksAt } from '../src/core/boardSides';
+import { baseSecondsOf, captures, clockText, clocksAt, incrementOf, secondsSpent } from '../src/core/boardSides';
 
 describe('captures', () => {
   it('nothing at the start', () => {
@@ -51,5 +51,13 @@ describe('clocks', () => {
     expect(clockText(3725)).toBe('1:02:05');
     expect(baseSecondsOf('180+2')).toBe(180);
     expect(baseSecondsOf('1/259200')).toBe(null);
+  });
+});
+
+describe('time per move', () => {
+  it('the clock before, less the clock after, plus the increment', () => {
+    expect(incrementOf('180+2')).toBe(2);
+    expect(incrementOf('600')).toBe(0);
+    expect(secondsSpent([178, 179, 170, null, 171], 180, 2)).toEqual([4, 3, 10, null, 1]);
   });
 });

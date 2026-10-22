@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { Board } from '../src/core/chess';
 import * as coach from '../src/core/coach';
 import type { SolutionFacts } from '../src/core/explain';
+import { refsIn } from '../src/ui/SquareText';
 
 const sq = (s: string) => s.charCodeAt(0) - 97 + 8 * (s.charCodeAt(1) - 49);
 const board = (fen: string) => Board.fromFen(fen);
@@ -212,6 +213,38 @@ describe('the game summary', () => {
   });
 });
 
+describe('the game summary and the clock', () => {
+  const phaseOf = () => 'Middlegame';
+  // a 3+2 game: you usually take ~8s; spent/left per move
+  const game = (special: Record<number, [number, number, number]>) => Array.from({ length: 20 }, (_, k) => {
+    const ply = 20 + 2 * k;
+    const [after, spent, left] = special[ply] ?? [30, 8, 150 - k * 2];
+    return { ply, fenBefore: '', san: `m${ply}`, cpBefore: 30, cpAfter: after, spent, left };
+  });
+
+  it('a mistake played in a couple of seconds, with time on the clock', () => {
+    const s = coach.gameSummary(game({ 30: [-300, 2, 140] }), 'loss', phaseOf, null, 180);
+    expect(s.clock).toHaveLength(1);
+    expect(s.clock[0]).toMatch(/^Too fast: Your mistake came in a few seconds — 16\.m30 \(2s, with 2:20 left\)\. You usually take about 8s a move/);
+  });
+
+  it('a mistake you thought about is not called rushed', () => {
+    expect(coach.gameSummary(game({ 30: [-300, 25, 140] }), 'loss', phaseOf, null, 180).clock).toEqual([]);
+  });
+
+  it('a mistake with the clock nearly gone is time trouble instead', () => {
+    const s = coach.gameSummary(game({ 24: [30, 70, 100], 50: [-300, 2, 9] }), 'loss', phaseOf, null, 180);
+    expect(s.clock).toHaveLength(1);
+    expect(s.clock[0]).toMatch(/^Time trouble: 26\.m50 \(0:09\.0 left\) came with the clock nearly gone.*Your longest think was 1:10 on 13\.m24/);
+  });
+
+  it('no clock data, no clock claim', () => {
+    const plain = game({ 30: [-300, 2, 140] }).map((m) => ({ ...m, spent: null, left: null }));
+    expect(coach.gameSummary(plain, 'loss', phaseOf, null, 180).clock).toEqual([]);
+    expect(coach.gameSummary(game({ 30: [-300, 2, 140] }), 'loss', phaseOf, null, null).clock).toEqual([]);
+  });
+});
+
 describe('more of a strong player\'s checklist', () => {
   const text = (ideas: coach.Ideas) => [ideas.summary, ...ideas.key, ...ideas.sections.flatMap((s) => [s.title, ...s.points])].join('\n');
 
@@ -401,7 +434,10 @@ describe('why the best move works: the payoff of its line', () => {
   it('the decision, then the plan and its payoff, lead the key ideas', () => {
     const ideas = coach.positionIdeas({ fen: fork, me: 'white', cp: 500, alternatives: [{ move: 'b5c7', cp: 500, line: ['b5c7', 'e8d8', 'c7a8'] }] });
     expect(ideas.key[0]).toMatch(/^Your best move here is Nc7\+ — it forks the king and the rook on a8/);
-    expect(ideas.key[1]).toBe('Your plan: win material. It\'s forced: after 30.Nc7+ Kd8 31.Nxa8, you win a rook.');
+    expect(ideas.key[1]).toBe('Your plan: win material, and it\'s forced: 30.Nc7+ forks the king and the rook on a8. '
+      + 'The king has to move (30...Kd8), and 31.Nxa8 takes the rook — you come out a rook up.');
+    // every move of the walk-through gets its arrow, prose between them or not
+    expect(refsIn(ideas.key[1], fork).filter((r) => r.arrow).map((r) => `${r.arrow!.from}${r.arrow!.to}`)).toEqual(['b5c7', 'e8d8', 'c7a8']);
     expect(ideas.key.length).toBeLessThanOrEqual(3);
     expect(coach.planOf(coach.lineOutcome(fork, ['b5c7', 'e8d8', 'c7a8'], 'white', 500).changes, true)).toBe('win material');
   });
@@ -598,6 +634,29 @@ describe('more tactical motifs (the concept library)', () => {
 
   it('trapping a piece: taking a defended pawn is no escape', () => {
     expect(why('7k/8/4N3/b1P5/8/P7/1P6/6K1 w - - 0 1', 'b2b4')).toContain('traps the bishop on a5');
+  });
+});
+
+describe('a forced line, talked through', () => {
+  const fork = 'r3k3/8/8/1N6/8/8/8/4K3 w - - 0 30';
+  const gains = (me: 'white' | 'black') => coach.lineOutcome(fork, ['b5c7', 'e8d8', 'c7a8'], me, me === 'white' ? 500 : -500).changes;
+
+  it('your tactic: what each move does and why the reply is forced', () => {
+    expect(coach.walkThrough(fork, ['b5c7', 'e8d8', 'c7a8'], gains('white'), 'white'))
+      .toBe('30.Nc7+ forks the king and the rook on a8. The king has to move (30...Kd8), and 31.Nxa8 takes the rook — you come out a rook up.');
+  });
+
+  it('their tactic: the replies are yours', () => {
+    expect(coach.walkThrough(fork, ['b5c7', 'e8d8', 'c7a8'], gains('black'), 'black'))
+      .toBe('30.Nc7+ forks the king and the rook on a8. Your king has to move (30...Kd8), and 31.Nxa8 takes the rook — your opponent wins a rook.');
+  });
+
+  it('a recapture, then mate (and nothing after the mate)', () => {
+    // 1.Rxe8+ Qxe8 2.Rxe8#: a back-rank mate after the trade
+    const back = '3qr1k1/5ppp/8/8/8/8/4RPPP/4R1K1 w - - 0 1';
+    const line = ['e2e8', 'd8e8', 'e1e8'];
+    expect(coach.walkThrough(back, line, coach.lineOutcome(back, line, 'white').changes, 'white'))
+      .toBe('1.Rxe8+ takes the rook and forks the king and the queen on d8. They take back (1...Qxe8), and 2.Rxe8# is mate.');
   });
 });
 

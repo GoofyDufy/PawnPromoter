@@ -74,7 +74,8 @@ export function refsIn(text: string, fen?: string | null): Ref[] {
       const moveLike = /[KQRBNx=+#]/.test(tok) || numbered;
       const continues = line !== null && /^[\s\d.…]*$/.test(text.slice(lineEnd, at));
       if (moveLike || !PLACE.test(before)) {
-        if (continues) uci = tryMove(line, tok);
+        // the line being read, first: right after its last move, or any move of it named later on
+        if (continues || (line !== null && moveLike)) uci = tryMove(line, tok);
         if (!uci) {
           // from the position on the board: the side to move first, unless it's marked as Black's move
           const order = blackMarked ? [base, other].filter((b) => b?.turn === 'black') : [base, other];
