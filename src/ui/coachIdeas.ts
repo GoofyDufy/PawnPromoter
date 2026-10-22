@@ -7,7 +7,7 @@ import { scoreToCp } from '../core/analyzer';
 import { Board, type Color } from '../core/chess';
 import * as coach from '../core/coach';
 import { pawnEndingTrades } from '../core/endgame';
-import type { Engine } from '../core/engine';
+import type { Engine, InfoLine } from '../core/engine';
 import type { DbClient } from '../data/client';
 
 const PLAN_DEPTH = 12;                           // Stockfish's plan for the position
@@ -15,6 +15,29 @@ const THREAT_DEPTH = 10;                         // what their last move threate
 const TOP_MOVES = 3;                             // Stockfish's choices the Coach explains
 const STILL_WORKS = 50;
 const MAX_TRADES = 2;                            // captures into a pawn ending the engine checks                          // a threat the best move leaves standing costs less than this
+const DEEP_DEPTH = 18;                           // the deep coach: Stockfish's good lines, read further
+const DEEP_TIME = 20;                            // … but never longer than this (seconds) on a slow device
+
+// The deep coach, on or off: per device (it costs time), shared by every screen's Ideas
+const DEEP_KEY = 'pawnpromoter.deepCoach';
+const deepListeners = new Set<() => void>();
+
+export function deepCoach(): boolean {
+  try { return localStorage.getItem(DEEP_KEY) === '1'; } catch { return false; }
+}
+
+export function setDeepCoach(on: boolean): void {
+  try { localStorage.setItem(DEEP_KEY, on ? '1' : '0'); } catch { /* this session only */ }
+  for (const f of deepListeners) f();
+}
+
+/** Calls f when the deep coach is switched; returns the unsubscribe. */
+export function onDeepCoach(f: () => void): () => void {
+  deepListeners.add(f);
+  return () => deepListeners.delete(f);
+}
+
+type Stoppable = { stoppable(board: Board, limit: { depth?: number; time?: number }, multipv?: number): { result: Promise<InfoLine[]>; stop: () => void } };
 
 /** The position before the board's last move, if it has one (its move history). */
 export function beforeLast(board: Board): string | undefined {
@@ -55,6 +78,9 @@ export class CoachIdeas {
   private cache = new Map<string, coach.Ideas>();
   private token: object | null = null;
   private last: IdeasPosition | null = null;
+  /** The deep coach is reading Stockfish's lines for the position shown. */
+  deepPending = false;
+  private stopDeep: (() => void) | null = null;
 
   /** settingKey: where on / off is remembered. engine: null = the board's ideas only. */
   constructor(
@@ -62,7 +88,9 @@ export class CoachIdeas {
     private readonly settingKey: string,
     private readonly engine: Engine | null,
     private readonly onChange: () => void,
-  ) {}
+  ) {
+    onDeepCoach(() => { if (this.on && this.last) void this.explain(this.last).then(() => this.onChange()); });
+  }
 
   async load(): Promise<void> {
     const s = await this.client.service('getSettings', [this.settingKey]);
@@ -82,11 +110,15 @@ export class CoachIdeas {
   async explain(pos: IdeasPosition | null): Promise<void> {
     this.last = pos;
     this.token = null;
+    this.stopDeep?.();                           // the position changed: the deep search for the last one is off
+    this.stopDeep = null;
+    this.deepPending = false;
     if (!this.on || !pos) {
       this.ideas = null;
       return;
     }
-    const key = `${pos.fen}|${pos.before ?? ''}|${pos.me}|${pos.theirMove ?? ''}|${pos.bestLine?.[0] ?? ''}|${pos.alternatives?.map((a) => a.move).join(',') ?? ''}`;
+    const deep = deepCoach();
+    const key = `${deep ? 'deep|' : ''}${pos.fen}|${pos.before ?? ''}|${pos.me}|${pos.theirMove ?? ''}|${pos.bestLine?.[0] ?? ''}|${pos.alternatives?.map((a) => a.move).join(',') ?? ''}`;
     const cached = this.cache.get(key);
     if (cached) {
       this.ideas = cached;
@@ -150,9 +182,37 @@ export class CoachIdeas {
       }
     }
     if (token !== this.token) return;            // moved on meanwhile
-    const full = coach.positionIdeas({ fen: pos.fen, me: pos.me, cp, bestLine, alternatives, theirMove, threat, prevents, before: pos.before, recapture: pos.recapture, pawnTrades });
-    this.cache.set(key, full);
+    const input = { fen: pos.fen, me: pos.me, cp, bestLine, alternatives, theirMove, threat, prevents, before: pos.before, recapture: pos.recapture, pawnTrades };
+    const full = coach.positionIdeas(input);
     this.ideas = full;
+    const engine = this.engine as (Engine & Partial<Stoppable>) | null;
+    if (!deep || !engine?.stoppable || board.isGameOver()) {
+      this.cache.set(key, full);
+      this.onChange();
+      return;
+    }
+    // the deep coach: the quick ideas now, then Stockfish's top lines at depth 18, read for the plan they share
+    this.deepPending = true;
+    this.onChange();
+    const search = engine.stoppable(board, { depth: DEEP_DEPTH, time: DEEP_TIME }, TOP_MOVES);
+    this.stopDeep = search.stop;
+    let lines: InfoLine[] = [];
+    try {
+      lines = (await search.result).filter((l) => l.pv.length);
+    } catch {
+      lines = [];
+    }
+    if (token !== this.token) return;
+    this.deepPending = false;
+    this.stopDeep = null;
+    if (lines.length && (lines[0].depth ?? 0) >= 14) {           // (cut short by the time cap: still deeper than the quick pass)
+      const deepLines = lines.map((l) => ({ line: l.pv, cp: scoreToCp(l.score, pos.me) }));
+      const plan = coach.deepPlan(pos.fen, deepLines, pos.me);
+      const deeper = coach.positionIdeas({ ...input, cp: deepLines[0].cp ?? cp, bestLine: lines[0].pv,
+        alternatives: deepLines.map((l) => ({ move: l.line[0], cp: l.cp, line: l.line })), deep: plan });
+      this.cache.set(key, deeper);
+      this.ideas = deeper;
+    }
     this.onChange();
   }
 }

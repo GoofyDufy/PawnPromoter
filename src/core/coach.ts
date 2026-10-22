@@ -745,6 +745,8 @@ export interface IdeasInput {
   recapture?: boolean;
   /** Captures that trade into a pawn ending, with Stockfish's score for each (your point of view). */
   pawnTrades?: { move: string; cp: number | null }[];
+  /** The deep coach's plan (deepPlan): what Stockfish's good lines share, read deeper. */
+  deep?: string | null;
 }
 
 /** One thing the Coach could say about a position: which rule said it, and how much it matters
@@ -802,7 +804,7 @@ const FRESH_BONUS = 15;                // something the last move changed counts
 // points about what a move did, not the position: never "new"
 // (and advice that hangs on the evaluation, or wording that shifts every move like the pawn breaks)
 const NOT_FRESH = new Set(['criteria', 'stockfish', 'payoff', 'last-move', 'no-threat', 'threat', 'flank-centre', 'holes-left',
-  'compensation', 'not-winning', 'up-trade', 'down-keep', 'breaks', 'breaks-theirs']);
+  'compensation', 'not-winning', 'up-trade', 'down-keep', 'breaks', 'breaks-theirs', 'deep-plan']);
 // what matters more (or less) by the stage of the game
 const PHASE_SHIFT: Record<'opening' | 'endgame', Record<string, number>> = {
   opening: { development: 10, 'development-them': 10, 'king-centre': 10, 'king-centre-theirs': 10, 'flank-centre': 5,
@@ -824,8 +826,6 @@ const SECTION_MAX = 5;                 // points per section, most important fir
 
 /** The ideas of a position: the situation, the plans, the pieces, the kings and weaknesses,
  *  and what Stockfish wants — "you" being `me`. The most important few come first as key ideas. */
-const PAWNS: Record<Role, number> = { pawn: 1, knight: 3, bishop: 3, rook: 5, queen: 9, king: 0 };
-
 /** What a threat would get them, in board terms: the material that changes hands in Stockfish's line
  *  (the piece it takes, when that's the whole story), not the engine's swing, which also counts how much
  *  worse the position gets. Without material changing hands, the swing is named as what it is. */
@@ -839,7 +839,7 @@ function threatGain(passed: Board | null, threat: { move: string; gain: number; 
       // (the same stretch of the line the outcome read)
       const net = material(lineEnd(passed, line.slice(0, outcome.line.split(' ').length)), them) - material(passed, them);
       const taken = passed.pieceAt(parse(threat.move.slice(2, 4)));
-      if (taken && taken.color === me && net === PAWNS[taken.role]) return `, which wins your ${taken.role}`;
+      if (taken && taken.color === me && net === VALUE[taken.role]) return `, which wins your ${taken.role}`;
       if (net > 0) return `, which would win ${materialWords(net)}`;
     }
   }
@@ -1291,6 +1291,8 @@ export function positionIdeas(i: IdeasInput): Ideas {
     } else if (stops) {
       add('payoff', 70, `${sans[0]} is mainly a defensive move: it stops ${stops}.`);
     }
+    // the deep coach: the plan Stockfish's good lines share, read further than the payoff
+    if (i.deep) add('deep-plan', 78, i.deep);
   }
 
   // what the last move changed comes first; the stage of the game shifts what matters
@@ -1322,7 +1324,10 @@ export function positionIdeas(i: IdeasInput): Ideas {
     take(pick('threat'));
     take(pick('stockfish'));
     for (const p of points.filter((x) => CONCRETE.has(x.rule) && x.weight >= 75).sort((a, b) => b.weight - a.weight)) take(p);
-    take(pick('payoff'));
+    // a forced line is the point; otherwise the deep plan (when there is one) says the plan better
+    const payoff = pick('payoff');
+    if (payoff && /it's forced/.test(payoff.text)) take(payoff);
+    take(pick('deep-plan') ?? payoff);
     const fact = points.filter((p) => !used.has(p) && !NOT_KEY.has(p.rule) && p.weight >= KEY_MIN && grounded(p))
       .sort((a, b) => b.weight - a.weight)[0];
     take(fact);
@@ -2025,6 +2030,169 @@ const PLAN_WORDS: Record<ChangeKind, string> = {
   weakness: 'leave their pawns weak', outpost: 'plant a knight on an outpost', rook: 'take the open lines with the rooks',
   activity: 'activate the pieces', development: 'finish developing', trade: 'trade down while ahead', castle: 'get the king safe',
 };
+
+// ---------- the deep coach: the plan Stockfish's good lines share ----------
+
+/** How far the deep coach reads each line (half-moves), and how close to the best a line must score to count. */
+export const DEEP_PLIES = 16;
+const DEEP_GOOD = 60;
+const DEEP_WINGS = ['queenside', 'centre', 'kingside'] as const;
+const wingOf = (f: number) => (f <= 2 ? 0 : f <= 4 ? 1 : 2);
+const LONG_DIAGONALS = [[0, 9, 18, 27, 36, 45, 54, 63], [7, 14, 21, 28, 35, 42, 49, 56]];
+
+/** One change a line makes, keyed so the same idea in different lines (different move orders) matches. */
+interface DeepChange { key: string; weight: number; ply: number; text: string }
+
+/** A knight's route as said aloud: loops cut out (f4–d5–f4 is just f4), at most four squares, else just the two ends. */
+function routeOf(squares: Square[]): string {
+  const out: Square[] = [];
+  for (const sq of squares) {
+    const seen = out.indexOf(sq);
+    if (seen >= 0) out.length = seen + 1;
+    else out.push(sq);
+  }
+  return (out.length <= 4 ? out : [out[0], out[out.length - 1]]).map(name).join('–');
+}
+
+const squaresWord = (n: number) => (n === 0 ? 'no squares' : n === 1 ? '1 square' : `${n} squares`);
+
+/** Squares a piece reaches, not counting its own side's pieces. */
+const reach = (b: Board, sq: Square, c: Color) => b.attacks(sq).filter((t) => b.pieceAt(t)?.color !== c).length;
+
+/** Plays a line (up to DEEP_PLIES), following each piece by where it started, and lists the positional
+ *  changes for the side to move: pieces that come alive (and where), enemy pieces shut out, pawns
+ *  pushed on a wing, and the pawn break. null when the line is about material (that's a tactic). */
+function deepChanges(fen: string, line: string[], mine: (c: Color) => string): DeepChange[] | null {
+  const start = Board.fromFen(fen);
+  const mover = start.turn;
+  const b = start.copy();
+  const at = new Map<Square, Square>();                 // where each piece is now -> where it started
+  for (const sq of b.pieceMap().keys()) at.set(sq, sq);
+  const path = new Map<Square, Square[]>();             // a piece's squares along the line (by start square)
+  const firstPly = new Map<Square, number>();           // when a piece first moved
+  let breakMove: { key: string; text: string; ply: number } | null = null;
+  let castled: { ply: number; rook: Square } | null = null;
+  let breakPawn: Square | null = null;                  // (the break isn't a pawn push as well)
+  for (const [ply, m] of line.slice(0, DEEP_PLIES).entries()) {
+    if (!b.isLegal(m)) break;
+    const from = parse(m.slice(0, 2));
+    const to = parse(m.slice(2, 4));
+    const piece = b.pieceAt(from)!;
+    const id = at.get(from)!;
+    // a pawn break: the side's first pawn move that captures a pawn or lands where it hits one
+    if (piece.color === mover && piece.role === 'pawn' && !breakMove) {
+      const after = b.copy();
+      after.push(m);
+      const hits = after.attacks(to).some((t) => after.pieceAt(t)?.role === 'pawn' && after.pieceAt(t)?.color !== mover);
+      if ((b.isCapture(m) && b.pieceAt(to)?.role === 'pawn') || hits) {
+        const san = `${mover === 'black' ? '…' : ''}${name(to)}`;
+        breakMove = { key: `break:${name(to)}`, text: `the ${san} break`, ply };
+        breakPawn = id;
+      }
+    }
+    if (b.isCastling(m)) {
+      const kingside = file(to) > file(from) || file(to) === 7;
+      const r = kingside ? from + 3 : from - 4;
+      const rTo = kingside ? from + 1 : from - 1;
+      const kTo = kingside ? from + 2 : from - 2;
+      const rid = at.get(r)!;
+      if (piece.color === mover) castled = { ply, rook: rid };
+      at.delete(r); at.delete(from);
+      at.set(rTo, rid); at.set(kTo, id);
+    } else {
+      if (b.isEnPassant(m)) at.delete(to + (piece.color === 'white' ? -8 : 8));    // the pawn taken in passing
+      at.delete(from);
+      at.set(to, id);
+    }
+    if (!path.has(id)) path.set(id, [from]);
+    path.get(id)!.push(to);
+    if (!firstPly.has(id)) firstPly.set(id, ply);
+    b.push(m);
+  }
+  // material settles it: a line that wins or loses two pawns' worth is a tactic, not a plan
+  if (Math.abs(material(b, mover) - material(start, mover)) >= 2) return null;
+  const out: DeepChange[] = [];
+  const them = opposite(mover);
+  const openNow = openFiles(b);
+  for (const [now, id] of at) {
+    const p = b.pieceAt(now)!;
+    if (p.role === 'pawn' || p.role === 'king' || (p.role === 'queen' && p.color === mover) || id === castled?.rook) continue;
+    const before = reach(start, id, p.color);
+    const after = reach(b, now, p.color);
+    if (p.color === mover) {
+      if (after - before < 3 || after < before * 1.5) continue;
+      const where = p.role === 'bishop' && LONG_DIAGONALS.some((d) => d.includes(now)) ? ', on the long diagonal'
+        : p.role === 'rook' && relRank(now, mover) === 6 ? ', on the 7th rank'
+        : p.role === 'rook' && openNow.includes(file(now)) ? `, on the open ${fileName(file(now))}`
+        : p.role === 'knight' && isOutpost(b, now, mover) ? `, on an outpost on ${name(now)}` : '';
+      const moved = now !== id;
+      const route = p.role === 'knight' && moved ? routeOf(path.get(id) ?? []) : '';
+      const grows = `from ${squaresWord(before)} to ${after}${where}`;
+      const text = !moved ? `open up ${mine(mover)} ${p.role} on ${name(id)} (${grows})`
+        : route ? `reroute ${mine(mover)} knight ${route} (${grows})`
+        : `bring ${mine(mover)} ${p.role} from ${name(id)} to ${name(now)} (${grows})`;
+      out.push({ key: `act:${name(id)}`, weight: after - before, ply: firstPly.get(id) ?? 0, text });
+    } else if (before - after >= 3 && after <= 2) {
+      out.push({ key: `shut:${name(id)}`, weight: before - after, ply: DEEP_PLIES, text: `shut ${mine(them)} ${p.role} on ${name(id)} out of play (down to ${squaresWord(after)})` });
+    }
+  }
+  // pawns pushed on one wing (two squares or more between them, without a break being the point)
+  const pushed = [0, 0, 0];
+  const pawnsMoved: string[][] = [[], [], []];
+  const pawnFiles: string[][] = [[], [], []];
+  let pushPly = DEEP_PLIES;
+  for (const [now, id] of at) {
+    const p = b.pieceAt(now)!;
+    if (p.role !== 'pawn' || p.color !== mover || now === id || id === breakPawn) continue;
+    const w = wingOf(file(id));
+    pushed[w] += relRank(now, mover) - relRank(id, mover);
+    pawnsMoved[w].push(name(now));
+    pawnFiles[w].push('abcdefgh'[file(id)]);
+    pushPly = Math.min(pushPly, firstPly.get(id) ?? DEEP_PLIES);
+  }
+  for (const w of [0, 2]) {
+    if (pushed[w] < 2) continue;
+    const files = [...new Set(pawnFiles[w])].sort();
+    const which = files.length === 1 ? `the ${files[0]}-pawn` : files.length === 2 ? `the ${files[0]}- and ${files[1]}-pawns` : `the ${DEEP_WINGS[w]} pawns`;
+    out.push({ key: `pawns:${DEEP_WINGS[w]}`, weight: pushed[w] + 2, ply: pushPly, text: `push ${which} (to ${and(pawnsMoved[w].sort())})` });
+  }
+  if (breakMove) out.push({ key: breakMove.key, weight: 6, ply: breakMove.ply, text: `go for ${breakMove.text}` });
+  if (castled && !castledLike(start, mover)) out.push({ key: 'castle', weight: 5, ply: castled.ply, text: 'castle' });
+  return out;
+}
+
+export interface DeepLine { line: string[]; cp: number | null }
+
+/** The plan Stockfish's good lines share (deep coach): the changes most of them make, in the order they
+ *  come, as one sentence. me: whose side "you" is; cp: your point of view. null when they share nothing,
+ *  or when the lines are about winning material. */
+export function deepPlan(fen: string, lines: DeepLine[], me: Color): string | null {
+  const mover = Board.fromFen(fen).turn;
+  const pov = (cp: number | null) => (cp === null ? null : mover === me ? cp : -cp);
+  const best = pov(lines[0]?.cp ?? null);
+  const good = lines.filter((l) => l.line.length >= 8 && (best === null || (pov(l.cp) ?? -Infinity) >= best - DEEP_GOOD)).slice(0, 3);
+  if (!good.length) return null;
+  const mine = (c: Color) => (c === me ? 'your' : 'their');
+  const per = good.map((l) => deepChanges(fen, l.line, mine));
+  if (per.filter((x) => x === null).length * 2 >= per.length) return null;
+  const counted = new Map<string, { n: number; weight: number; ply: number; text: string }>();
+  for (const changes of per) {
+    for (const c of changes ?? []) {
+      const e = counted.get(c.key);
+      if (e) { e.n += 1; e.weight += c.weight; e.ply = Math.min(e.ply, c.ply); }
+      else counted.set(c.key, { n: 1, weight: c.weight, ply: c.ply, text: c.text });
+    }
+  }
+  const need = good.length === 1 ? 1 : 2;
+  const shared = [...counted.values()].filter((e) => e.n >= need).sort((x, y) => y.weight - x.weight).slice(0, 2)
+    .sort((x, y) => x.ply - y.ply);
+  if (!shared.length) return null;
+  const whose = mover === me ? 'The idea here' : 'Their idea';
+  const what = shared.length > 1 ? `${shared[0].text}, then ${shared[1].text}` : shared[0].text;
+  if (good.length === 1) return `${whose} (Stockfish's line): ${what}.`;
+  const all = shared.every((e) => e.n === good.length);
+  return `${whose}: ${what} — ${all ? 'every good line Stockfish finds does this' : "most of Stockfish's good lines do this"}.`;
+}
 
 /** The plan a line carries out, in a few words, from its biggest change for the side playing it. */
 export function planOf(changes: LineChange[], forMe: boolean): string | null {

@@ -488,6 +488,10 @@ export class ReviewController {
     return this.coachIdeas.on;
   }
 
+  get ideasDeepPending(): boolean {
+    return this.coachIdeas.deepPending;
+  }
+
   get ideas(): coach.Ideas | null {
     return this.coachIdeas.ideas;
   }

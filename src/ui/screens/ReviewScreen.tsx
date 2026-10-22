@@ -323,7 +323,7 @@ export function ReviewScreen({ r, client, onOpenPuzzle, onPuzzlesChanged }: {
             {r.detail && <p className="explanation">{r.detail}</p>}
             {r.why && <p className={`why ${r.why.startsWith('Working') ? 'note' : ''}`}><SquareText text={r.why} onSquares={setLit} fen={v.fen} /></p>}
             {g && (
-              <IdeasPanel ideas={{ on: r.ideasOn, ideas: r.ideas }} onToggle={(on) => void r.setIdeas(on)} onSquares={setLit} fen={v.fen}
+              <IdeasPanel ideas={{ on: r.ideasOn, ideas: r.ideas, deepPending: r.ideasDeepPending }} onToggle={(on) => void r.setIdeas(on)} onSquares={setLit} fen={v.fen}
                 extra={<button type="button" className={`chip summary-toggle${r.summaryOn ? ' on' : ''}`} aria-pressed={r.summaryOn}
                   onClick={() => r.toggleSummary()}>📋 {r.summaryOn ? 'Hide the summary' : 'Game summary'}</button>}>
                 {(() => {

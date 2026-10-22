@@ -40,6 +40,32 @@ export class SharedEngine implements Engine {
     return run;
   }
 
+  /** A long search that can be called off: stop() ends it early (it still resolves, with what it found so far)
+   *  if it's the search running, and drops it if it's still waiting its turn — never anyone else's search. */
+  stoppable(board: Board, limit: Limit, multipv?: number): { result: Promise<InfoLine[]>; stop: () => void } {
+    let state: 'waiting' | 'running' | 'done' | 'stopped' = 'waiting';
+    const result = this.queue.then(async () => {
+      if (state === 'stopped') return [];
+      if (this.closed) throw new NoStockfish('The app is closing.');
+      this.engine ??= this.start();
+      state = 'running';
+      try {
+        return await (await this.engine).analyse(board, limit, multipv);
+      } catch (e) {
+        this.engine = null;
+        throw e;
+      } finally {
+        state = 'done';
+      }
+    });
+    this.queue = result.catch(() => undefined);
+    const stop = () => {
+      if (state === 'running') void this.engine?.then((e) => (e as { stop?: () => void }).stop?.()).catch(() => undefined);
+      if (state === 'waiting' || state === 'running') state = 'stopped';
+    };
+    return { result, stop };
+  }
+
   /** A different engine from now on (e.g. a new strength): after the searches
    *  already queued, the running one is closed and the next search starts a new one. */
   restart(): void {

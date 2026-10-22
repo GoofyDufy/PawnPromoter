@@ -9,9 +9,10 @@
  * ("13.Nf3 Bd7"). A bare square after "on", "hits", "to"… is a place, not a
  * move ("a knight on d5"), and stays a highlight.
  */
-import { type ReactNode, useCallback, useEffect, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { Board } from '../core/chess';
 import type { Arrow } from './Board';
+import { deepCoach, onDeepCoach, setDeepCoach } from './coachIdeas';
 
 // a square, or a move ending on one ("d4", "Nxd4", "exd5", "Qh5+", "e8=Q"), not inside a word or a number
 const SQUARE = /(?<![A-Za-z0-9])(?:[KQRBN]?[a-h]?[1-8]?x?)([a-h][1-8])(?:=[QRBN])?[+#]?(?![A-Za-z0-9])/g;
@@ -151,7 +152,7 @@ function writeFlag(key: string, on: boolean): void {
 /** The 💡 Ideas toggle and, when on, the Coach's ideas for the position: the key few first, the
  *  rest folded under "More" (shared by the screens). */
 export function IdeasPanel({ ideas, onToggle, onSquares, fen, extra, children }: {
-  ideas: { on: boolean; ideas: { summary: string; key: string[]; sections: { title: string; points: string[] }[] } | null };
+  ideas: { on: boolean; ideas: { summary: string; key: string[]; sections: { title: string; points: string[] }[] } | null; deepPending?: boolean };
   onToggle: (on: boolean) => void;
   onSquares: OnFocus;
   /** The position the ideas are about: moves in them get arrows. */
@@ -167,6 +168,7 @@ export function IdeasPanel({ ideas, onToggle, onSquares, fen, extra, children }:
   const keyText = shown?.key.join('\n') ?? '';
   useEffect(() => { setRevealed(false); }, [keyText]);
   const hideKey = thinkFirst && !revealed && (shown?.key.length ?? 0) > 0;
+  const deep = useSyncExternalStore(onDeepCoach, deepCoach);
   return (
     <div className="coach-ideas">
       <div className="row coach-toggles">
@@ -177,9 +179,15 @@ export function IdeasPanel({ ideas, onToggle, onSquares, fen, extra, children }:
             title="Hide the key ideas until you've thought about the position yourself"
             onClick={() => { const v = !thinkFirst; setThinkFirst(v); writeFlag(THINK_FIRST, v); }}>🤔 Think first</button>
         )}
+        {ideas.on && (
+          <button type="button" className={`chip ideas-toggle${deep ? ' on' : ''}`} aria-pressed={deep}
+            title="Read Stockfish's top three lines deeper for the plan they share — slower: a few seconds per position"
+            onClick={() => setDeepCoach(!deep)}>🔭 Deep coach</button>
+        )}
         {extra}
       </div>
       {children}
+      {shown && ideas.deepPending && <p className="note deep-pending" role="status">🔭 Deep coach is reading Stockfish's lines…</p>}
       {shown && (<>
         <p className="ideas-summary"><SquareText text={shown.summary} onSquares={onSquares} fen={fen} /></p>
         {hideKey ? (
