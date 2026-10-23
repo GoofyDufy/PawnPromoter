@@ -8,7 +8,7 @@ const FILE = new URL('./golden/weak.json', import.meta.url);
 const golden = existsSync(FILE) ? JSON.parse(readFileSync(FILE, 'utf8')) : null;
 
 /** Added since the prototype: the hanging-pieces breakdown, its tags on each example, and 40 examples kept, not 20. */
-const NEW_KEYS = new Set(['breakdown', 'lost_piece', 'tactic', 'time_left']);
+const NEW_KEYS = new Set(['breakdown', 'lost_piece', 'tactic', 'time_left', 'rating', 'attacker', 'missed_tactics']);
 
 /** Every key and value equal; numbers within 0.051 (rounding at the last digit). */
 function diff(a: unknown, b: unknown, path = ''): string[] {

@@ -23,7 +23,7 @@ export function SampleLine({ games, moves }: { games: number; moves?: number }) 
   return <div className="stat-n">{plural(games, 'game')}{moves ? ` · ${moves.toLocaleString()} moves` : ''}</div>;
 }
 
-export function StatCard({ title, state, headline, unit, sub, games, moves, hidden, wide, children }: {
+export function StatCard({ title, state, headline, unit, sub, games, moves, hidden, wide, bench, children }: {
   title: string;
   state: State;
   headline: string;
@@ -34,6 +34,8 @@ export function StatCard({ title, state, headline, unit, sub, games, moves, hidd
   /** What a suppressed / insufficient card says instead of a number. */
   hidden?: string;
   wide?: boolean;
+  /** The Lichess comparison line (BenchLine), under the number. */
+  bench?: ReactNode;
   children?: ReactNode;
 }) {
   const noValue = state === 'suppressed' || state === 'insufficient_data';
@@ -45,6 +47,7 @@ export function StatCard({ title, state, headline, unit, sub, games, moves, hidd
         : <>
           <div className="stat-headline">{headline}{unit && <small>{unit}</small>}</div>
           {sub && <div className="stat-sub">{sub}</div>}
+          {bench}
         </>}
       {children}
       <SampleLine games={games} moves={moves} />
@@ -52,12 +55,15 @@ export function StatCard({ title, state, headline, unit, sub, games, moves, hidd
   );
 }
 
-export interface SplitRow { label: string; value: number | null; games: number; why?: string; /** shown instead of "N games" */ note?: string }
+export interface SplitRow { label: string; value: number | null; games: number; why?: string; /** shown instead of "N games" */ note?: string;
+  /** The Lichess average for this row (a grey tick). */ bench?: number | null }
 
 /** Bars for each segment; the black tick is your own overall rate, red bars are above it. */
-export function SplitBar({ rows, overall, unit, digits = 1 }: { rows: SplitRow[]; overall?: number | null; unit: string; digits?: number }) {
-  const values = rows.map((r) => r.value).filter((v): v is number => v != null);
+export function SplitBar({ rows, overall, unit, digits = 1, benchLabel }: { rows: SplitRow[]; overall?: number | null; unit: string; digits?: number;
+  /** What the grey ticks are ("Lichess 1700–1899"), when rows have a bench. */ benchLabel?: string }) {
+  const values = rows.flatMap((r) => [r.value, r.bench]).filter((v): v is number => v != null);
   const max = Math.max(...values, overall ?? 0, 0.0001) * 1.15;
+  const benched = rows.some((r) => r.bench != null);
   return (
     <>
       <div className="split">
@@ -69,6 +75,7 @@ export function SplitBar({ rows, overall, unit, digits = 1 }: { rows: SplitRow[]
               <div className="split-track" aria-hidden="true">
                 {r.value != null && <div className={`split-fill${over ? ' over' : ''}`} style={{ width: `${(r.value / max) * 100}%` }} />}
                 {overall != null && <div className="split-tick" style={{ left: `${(overall / max) * 100}%` }} />}
+                {r.bench != null && <div className="split-bench" title={`${benchLabel ?? 'Lichess'}: ${fmt(r.bench, digits)}${unit}`} style={{ left: `${(r.bench / max) * 100}%` }} />}
               </div>
               <span className="split-value">
                 {r.value != null ? <span><b>{fmt(r.value, digits)}</b>{unit.startsWith('%') ? unit : ` ${unit}`}</span> : <span className="stat-n">{r.why ?? 'hidden'}</span>}
@@ -79,6 +86,7 @@ export function SplitBar({ rows, overall, unit, digits = 1 }: { rows: SplitRow[]
         })}
       </div>
       {overall != null && <div className="split-legend"><i /> your overall {fmt(overall, digits)} {unit}</div>}
+      {benched && <div className="split-legend bench"><i /> {benchLabel ?? 'Lichess'} average</div>}
     </>
   );
 }
@@ -132,4 +140,11 @@ export function TrendSpark({ points, label }: { points: { date: string; value: n
       <circle cx={x(roll.length - 1)} cy={y(last)} r={3.5} className="end" />
     </svg>
   );
+}
+
+/** "Lichess 1700–1899: 4.1 /100 · about average" under a stat's number (coloured when it's a real difference). */
+export function BenchLine({ label, value, unit, verdict, digits = 1 }: { label: string; value: number | null; unit: string; verdict: string | null; digits?: number }) {
+  if (value === null) return null;
+  const tone = verdict?.startsWith('better') ? ' good' : verdict?.startsWith('worse') ? ' bad' : '';
+  return <div className={`bench-line${tone}`}>{label}: {fmt(value, digits)}{unit.startsWith('%') || unit.startsWith('/') ? unit : ` ${unit}`}{verdict ? <> · <b>{verdict}</b></> : null}</div>;
 }

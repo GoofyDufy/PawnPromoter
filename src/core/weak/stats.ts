@@ -223,6 +223,8 @@ export interface Example {
   opponent_move?: string; opponent_wpl?: number | null; verified?: boolean; verified_wpl?: number;
   /** Pieces left hanging: the piece lost, the tactic that won it, and the clock before the move. */
   lost_piece?: string; tactic?: string; time_left?: string | null;
+  /** The piece that played the tactic (the enemy's when you allowed it, yours when you missed it). */
+  attacker?: string;
 }
 
 function example(g: Game, m: Move, extra: Partial<Example> = {}): Example {
@@ -462,7 +464,7 @@ const sqOf = (s: string) => s.charCodeAt(0) - 97 + 8 * (s.charCodeAt(1) - 49);
  *  first): the biggest piece of yours the opponent takes in its first moves, and the tactic that does it — read from
  *  the opponent's first move (a fork, pin, discovered attack …), or, for a plain capture, why the piece could be
  *  taken (you moved it into an attack, left it undefended, or it was outnumbered). */
-export function hangingDetail(fenAfter: string, played: string, afterPv: string, mateAgainst: boolean): { piece: string; tactic: Tactic } {
+export function hangingDetail(fenAfter: string, played: string, afterPv: string, mateAgainst: boolean): { piece: string; tactic: Tactic; by: Role | null } {
   const pv = afterPv.split(/\s+/).filter(Boolean);
   const b = Board.fromFen(fenAfter);
   const me = b.turn === 'white' ? 'black' : 'white';
@@ -476,20 +478,46 @@ export function hangingDetail(fenAfter: string, played: string, afterPv: string,
     walk.push(u);
   }
   const piece = lost ?? (mateAgainst ? 'king (mate)' : 'other');
-  if (mateAgainst && (!lost || PIECE_VALUE[lost] < 3)) return { piece, tactic: 'Mate threat' };
-  // the opponent's first move, or, when that's a quiet set-up move, their second
-  const first = classifyBlow(b, pv[0], pv, played, me);
-  if (first) return { piece, tactic: first };
+  const mover = pv[0] && b.isLegal(pv[0]) ? b.pieceAt(sqOf(pv[0].slice(0, 2)))!.role : null;
+  if (mateAgainst && (!lost || PIECE_VALUE[lost] < 3)) return { piece, tactic: 'Mate threat', by: mover };
+  const t = tacticIn(b, pv, me, played);
+  return { piece, tactic: t?.tactic ?? 'A longer combination', by: t?.by ?? mover };
+}
+
+/** The tactic in a line where the attacker moves first, and the piece that plays it: the first move, or, when that's a
+ *  quiet set-up move, the attacker's second. victim: the side it's played against. null when neither is a tactic. */
+function tacticIn(b: Board, pv: string[], victim: 'white' | 'black', played: string): { tactic: Tactic; by: Role } | null {
+  const first = classifyBlow(b, pv[0], pv, played, victim);
+  if (first) return { tactic: first, by: b.pieceAt(sqOf(pv[0].slice(0, 2)))!.role };
   if (pv.length >= 3 && b.isLegal(pv[0])) {
     const b2 = b.copy();
     b2.push(pv[0]);
     if (b2.isLegal(pv[1])) {
       b2.push(pv[1]);
-      const second = classifyBlow(b2, pv[2], pv.slice(2), played, me);
-      if (second) return { piece, tactic: second };
+      const second = classifyBlow(b2, pv[2], pv.slice(2), played, victim);
+      if (second) return { tactic: second, by: b2.pieceAt(sqOf(pv[2].slice(0, 2)))!.role };
     }
   }
-  return { piece, tactic: 'A longer combination' };
+  return null;
+}
+
+/** A tactic you missed: Stockfish's best move (bestPv, yours first) is a tactic that wins material — a pawn or more
+ *  within its first moves — or mates. The tactic and the piece that would have played it; null when the best move was
+ *  a quieter improvement, not a tactic. */
+export function missedDetail(fenBefore: string, bestPv: string, mateFor: boolean): { tactic: Tactic; by: Role } | null {
+  const pv = bestPv.split(/\s+/).filter(Boolean);
+  const b = Board.fromFen(fenBefore);
+  if (!pv[0] || !b.isLegal(pv[0])) return null;
+  const me = b.turn;
+  const them = me === 'white' ? 'black' : 'white';
+  const by = b.pieceAt(sqOf(pv[0].slice(0, 2)))!.role;
+  if (mateFor) return { tactic: 'Mate threat', by };
+  // it has to win something: your material up a pawn or more after the first few moves
+  const end = b.copy();
+  for (const u of pv.slice(0, 5)) { if (!end.isLegal(u)) break; end.push(u); }
+  if (material(end, me) - material(b, me) < 100) return null;
+  const t = tacticIn(b, pv, them, '');
+  return t ?? { tactic: 'A longer combination', by };
 }
 
 /** One opponent move as a tactic (null for a quiet move): a fork, discovered attack, … or, for a capture, why the
@@ -546,6 +574,7 @@ export function statMaterial(ctx: Ctx, games: Game[]) {
   // the breakdown: what was lost, to what, when, and with how much time
   const byPiece = new Map<string, number>();
   const byTactic = new Map<string, number>();
+  const byCombo = new Map<string, number>();              // "knight|Fork": the enemy piece that played it, and the tactic
   const phaseMoves = new Map<string, number>();
   const phaseHung = new Map<string, number>();
   const phaseGames = new Map<string, Set<string>>();
@@ -571,13 +600,14 @@ export function statMaterial(ctx: Ctx, games: Game[]) {
         const d = hangingDetail(pa.fen, m.uci, pa.pv_uci ?? '', mateAgainst);
         bump(byPiece, d.piece);
         bump(byTactic, d.tactic);
+        if (d.by) bump(byCombo, `${d.by}|${d.tactic}`);
         bump(phaseHung, m.phase);
         (phaseGames.get(m.phase) ?? phaseGames.set(m.phase, new Set()).get(m.phase)!).add(g.gid);
         if (tl) {
           bump(timeHung, tl);
           (timeGames.get(tl) ?? timeGames.set(tl, new Set()).get(tl)!).add(g.gid);
         }
-        examples.push(example(g, m, { lost_piece: d.piece, tactic: d.tactic, time_left: m.remaining_before === null || !g.clockOk ? null : clockWords(m.remaining_before) }));
+        examples.push(example(g, m, { lost_piece: d.piece, tactic: d.tactic, attacker: d.by ?? undefined, time_left: m.remaining_before === null || !g.clockOk ? null : clockWords(m.remaining_before) }));
       }
     }
   }
@@ -599,7 +629,39 @@ export function statMaterial(ctx: Ctx, games: Game[]) {
       by_tactic: share(byTactic, TACTICS),
       by_phase: rate(phaseHung, phaseMoves, phaseGames, ['opening', 'middlegame', 'endgame']),
       by_time: rate(timeHung, timeMoves, timeGames, CLOCK_BUCKETS.map(([n]) => n)),
+      by_combo: [...byCombo.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => ({ piece: k.split('|')[0], tactic: k.split('|')[1], n })),
     } : null } });
+}
+
+/** Tactics you missed (the attacking side of the same picture): your mistakes and blunders where Stockfish's best move
+ *  was a tactic that wins material or mates — which tactic, and the piece that would have played it. */
+export function statMissedTactics(ctx: Ctx, games: Game[]) {
+  let big = 0;
+  let missed = 0;
+  let nInc = 0;
+  const byCombo = new Map<string, number>();
+  const examples: Example[] = [];
+  for (const g of games) {
+    for (const m of g.own()) {
+      if (!included(m)) continue;
+      nInc += 1;
+      if (m.wpl < BIG) continue;
+      big += 1;
+      const pb = g.positions[m.ply];
+      if (!pb.pv_uci || !pb.best_move_uci || pb.best_move_uci === m.uci) continue;
+      const mateFor = pb.score_type === 'mate' && (pb.mate_white ?? 0) !== 0 && (pb.mate_white! > 0) === g.playerWhite;
+      const d = missedDetail(pb.fen, pb.pv_uci, mateFor);
+      if (!d) continue;
+      missed += 1;
+      const k = `${d.by}|${d.tactic}`;
+      byCombo.set(k, (byCombo.get(k) ?? 0) + 1);
+      examples.push(example(g, m, { tactic: d.tactic, attacker: d.by }));
+    }
+  }
+  examples.sort((a, b) => (b.wpl ?? 0) - (a.wpl ?? 0));
+  return payload(ctx, { missed, big_errors: big, per100: nInc ? r1((100 * missed) / nInc) : null },
+    games.length, { nMoves: nInc, extra: { examples: examples.slice(0, 40),
+      by_combo: [...byCombo.entries()].sort((a, b) => b[1] - a[1]).map(([key, n]) => ({ piece: key.split('|')[0], tactic: key.split('|')[1], n })) } });
 }
 
 /** 42 → "0:42", 125 → "2:05". */
@@ -714,6 +776,8 @@ export function computeAll(ctx: Ctx, games: Game[]) {
       from: games.length ? games[games.length - 1].row.date : null,
       to: games.length ? games[0].row.date : null,
       state: (games.length ? stateFor(games.length, false) : 'empty') as State | 'empty',
+      /** Your rating in your latest game (for the Lichess comparison's default band). */
+      rating: ((games[0]?.row as { player_rating?: number | null } | undefined)?.player_rating ?? null),
     },
     ...quality,
     phase_split: statPhaseSplit(ctx, games),
@@ -723,6 +787,7 @@ export function computeAll(ctx: Ctx, games: Game[]) {
     rescue: statRescue(ctx, games),
     opportunism: statOpportunism(ctx, games),
     material: statMaterial(ctx, games),
+    missed_tactics: statMissedTactics(ctx, games),
     clock: statClock(ctx, games),
     weaknesses: weaknessRanking(games),
     per_game: [...perGame].reverse(),

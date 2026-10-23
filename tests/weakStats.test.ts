@@ -182,13 +182,13 @@ describe('§7 gates and ranking', () => {
 describe('pieces left hanging: what was lost, and the tactic that won it', () => {
   // each: the position after your move (the opponent to move), and Stockfish's punishing line
   it('a fork', () => {
-    expect(st.hangingDetail('4k3/8/8/8/3n4/8/8/R3K3 b - - 0 1', 'a2a1', 'd4c2 e1d1 c2a1', false)).toEqual({ piece: 'rook', tactic: 'Fork' });
+    expect(st.hangingDetail('4k3/8/8/8/3n4/8/8/R3K3 b - - 0 1', 'a2a1', 'd4c2 e1d1 c2a1', false)).toEqual({ piece: 'rook', tactic: 'Fork', by: 'knight' });
   });
   it('a piece left undefended', () => {
-    expect(st.hangingDetail('4k3/8/8/8/2B1r3/8/8/7K b - - 0 1', 'g1h1', 'e4c4', false)).toEqual({ piece: 'bishop', tactic: 'Left a piece undefended' });
+    expect(st.hangingDetail('4k3/8/8/8/2B1r3/8/8/7K b - - 0 1', 'g1h1', 'e4c4', false)).toEqual({ piece: 'bishop', tactic: 'Left a piece undefended', by: 'rook' });
   });
   it('a piece moved into an attack', () => {
-    expect(st.hangingDetail('4k3/8/8/1p6/2B5/8/8/4K3 b - - 0 1', 'f1c4', 'b5c4', false)).toEqual({ piece: 'bishop', tactic: 'Moved into an attack' });
+    expect(st.hangingDetail('4k3/8/8/1p6/2B5/8/8/4K3 b - - 0 1', 'f1c4', 'b5c4', false)).toEqual({ piece: 'bishop', tactic: 'Moved into an attack', by: 'pawn' });
   });
   it('a mate threat, with nothing big taken', () => {
     expect(st.hangingDetail('4k3/8/8/q7/8/8/3R4/4K3 b - - 0 1', 'd1d2', 'a5a1', true).tactic).toBe('Mate threat');
