@@ -750,3 +750,21 @@ cg-board square.coach-hl { background: rgb(255 196 0 / 0.5); box-shadow: inset 0
 .hang-tags .tag { font-size: 12px; padding: 1px 7px; border-radius: 10px; background: var(--panel-2); color: var(--ink); }
 .hang-grid .split-row { grid-template-columns: 150px minmax(60px, 1fr) max-content; }
 @media (max-width: 480px) { .hang-grid .split-row { grid-template-columns: 110px minmax(0, 1fr) max-content; } }
+
+/* Progress → This week: the time-control filter and your goals */
+.week-head { justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.week-head h2 { margin: 0; }
+.goals { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px 28px; }
+.goals-column h3 { margin: 0 0 2px; font-size: 15px; }
+.goals-column > .note { margin: 0 0 8px; }
+.goals-list { list-style: none; margin: 0 0 8px; padding: 0; }
+.goals-list li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line); }
+.goals-list label { display: flex; gap: 8px; align-items: center; cursor: pointer; min-width: 0; }
+.goals-list .goal-text { overflow-wrap: anywhere; }
+.goals-list li.done .goal-text { text-decoration: line-through; color: var(--ink-2); }
+.goal-meta { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+.goal-meta .overdue { color: var(--bad); }
+.goal-remove { border: 0; background: none; color: var(--ink-2); cursor: pointer; padding: 2px 4px; font-size: 12px; }
+.goal-remove:hover { color: var(--bad); }
+.goal-add { display: flex; gap: 6px; flex-wrap: wrap; }
+.goal-add input[name="text"] { flex: 1 1 180px; min-width: 0; }

@@ -7,6 +7,7 @@ import * as db from '../core/db';
 import * as progressData from '../core/progressData';
 import type { Db } from '../core/sqlite';
 import * as themeStats from '../core/themeStats';
+import * as goals from '../core/goals';
 import * as weekly from '../core/weekly';
 
 export const TIME_CLASSES = ['Rapid', 'Blitz', 'Bullet', 'Daily'];
@@ -96,8 +97,8 @@ export interface MistakeView {
 
 export type WeekView = Omit<weekly.Week, 'mistakes'> & { mistakes: MistakeView[]; end: string };
 
-export function progressWeek(conn: Db): WeekView {
-  const w = weekly.review(conn);
+export function progressWeek(conn: Db, timeControl: string | null = null): WeekView {
+  const w = weekly.review(conn, new Date(), timeControl);
   const end = new Date(`${w.start}T00:00:00`);
   end.setDate(end.getDate() + weekly.DAYS - 1);
   const mistakes = w.mistakes.map((m): MistakeView => {
@@ -111,4 +112,9 @@ export function progressWeek(conn: Db): WeekView {
   return { ...w, mistakes, end: isoDate(end) };
 }
 
-export const progressServices = { progressOverview, progressThemes, progressWeek };
+export const goalsList = (conn: Db) => goals.list(conn);
+export const goalsAdd = (conn: Db, horizon: goals.Horizon, text: string, due: string | null) => goals.add(conn, horizon, text, due);
+export const goalsToggle = (conn: Db, id: string) => goals.toggle(conn, id);
+export const goalsRemove = (conn: Db, id: string) => goals.remove(conn, id);
+
+export const progressServices = { progressOverview, progressThemes, progressWeek, goalsList, goalsAdd, goalsToggle, goalsRemove };

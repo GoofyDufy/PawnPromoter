@@ -10,6 +10,8 @@ import * as lichessPuzzles from '../../core/lichessPuzzles';
 import type { DbClient } from '../../data/client';
 import { TIME_CLASSES, type ThemeRowView, type WeekView } from '../../data/progressServices';
 import type { Progress } from '../../core/progressData';
+import type { Goal, Horizon } from '../../core/goals';
+import { clockLabel } from '../../core/models';
 import { BarChart, LineChart } from '../Charts';
 
 const VIEWS = ['Overview', 'Themes', 'This week'] as const;
@@ -40,6 +42,56 @@ function Bar({ hits, total, rated }: { hits: number; total: number; rated: boole
   return <span className="progress-bar"><span style={{ width: `${Math.round(rate * 100)}%`, background: rated && total ? rateColor(rate) : 'var(--line)' }} /></span>;
 }
 
+/** Your short- and long-term goals: typed in, an optional target date, ticked off when done. */
+function GoalsCard({ client }: { client: DbClient }) {
+  const [goals, setGoals] = useState<Goal[] | null>(null);
+  useEffect(() => { void client.service('goalsList').then(setGoals); }, [client]);
+  if (!goals) return null;
+  const today = new Date().toISOString().slice(0, 10);
+  const column = (horizon: Horizon, title: string, hint: string, placeholder: string) => (
+    <div className="goals-column">
+      <h3>{title}</h3>
+      <p className="note">{hint}</p>
+      <ul className="goals-list">
+        {goals.filter((g) => g.horizon === horizon).map((g) => (
+          <li key={g.id} className={g.done ? 'done' : ''}>
+            <label>
+              <input type="checkbox" checked={!!g.done} onChange={() => void client.service('goalsToggle', g.id).then(setGoals)} />
+              <span className="goal-text">{g.text}</span>
+            </label>
+            <span className="goal-meta">
+              {g.done ? `done ${label(g.done)}` : g.due ? <span className={g.due < today ? 'overdue' : ''}>by {label(g.due)}</span> : null}
+              <button type="button" className="goal-remove" aria-label={`Remove "${g.text}"`} title="Remove"
+                onClick={() => void client.service('goalsRemove', g.id).then(setGoals)}>✕</button>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <form className="goal-add" onSubmit={(e) => {
+        e.preventDefault();
+        const f = e.currentTarget;
+        const text = (f.elements.namedItem('text') as HTMLInputElement).value;
+        const due = (f.elements.namedItem('due') as HTMLInputElement).value || null;
+        if (!text.trim()) return;
+        void client.service('goalsAdd', horizon, text, due).then((g) => { setGoals(g); f.reset(); });
+      }}>
+        <input name="text" aria-label={`New ${title.toLowerCase()} goal`} placeholder={placeholder} maxLength={200} />
+        <input name="due" type="date" aria-label="Target date (optional)" title="Target date (optional)" />
+        <button type="submit" className="btn small">Add</button>
+      </form>
+    </div>
+  );
+  return (
+    <div className="card stats-card">
+      <h2>Your goals</h2>
+      <div className="goals">
+        {column('short', 'Short term', 'This week or this month.', 'e.g. 20 puzzles this week, no hanging pieces in 3+2')}
+        {column('long', 'Long term', 'Where you want to be in a few months.', 'e.g. 1500 in rapid, learn the Caro-Kann properly')}
+      </div>
+    </div>
+  );
+}
+
 export function ProgressScreen({ client, actions }: { client: DbClient; actions: ProgressActions }) {
   const [view, setView] = useState<(typeof VIEWS)[number]>('Overview');
   const [tclass, setTclass] = useState<string | null>(null);
@@ -47,6 +99,7 @@ export function ProgressScreen({ client, actions }: { client: DbClient; actions:
   const [data, setData] = useState<(Progress & { goalText: string }) | null>(null);
   const [themes, setThemes] = useState<Awaited<ReturnType<typeof progressThemesOf>> | null>(null);
   const [week, setWeek] = useState<WeekView | null>(null);
+  const [weekTc, setWeekTc] = useState<string | null>(null);
   const [lichessStatus, setLichessStatus] = useState<Record<string, string>>({});
   const [busyTheme, setBusyTheme] = useState<string | null>(null);
 
@@ -60,8 +113,8 @@ export function ProgressScreen({ client, actions }: { client: DbClient; actions:
   useEffect(() => {
     if (view === 'Overview') void loadOverview(tclass, goal);
     if (view === 'Themes') void client.service('progressThemes').then(setThemes);
-    if (view === 'This week') void client.service('progressWeek').then(setWeek);
-  }, [view]);   // eslint-disable-line react-hooks/exhaustive-deps
+    if (view === 'This week') void client.service('progressWeek', weekTc).then(setWeek);
+  }, [view, weekTc]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   /** + Lichess: a batch of that theme's puzzles at your rating. */
   const addLichess = async (r: ThemeRowView) => {
@@ -205,8 +258,18 @@ export function ProgressScreen({ client, actions }: { client: DbClient; actions:
 
       {view === 'This week' && week && (
         <div className="stats-column">
+          <GoalsCard client={client} />
           <div className="card stats-card">
-            <h2>Your week: {label(week.start)} – {label(week.end)}</h2>
+            <div className="row week-head">
+              <h2>Your week: {label(week.start)} – {label(week.end)}</h2>
+              {week.time_controls.length > 1 && (
+                <select aria-label="Games at this time control" value={weekTc ?? ''} onChange={(e) => setWeekTc(e.target.value || null)}>
+                  <option value="">All games · {week.time_controls.reduce((n, t) => n + t.games, 0)}</option>
+                  {week.time_controls.map((t) => <option key={t.time_control} value={t.time_control}>{clockLabel(t.time_control)} · {t.games} game{t.games === 1 ? '' : 's'}</option>)}
+                </select>
+              )}
+            </div>
+            {weekTc && <p className="note">Only your {clockLabel(weekTc)} games. The puzzles and drills you practised count for the whole week.</p>}
             <div className="tiles">
               {[
                 [String(week.games), `games · ${week.wins} won, ${week.losses} lost, ${week.draws} drawn`],

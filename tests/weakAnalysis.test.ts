@@ -89,5 +89,5 @@ describe('weakness analysis', () => {
 
 describe('clockLabel', () => {
   it.each([['180+2', '3+2'], ['600', '10+0'], ['60+1', '1+1'], ['300', '5+0'], ['30', '½+0'], ['90+1', '1½+1'], ['15+0', '¼+0'],
-    ['100+0', '1.7+0'], ['1/259200', '1/259200'], ['', '']])('%s → %s', (tc, label) => expect(clockLabel(tc)).toBe(label));
+    ['100+0', '1.7+0'], ['1/259200', 'Daily (3 days a move)'], ['1/86400', 'Daily (1 day a move)'], ['-', 'Untimed'], ['', '']])('%s → %s', (tc, label) => expect(clockLabel(tc)).toBe(label));
 });

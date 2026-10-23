@@ -75,6 +75,9 @@ export class Week {
   draws = 0;
   analyzed = 0;
   rating_class: string | null = null;
+  /** The time controls played this week (most played first), and the one shown (null: all games). */
+  time_controls: { time_control: string; games: number }[] = [];
+  time_control: string | null = null;
   rating_from: number | null = null;
   rating_to: number | null = null;
   mistakes: Mistake[] = [];
@@ -93,11 +96,18 @@ export class Week {
   constructor(readonly start: string) {}
 }
 
-export function review(conn: Db, today: Date = new Date()): Week {
+/** The week in review. timeControl: only games at that time control ("180+2"), or null for all of them —
+ *  the practice (puzzles, drills) isn't tied to a game, so it's the whole week's either way. */
+export function review(conn: Db, today: Date = new Date(), timeControl: string | null = null): Week {
   const since = dateIso(addDays(today, -(DAYS - 1)));
   const w = new Week(since);
+  w.time_controls = conn.all(`SELECT time_control, COUNT(*) AS games FROM games WHERE played_at >= ? AND time_control IS NOT NULL
+      GROUP BY time_control ORDER BY games DESC, time_control`, [since]);
+  w.time_control = timeControl;
+  const only = timeControl ? ' AND g.time_control = ?' : '';
+  const args = (...a: unknown[]) => (timeControl ? [...a, timeControl] : a) as never;
 
-  const games = conn.all('SELECT id, result, time_control, is_analyzed FROM games WHERE played_at >= ?', [since]);
+  const games = conn.all(`SELECT id, result, time_control, is_analyzed FROM games g WHERE played_at >= ?${only}`, args(since));
   w.games = games.length;
   for (const g of games) {
     w.wins += g.result === 'win' ? 1 : 0;
@@ -105,7 +115,7 @@ export function review(conn: Db, today: Date = new Date()): Week {
     w.draws += g.result === 'draw' ? 1 : 0;
   }
   w.analyzed = conn.get('SELECT COUNT(DISTINCT e.game_id) AS n FROM move_evaluations e JOIN games g ON g.id = e.game_id '
-    + 'WHERE g.played_at >= ?', [since])!.n;
+    + `WHERE g.played_at >= ?${only}`, args(since))!.n;
 
   // rating: the time class you played most this week
   const classes = new Counter<string>();
@@ -127,7 +137,7 @@ export function review(conn: Db, today: Date = new Date()): Week {
             p.puzzle_type, g.id AS game_id, g.opponent_username, g.played_at, e.ply
      FROM puzzles p JOIN games g ON g.id = p.source_game_id
      LEFT JOIN move_evaluations e ON e.game_id = g.id AND e.fen_before = p.fen
-     WHERE g.played_at >= ?`, [since]);
+     WHERE g.played_at >= ?${only}`, args(since));
   w.mistake_count = rows.length;
   w.facing_threat = rows.filter((r) => FACING_THREAT.includes(r.kind)).length;
   w.endgame = rows.filter((r) => stats.isEndgame(r.fen)).length;

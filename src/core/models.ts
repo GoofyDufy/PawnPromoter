@@ -39,6 +39,13 @@ const FRACTIONS: Record<number, string> = { 0.25: '¼', 0.5: '½', 0.75: '¾' };
 /** A time control as players say it: minutes + increment seconds ("180+2" → "3+2",
  *  "600" → "10+0", "30" → "½+0", "90+1" → "1½+1"). Daily or unreadable ones unchanged. */
 export function clockLabel(timeControl: string | null | undefined): string {
+  // daily games ("1/259200": a move every 3 days) and games with no clock ("-")
+  const daily = /^1\/(\d+)$/.exec(timeControl ?? '');
+  if (daily) {
+    const days = Math.round(parseInt(daily[1], 10) / 86400);
+    return `Daily (${days} day${days === 1 ? '' : 's'} a move)`;
+  }
+  if (timeControl === '-') return 'Untimed';
   const m = /^(\d+)(?:\+(\d+))?$/.exec(timeControl ?? '');
   if (!m) return timeControl ?? '';
   const minutes = parseInt(m[1], 10) / 60;
