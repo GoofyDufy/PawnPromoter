@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="319 250 600 600">
+  <title>King Side Coach</title>
+  <rect x="319" y="250" width="600" height="600" rx="120" fill="#0b1a3b"/>
+  <g fill="#f6f1e5">
+    <!-- the king: cross, crown, collars, body -->
+    <rect x="491" y="295" width="30" height="52"/>
+    <rect x="469" y="316" width="74" height="26"/>
+    <path d="M441 388 L478 375 L490 358 L522 358 L534 375 L570 388 L545 445 L466 445 Z"/>
+    <rect x="456" y="452" width="99" height="16" rx="7"/>
+    <rect x="446" y="476" width="120" height="21" rx="9"/>
+    <path d="M466 497 L466 680 Q466 720 444 745 L432 758 Q418 770 418 805 L593 805 Q593 770 579 758 L567 745 Q545 720 543 680 L543 497 Z"/>
+    <!-- the K's leg -->
+    <path d="M555 600 L623 600 L705 680 L820 805 L705 805 L555 635 Z"/>
+  </g>
+  <!-- the K's arm -->
+  <path d="M555 548 L708 392 L812 392 L620 587 L555 587 Z" fill="#13cbc5"/>
+</svg>

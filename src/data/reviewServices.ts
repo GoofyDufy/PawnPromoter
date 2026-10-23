@@ -71,7 +71,7 @@ export interface PrepView {
 export interface ReviewGame {
   id: string;
   title: string;
-  accuracy: string;          // "\nAccuracy — chess.com: you 81.2% … · KingSide Coach: you 79.0%"
+  accuracy: string;          // "\nAccuracy — chess.com: you 81.2% … · King Side Coach: you 79.0%"
   opening: string;           // its named line · where it left your prep
   ucis: string[];
   sans: string[];
@@ -139,7 +139,7 @@ export function reviewGame(conn: Db, gameId: string): ReviewGame | null {
     parts.push(`chess.com: you ${pyFixed(g.my_accuracy, 1)}%${g.opp_accuracy !== null && g.opp_accuracy !== undefined ? `, them ${pyFixed(g.opp_accuracy, 1)}%` : ''}`);
   }
   const ours = amazing.gameAccuracy(Object.values(evals));
-  if (ours !== null) parts.push(`KingSide Coach: you ${pyFixed(ours, 1)}%`);
+  if (ours !== null) parts.push(`King Side Coach: you ${pyFixed(ours, 1)}%`);
   return {
     id: g.id, title, accuracy: parts.length ? `Accuracy — ${parts.join(' · ')}` : '', opening: openingText(conn, { id: g.id, pgn: g.pgn }, prep, sans, myColor),
     ucis, sans, evals, myColor, prep, amazing: amazingMoves, puzzles: gamePuzzles(conn, gameId, evals),

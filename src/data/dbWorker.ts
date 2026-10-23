@@ -109,7 +109,7 @@ async function openPool(): Promise<Pool> {
       report(err, `open the storage (attempt ${attempt})`);
       if (attempt >= 8) {
         const why = err instanceof Error ? err.message : String(err);
-        throw new Error(`${why}. KingSide Coach may still be open in another tab or window — close it, then reload this page.`);
+        throw new Error(`${why}. King Side Coach may still be open in another tab or window — close it, then reload this page.`);
       }
       await new Promise((r) => setTimeout(r, 500 * attempt));
     }

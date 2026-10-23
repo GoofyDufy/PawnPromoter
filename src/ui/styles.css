@@ -1,4 +1,4 @@
-/* KingSide Coach — tokens first; dark mode follows the system unless the page
+/* King Side Coach — tokens first; dark mode follows the system unless the page
    says otherwise (data-theme). Slate neutrals, one sans face with tabular
    figures, 8px cards with a border and no shadow; red = weakness, green =
    strength, amber = early read, never colour alone. */
@@ -110,6 +110,7 @@ button { font: inherit; }
 }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 18px; white-space: nowrap; padding: 0 6px; }
 .brand img { width: 30px; height: 30px; }
+.brand-accent { color: #13cbc5; }
 .nav { display: flex; flex-direction: column; gap: 2px; }
 .nav button {
   text-align: left; background: none; border: 0; color: var(--sidebar-dim);
