@@ -2479,19 +2479,23 @@ export function deepChanges(fen: string, line: string[], mine: (c: Color) => str
   let breakMove: { key: string; text: string; ply: number } | null = null;
   let castled: { ply: number; rook: Square } | null = null;
   let breakPawn: Square | null = null;                  // (the break isn't a pawn push as well)
+  let tookOn: Square | null = null;                     // where the previous move captured (to tell a recapture)
   for (const [ply, m] of line.slice(0, DEEP_PLIES).entries()) {
     if (!b.isLegal(m)) break;
     const from = parse(m.slice(0, 2));
     const to = parse(m.slice(2, 4));
     const piece = b.pieceAt(from)!;
     const id = at.get(from)!;
-    // a pawn break: the side's first pawn move that captures a pawn or lands where it hits one
-    if (piece.color === mover && piece.role === 'pawn' && !breakMove) {
+    const recapture = tookOn === to;
+    tookOn = b.isCapture(m) ? to : null;
+    // a pawn break: the side's first pawn move that captures a pawn or lands where it hits one — not taking back
+    if (piece.color === mover && piece.role === 'pawn' && !breakMove && !recapture) {
       const after = b.copy();
       after.push(m);
       const hits = after.attacks(to).some((t) => after.pieceAt(t)?.role === 'pawn' && after.pieceAt(t)?.color !== mover);
       if ((b.isCapture(m) && b.pieceAt(to)?.role === 'pawn') || hits) {
-        breakMove = { key: `break:${name(to)}`, text: `strike with ${mover === 'black' ? '…' : ''}${name(to)}`, ply };
+        // (said as the move — …cxd4, not "…d4", which could be a square a pawn of theirs already stands on)
+        breakMove = { key: `break:${name(to)}`, text: `strike with ${mover === 'black' ? '…' : ''}${b.san(m).replace(/[+#]$/, '')}`, ply };
         breakPawn = id;
       }
     }
@@ -2596,7 +2600,12 @@ export function deepChanges(fen: string, line: string[], mine: (c: Color) => str
   // weaknesses left in their camp
   const weakNow = [...isolatedPawns(b, them).map((x) => ['an isolated', x] as const), ...backwardPawns(b, them).map((x) => ['a backward', x] as const)]
     .filter(([, x]) => !isolatedPawns(start, them).includes(x) && !backwardPawns(start, them).includes(x));
-  if (weakNow.length) add(`weak:${name(weakNow[0][1])}`, 6, DEEP_PLIES, `leave ${theirs === 'your' ? 'you' : 'them'} with ${weakNow[0][0]} pawn on ${name(weakNow[0][1])}`);
+  // (named by the pawn as it stands now — "their c-pawn" — not the square it ends up on, where nothing stands yet)
+  if (weakNow.length) {
+    const [kind, sq] = weakNow[0];
+    const was = at.get(sq) ?? sq;
+    add(`weak:${'abcdefgh'[file(was)]}`, 6, DEEP_PLIES, `leave ${theirs} ${'abcdefgh'[file(was)]}-pawn ${kind === 'an isolated' ? 'isolated' : 'backward'}`);
+  }
   const dbl = doubledFiles(b, them).find((f) => !doubledFiles(start, them).includes(f));
   if (dbl !== undefined && !weakNow.length) add(`weak:dbl:${dbl}`, 5, DEEP_PLIES, `give ${theirs === 'your' ? 'you' : 'them'} doubled pawns on the ${fileName(dbl)}`);
 
@@ -2641,13 +2650,15 @@ export function deepPlan(fen: string, lines: DeepLine[], me: Color): string | nu
   if (!good.length) return null;
   const mine = (c: Color) => (c === me ? 'your' : 'their');
   const per = good.map((l) => deepChanges(fen, l.line, mine));
-  if (per.filter((x) => x === null).length * 2 >= per.length) return null;
+  if (per.filter((x) => x === null).length * 2 >= per.length || per[0] === null) return null;
+  // the themes of the best line (the one "See where it leads" plays), kept when another good line shares them —
+  // so every square named is one that line actually reaches
   const counted = new Map<string, { n: number; weight: number; ply: number; text: string }>();
-  for (const changes of per) {
+  for (const c of per[0]) counted.set(c.key, { n: 1, weight: c.weight, ply: c.ply, text: c.text });
+  for (const changes of per.slice(1)) {
     for (const c of changes ?? []) {
       const e = counted.get(c.key);
-      if (e) { e.n += 1; e.weight += c.weight; e.ply = Math.min(e.ply, c.ply); }
-      else counted.set(c.key, { n: 1, weight: c.weight, ply: c.ply, text: c.text });
+      if (e) { e.n += 1; e.weight += c.weight; }
     }
   }
   const need = good.length === 1 ? 1 : 2;

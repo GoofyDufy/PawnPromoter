@@ -30,19 +30,32 @@ const STONEWALL = {
 describe('the plan Stockfish\'s good lines share', () => {
   it('the themes, not the moves: a knight rerouted, a file taken, a weakness left behind', () => {
     expect(coach.deepPlan(KNIGHT.fen, KNIGHT.lines, 'white'))
-      .toBe("The idea here: reroute your knight to c6 via e7, take the b-file with a rook and leave them with an isolated pawn on b5 — most of Stockfish's good lines do this.");
+      .toBe("The idea here: reroute your knight to c6 via e7, take the b-file with a rook and leave their b-pawn isolated — most of Stockfish's good lines do this.");
   });
 
-  it('a piece and a pawn break, in the order they come', () => {
+  it('only the themes the best line has (the line the preview board plays)', () => {
     const plan = coach.deepPlan(STONEWALL.fen, STONEWALL.lines, 'white')!;
-    expect(plan).toMatch(/^The idea here: bring your light-squared bishop to life, strike with c4 and trade off the dark-squared bishops/);
+    // (c4 and the bishop trade happen in Stockfish's 2nd and 3rd lines, not its best one — the line the preview board
+    // plays — so they're left out: everything the plan says, that board shows)
+    expect(plan).toMatch(/^The idea here: bring your light-squared bishop to life — /);
     expect(plan).toMatch(/most of Stockfish's good lines do this\.$/);
+  });
+
+  it('a recapture is not a pawn break', () => {
+    // 36...Be1-b4 … 39.exd4 cxd4: Black takes back on d4 — no "strike with …cxd4" (Stockfish 19, from your games)
+    const fen = '8/pp4p1/5k1p/2p1pP2/2PpK3/1P5P/P3P3/2B1b3 b - - 6 36';
+    const lines = [
+      { line: ['e1b4', 'e2e3', 'a7a6', 'a2a3', 'b4e1', 'e3d4', 'c5d4', 'b3b4', 'd4d3', 'e4d3', 'f6f5', 'b4b5', 'a6b5', 'c4b5', 'e1a5', 'a3a4'], cp: 177 },
+      { line: ['e1a5', 'c1a3', 'b7b6', 'a3c1', 'a5e1', 'a2a3', 'a7a5', 'e2e3', 'e1c3', 'e3d4', 'c5d4', 'h3h4', 'g7g5', 'f5g6', 'f6g6', 'e4d3'], cp: 164 },
+      { line: ['b7b6', 'e2e3', 'a7a5', 'a2a3', 'e1c3', 'h3h4', 'g7g6', 'f5g6', 'f6g6', 'e3d4', 'c5d4', 'e4d3'], cp: 159 },
+    ];
+    expect(coach.deepPlan(fen, lines, 'black') ?? '').not.toMatch(/strike with …c?x?d4/);
   });
 
   it('from the other side, it\'s their idea', () => {
     const theirs = coach.deepPlan(KNIGHT.fen, KNIGHT.lines.map((l) => ({ ...l, cp: -l.cp })), 'black')!;
     expect(theirs).toMatch(/^Their idea: reroute their knight to c6 via e7/);
-    expect(theirs).toMatch(/leave you with an isolated pawn on b5/);
+    expect(theirs).toMatch(/leave your b-pawn isolated/);
   });
 
   it('a line that wins material is a tactic, not a plan', () => {

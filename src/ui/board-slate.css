@@ -24,9 +24,26 @@ cg-board square.check {
 }
 cg-board square.current-premove { background-color: rgb(70 40 90 / 0.5); }
 
-/* rank/file labels: one colour with a light halo, readable on both square colours */
-.cg-wrap coords coord {
-  color: rgb(25 33 44 / 0.85);
-  text-shadow: 0 0 2px rgb(255 255 255 / 0.9), 0 0 1px rgb(255 255 255 / 0.9);
-  font-weight: 600;
+/* rank/file labels inside the board, Lichess-style: files in the bottom-right corner of the bottom row's squares,
+   ranks in the top-left corner of the left column's squares, each in the other square colour (light on dark, dark on
+   light). chessground's own placement (letters shifted 24px right, under the board) is undone here. Sized to the
+   board (a container), so they read on the big board and stay small on the preview boards. */
+.board-wrap { container-type: inline-size; }
+.cg-wrap coords {
+  z-index: 3;                       /* above the pieces: the bottom row's pieces hide the letters otherwise */
+  opacity: 1;
+  font-family: inherit;
+  font-size: max(10px, min(15px, 3.3cqw));
+  font-weight: 700;
+  line-height: 1;
 }
+.cg-wrap coords coord { flex: 1 1 0; text-shadow: none; }
+.cg-wrap coords.files { left: 0; bottom: 0; width: 100%; height: auto; text-align: right; text-transform: none; }
+.cg-wrap coords.files coord { padding: 0 0.3em 0.25em 0; }
+.cg-wrap coords.ranks { left: 0; top: 0; width: auto; height: 100%; }
+.cg-wrap coords.ranks coord { transform: none; padding: 0.25em 0 0 0.3em; }
+/* the label's colour against its square: with White below, a1 (the files' and ranks' first label) is dark; with Black
+   below, the first label sits on a light square. Near-white on dark squares, dark slate on light ones. */
+.cg-wrap coords coord { color: var(--coord-on-light); }
+.cg-wrap coords:not(.black) coord:nth-child(odd),
+.cg-wrap coords.black coord:nth-child(even) { color: var(--coord-on-dark); }

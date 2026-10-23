@@ -30,6 +30,8 @@ interface Ply {
   from: Square;
   to: Square;
   taken: Role | null;
+  /** Where the piece it takes stands now, at the start of the line (it may have moved there during the line). */
+  takenFrom: Square | null;
   check: boolean;
   mate: boolean;
   only: boolean;                              // no other legal move
@@ -50,12 +52,31 @@ function play(fen: string, line: string[]): { plies: Ply[]; start: number } {
   const mover = b.turn;
   const start = material(b, mover);
   const plies: Ply[] = [];
+  // each piece followed by where it stood at the start, so a piece taken later is named where it is on the board now
+  const origin = new Map<Square, Square>();
+  for (const sq of b.pieceMap().keys()) origin.set(sq, sq);
   for (const m of line.slice(0, STORY_PLIES)) {
     if (!b.isLegal(m)) break;
     const from = parse(m.slice(0, 2));
     const to = parse(m.slice(2, 4));
     const piece = b.pieceAt(from)!;
     const taken = b.pieceAt(to)?.role ?? (b.isEnPassant(m) ? 'pawn' : null);
+    const victim = b.isEnPassant(m) ? to + (piece.color === 'white' ? -8 : 8) : to;
+    const takenFrom = taken ? origin.get(victim) ?? null : null;
+    const mover0 = origin.get(from) ?? from;
+    if (b.isCastling(m)) {
+      const kingside = to > from;
+      const rook = kingside ? from + 3 : from - 4;
+      const rookTo = kingside ? from + 1 : from - 1;
+      const kingTo = kingside ? from + 2 : from - 2;
+      const r0 = origin.get(rook) ?? rook;
+      origin.delete(rook); origin.delete(from);
+      origin.set(rookTo, r0); origin.set(kingTo, mover0);
+    } else {
+      origin.delete(victim);
+      origin.delete(from);
+      origin.set(to, mover0);
+    }
     const only = b.legalMoves().length === 1;
     const inCheck = b.isCheck();
     const reasons = moveReasons(b, m, b.turn === mover ? 'your' : 'their');
@@ -63,7 +84,7 @@ function play(fen: string, line: string[]): { plies: Ply[]; start: number } {
     const white = b.turn === 'white';
     const san = b.san(m);
     b.push(m);
-    plies.push({ uci: m, san, number, white, role: piece.role, from, to, taken: taken === 'king' ? null : taken, check: b.isCheck(),
+    plies.push({ uci: m, san, number, white, role: piece.role, from, to, taken: taken === 'king' ? null : taken, takenFrom, check: b.isCheck(),
       mate: b.isCheckmate(), only, inCheck, reasons, mat: material(b, mover) });
   }
   return { plies, start };
@@ -297,7 +318,8 @@ export function lineStory(fen: string, line: string[], me: Color, cp: number | n
       + (p.white === (mover === 'white') && p.taken && !(mating && p.role === 'king') ? VALUE[p.taken] : 0) + (p.check ? (mating ? 4 : 1) : 0)));
   }
 
-  /** The piece the blow wins: the biggest one taken and not traded back (with where it stood). */
+  /** The piece the blow wins: the biggest one taken and not traded back (with where it stands now — not where it's
+   *  taken, which it may only reach during the line). */
   function target(): { role: Role; sq: Square } | null {
     if (gain < 1) return null;
     const taken: { role: Role; sq: Square }[] = [];
@@ -306,7 +328,7 @@ export function lineStory(fen: string, line: string[], me: Color, cp: number | n
       const r = told[k + 1];
       if (!a.taken) continue;
       if (r && r.to === a.to && r.taken && VALUE[a.role] >= VALUE[a.taken]) continue;          // traded
-      taken.push({ role: a.taken, sq: a.to });
+      taken.push({ role: a.taken, sq: a.takenFrom ?? a.to });
     }
     return taken.sort((x, y) => VALUE[y.role] - VALUE[x.role])[0] ?? null;
   }

@@ -52,3 +52,13 @@ describe("Deep coach's story", () => {
     expect(lineStory('4k3/8/8/8/8/8/8/4K3 w - - 0 1', ['e1e2'], 'white', 0)).toBeNull();
   });
 });
+
+describe('the story names pieces where they stand', () => {
+  it('a piece taken after it moves is named on its square now, then where it is taken', () => {
+    // their rook is on d8; it steps to e8 during the line and is taken there
+    const s = lineStory('3r2k1/5ppp/8/1B6/8/8/P4PPP/6K1 w - - 0 1', ['a2a3', 'd8e8', 'b5e8', 'g8f8', 'e8b5', 'f8e7'], 'white', 500)!;
+    expect(s).toMatch(/their rook on d8 is/);
+    expect(s).not.toMatch(/rook on e8 is/);
+    expect(s).toMatch(/grabs the rook on e8/);
+  });
+});

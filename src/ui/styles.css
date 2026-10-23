@@ -24,6 +24,8 @@
   --sidebar-dim: #9aa7b8;
   --sq-light: #e2e7ee;
   --sq-dark: #98a8bd;
+  --coord-on-light: #4e5f76;
+  --coord-on-dark: #f6f8fb;
   --series-1: #4a6fa5; --series-2: #c08423; --series-3: #2f8f86; --series-4: #8a5fb0;   /* chart lines: categories, not good/bad */
   --radius: 8px;
   --shadow: none;
@@ -55,6 +57,8 @@
     --sidebar-dim: #8593a6;
     --sq-light: #c3ccd8;
     --sq-dark: #6c7f9a;
+    --coord-on-light: #3c4b60;
+    --coord-on-dark: #eef2f7;
     --series-1: #8db0dc; --series-2: #e3a948; --series-3: #5fc0b5; --series-4: #b99ae0;
     --shadow: none;
     color-scheme: dark;
