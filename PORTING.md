@@ -261,6 +261,28 @@ Openings are grouped by family × colour in both.
   it stops Bg4" — and an only move says what goes wrong after the next best.
   With `IDEAS_ENGINE=/usr/games/stockfish` the audit runs this whole pipeline
   on every 5th position.
+  **🔭 Deep coach** (a web-app addition; on / off per browser, shared by every
+  tab's Ideas): Stockfish's top three lines at depth 18, read for the plan they
+  share (`coach.deepPlan`), "See where it leads" on a small board of its own,
+  and the advice and tactics checked again against those lines.
+  **📖 The story** (`core/story.ts`, 2026-10-22): Deep coach's line told as
+  what happens instead of what each move does — the scene (what's loose, which
+  king is in danger, or "only one move keeps your edge"), the blow in at most
+  three beats (the first, the biggest moment, the last; the other side's
+  replies only when forced or they matter; a run of checks is one beat, "your
+  rooks keep giving check, driving the king to f2"), the aftermath in a line,
+  and the ending in plain words — material at a calm moment (never mid-trade;
+  "the exchange" for a rook against a minor piece) and who's better, honestly
+  when it's the opponent. Of the three lines, the first good one with a real
+  tactic (mate, a sacrifice, a perpetual, a piece or more) is told, with a
+  note when it isn't Stockfish's first choice; otherwise the best line — as a
+  critical moment when the next best is 1.5 pawns worse, and as a plan
+  (Deep coach's themes) when nothing is forcing. Every move stays in the
+  brackets, numbered, so SquareText still draws them. Hidden with the key
+  ideas under 🤔 Think first. `tests/storyAudit.test.ts` (skipped unless
+  `STORY_SAMPLE` points at a JSON export of puzzles and `STORY_ENGINE` at a
+  Stockfish) writes each puzzle's old Ideas and its story side by side to
+  `STORY_OUT`.
 - **Engine strength** (Your data → Engine, a web-app addition): "Strong" uses
   the full-network single-threaded build (95 MB, downloaded once and cached)
   for the interactive engine and Play it out; analyzing games stays on the

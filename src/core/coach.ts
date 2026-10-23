@@ -895,6 +895,8 @@ export interface Ideas {
   me: Color;
   /** The deep coach's line from this position (uci), to play through to where Stockfish's idea leads. */
   deepLine?: string[];
+  /** The deep coach's line told as a story (story.ts). */
+  story?: string;
 }
 
 const squaresNamed = (text: string) => text.match(/\b[a-h][1-8]\b/g) ?? [];
@@ -2450,7 +2452,7 @@ const wingOf = (f: number) => (f <= 2 ? 0 : f <= 4 ? 1 : 2);
 const LONG_DIAGONALS = [[0, 9, 18, 27, 36, 45, 54, 63], [7, 14, 21, 28, 35, 42, 49, 56]];
 
 /** One change a line makes, keyed so the same idea in different lines (different move orders) matches. */
-interface DeepChange { key: string; weight: number; ply: number; text: string }
+export interface DeepChange { key: string; weight: number; ply: number; text: string }
 
 
 
@@ -2464,7 +2466,7 @@ const shade = (sq: Square) => (light(sq) ? 'light-squared' : 'dark-squared');
  *  move — what the moves are for, not where the pieces go: the trades (which bishop, a bad one swapped off, their
  *  bishop pair gone, queens off), files opened and taken, enemy pieces blunted, weaknesses left behind, pieces
  *  brought to their best squares, pawn breaks and pawn storms. null when the line is about material (a tactic). */
-function deepChanges(fen: string, line: string[], mine: (c: Color) => string): DeepChange[] | null {
+export function deepChanges(fen: string, line: string[], mine: (c: Color) => string): DeepChange[] | null {
   const start = Board.fromFen(fen);
   const mover = start.turn;
   const them = opposite(mover);

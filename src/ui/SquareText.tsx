@@ -198,7 +198,7 @@ function LinePreview({ fen, line, orientation }: { fen: string; line: string[]; 
 /** The 💡 Ideas toggle and, when on, the Coach's ideas for the position: the key few first, the
  *  rest folded under "More" (shared by the screens). */
 export function IdeasPanel({ ideas, onToggle, onSquares, fen, extra, children }: {
-  ideas: { on: boolean; ideas: { summary: string; key: string[]; sections: { title: string; points: string[] }[]; deepLine?: string[]; me?: Color } | null; deepPending?: boolean };
+  ideas: { on: boolean; ideas: { summary: string; key: string[]; sections: { title: string; points: string[] }[]; deepLine?: string[]; story?: string; me?: Color } | null; deepPending?: boolean };
   onToggle: (on: boolean) => void;
   onSquares: OnFocus;
   /** The position the ideas are about: moves in them get arrows. */
@@ -246,6 +246,12 @@ export function IdeasPanel({ ideas, onToggle, onSquares, fen, extra, children }:
           <div className="ideas-section ideas-key">
             <div className="section">Key ideas</div>
             <ul>{shown.key.map((p) => <li key={p}><SquareText text={p} onSquares={onSquares} fen={fen} /></li>)}</ul>
+          </div>
+        )}
+        {shown.story && !hideKey && (
+          <div className="ideas-section ideas-story">
+            <div className="section">📖 The story</div>
+            <p><SquareText text={shown.story} onSquares={onSquares} fen={fen} /></p>
           </div>
         )}
         {shown.deepLine && fen && <LinePreview key={`${fen}|${shown.deepLine.join(' ')}`} fen={fen} line={shown.deepLine} orientation={shown.me ?? 'white'} />}

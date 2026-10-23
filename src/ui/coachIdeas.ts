@@ -6,6 +6,7 @@
 import { MATE_CP, scoreToCp } from '../core/analyzer';
 import { Board, type Color, parseSquare } from '../core/chess';
 import * as coach from '../core/coach';
+import { deepStory } from '../core/story';
 import { pawnEndingTrades } from '../core/endgame';
 import type { Engine, InfoLine } from '../core/engine';
 import type { DbClient } from '../data/client';
@@ -333,6 +334,7 @@ export class CoachIdeas {
         /* the quick check's verdicts stand */
       }
       const deeper = coach.positionIdeas({ ...deepDraft, ...checked });
+      deeper.story = deepStory(pos.fen, deepLines.map((l) => ({ line: l.line.slice(0, coach.DEEP_PLIES), cp: l.cp })), pos.me) ?? undefined;
       this.cache.set(key, deeper);
       this.ideas = deeper;
     }

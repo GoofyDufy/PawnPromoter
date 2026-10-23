@@ -559,6 +559,8 @@ button.tm-mark { cursor: pointer; }
 /* the key ideas stand out; everything else folds away under "More" */
 .ideas-key { border-left: 3px solid var(--accent); padding-left: 8px; }
 .ideas-key li { font-weight: 500; }
+.ideas-story { border-left: 3px solid var(--series-2); padding-left: 8px; }
+.ideas-story p { margin: 4px 0; line-height: 1.5; }
 .ideas-more > summary { cursor: pointer; color: var(--accent); font-weight: 600; margin: 4px 0; }
 /* with the Coach's ideas showing, the words get the room; the moves list shrinks */
 .review-side.with-ideas .review-text { flex: 1 1 0; max-height: none; min-height: 140px; }
