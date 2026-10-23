@@ -52,7 +52,7 @@ export function StatCard({ title, state, headline, unit, sub, games, moves, hidd
   );
 }
 
-export interface SplitRow { label: string; value: number | null; games: number; why?: string }
+export interface SplitRow { label: string; value: number | null; games: number; why?: string; /** shown instead of "N games" */ note?: string }
 
 /** Bars for each segment; the black tick is your own overall rate, red bars are above it. */
 export function SplitBar({ rows, overall, unit, digits = 1 }: { rows: SplitRow[]; overall?: number | null; unit: string; digits?: number }) {
@@ -72,7 +72,7 @@ export function SplitBar({ rows, overall, unit, digits = 1 }: { rows: SplitRow[]
               </div>
               <span className="split-value">
                 {r.value != null ? <span><b>{fmt(r.value, digits)}</b>{unit.startsWith('%') ? unit : ` ${unit}`}</span> : <span className="stat-n">{r.why ?? 'hidden'}</span>}
-                <span className="stat-n">{plural(r.games, 'game')}</span>
+                <span className="stat-n">{r.note ?? plural(r.games, 'game')}</span>
               </span>
             </div>
           );

@@ -7,12 +7,16 @@ import * as st from '../src/core/weak/stats';
 const FILE = new URL('./golden/weak.json', import.meta.url);
 const golden = existsSync(FILE) ? JSON.parse(readFileSync(FILE, 'utf8')) : null;
 
+/** Added since the prototype: the hanging-pieces breakdown, its tags on each example, and 40 examples kept, not 20. */
+const NEW_KEYS = new Set(['breakdown', 'lost_piece', 'tactic', 'time_left']);
+
 /** Every key and value equal; numbers within 0.051 (rounding at the last digit). */
 function diff(a: unknown, b: unknown, path = ''): string[] {
+  if (path.endsWith('.material.examples') && Array.isArray(a)) a = a.slice(0, 20);
   if (typeof a === 'number' && typeof b === 'number') return Math.abs(a - b) <= 0.051 ? [] : [`${path}: ${a} ≠ ${b}`];
   if (a === null || b === null || typeof a !== 'object' || typeof b !== 'object') return a === b ? [] : [`${path}: ${JSON.stringify(a)} ≠ ${JSON.stringify(b)}`];
   if (Array.isArray(a) !== Array.isArray(b)) return [`${path}: array vs object`];
-  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)].filter((k) => !NEW_KEYS.has(k)));
   return [...keys].flatMap((k) => diff((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k], `${path}.${k}`));
 }
 

@@ -10,7 +10,8 @@
  * may be stored without an evaluation (the analysis skips them, see
  * weakAnalysis.ts); every stat treats such a position as having no eval.
  */
-import { Board } from '../chess';
+import { Board, type Role } from '../chess';
+import { moveReasons } from '../coach';
 import { pyFixed } from '../format';
 import * as ec from './evalcore';
 import { family } from './book';
@@ -220,6 +221,8 @@ export interface Example {
   wpl: number | null; move_number: number; colour: 'white' | 'black'; phase: ec.Phase; cap_before_white: number | null;
   engine_win_pct_before: number | null; engine_win_pct_after: number | null;
   opponent_move?: string; opponent_wpl?: number | null; verified?: boolean; verified_wpl?: number;
+  /** Pieces left hanging: the piece lost, the tactic that won it, and the clock before the move. */
+  lost_piece?: string; tactic?: string; time_left?: string | null;
 }
 
 function example(g: Game, m: Move, extra: Partial<Example> = {}): Example {
@@ -449,15 +452,114 @@ export function materialFlag(fenBefore: string, bestPv: string, fenAfter: string
   return best - line >= 100;
 }
 
+export const TACTICS = ['Fork', 'Pin', 'Skewer', 'Discovered attack', 'Removing the defender', 'Trapped piece', 'Mate threat',
+  'Moved into an attack', 'Left a piece undefended', 'Attacked more than defended', 'Check first, then a capture', 'A longer combination'] as const;
+export type Tactic = (typeof TACTICS)[number];
+const PIECE_VALUE: Record<Role, number> = { pawn: 1, knight: 3, bishop: 3, rook: 5, queen: 9, king: 0 };
+const sqOf = (s: string) => s.charCodeAt(0) - 97 + 8 * (s.charCodeAt(1) - 49);
+
+/** What a material-losing move ran into, from Stockfish's punishing line after it (afterPv: the opponent moves
+ *  first): the biggest piece of yours the opponent takes in its first moves, and the tactic that does it — read from
+ *  the opponent's first move (a fork, pin, discovered attack …), or, for a plain capture, why the piece could be
+ *  taken (you moved it into an attack, left it undefended, or it was outnumbered). */
+export function hangingDetail(fenAfter: string, played: string, afterPv: string, mateAgainst: boolean): { piece: string; tactic: Tactic } {
+  const pv = afterPv.split(/\s+/).filter(Boolean);
+  const b = Board.fromFen(fenAfter);
+  const me = b.turn === 'white' ? 'black' : 'white';
+  // the biggest piece of yours taken in the opponent's first three moves
+  let lost: Role | null = null;
+  const walk = b.copy();
+  for (const [i, u] of pv.slice(0, 5).entries()) {
+    if (!walk.isLegal(u)) break;
+    const victim = walk.pieceAt(sqOf(u.slice(2, 4)));
+    if (i % 2 === 0 && victim && victim.color === me && (!lost || PIECE_VALUE[victim.role] > PIECE_VALUE[lost])) lost = victim.role;
+    walk.push(u);
+  }
+  const piece = lost ?? (mateAgainst ? 'king (mate)' : 'other');
+  if (mateAgainst && (!lost || PIECE_VALUE[lost] < 3)) return { piece, tactic: 'Mate threat' };
+  // the opponent's first move, or, when that's a quiet set-up move, their second
+  const first = classifyBlow(b, pv[0], pv, played, me);
+  if (first) return { piece, tactic: first };
+  if (pv.length >= 3 && b.isLegal(pv[0])) {
+    const b2 = b.copy();
+    b2.push(pv[0]);
+    if (b2.isLegal(pv[1])) {
+      b2.push(pv[1]);
+      const second = classifyBlow(b2, pv[2], pv.slice(2), played, me);
+      if (second) return { piece, tactic: second };
+    }
+  }
+  return { piece, tactic: 'A longer combination' };
+}
+
+/** One opponent move as a tactic (null for a quiet move): a fork, discovered attack, … or, for a capture, why the
+ *  piece could be taken. rest: the line from this move on (for a skewer). */
+function classifyBlow(b: Board, move: string | undefined, rest: string[], played: string, me: 'white' | 'black'): Tactic | null {
+  if (!move || !b.isLegal(move)) return null;
+  const reasons = moveReasons(b, move, 'their');
+  const has = (re: RegExp) => reasons.some((r) => re.test(r));
+  if (has(/^forks/)) return 'Fork';
+  if (has(/^(uncovers|gives a discovered check|gives double check)/)) return 'Discovered attack';
+  if (has(/^removes the only defender/)) return 'Removing the defender';
+  if (has(/^traps/)) return 'Trapped piece';
+  if (has(/^pins/)) return 'Pin';
+  const to = sqOf(move.slice(2, 4));
+  const target = b.pieceAt(to);
+  if (b.isCapture(move) && target) {
+    // a plain capture: why could it be taken?
+    const attacker = b.pieceAt(sqOf(move.slice(0, 2)))!;
+    const defended = b.attackers(me, to).length > 0;
+    if (to === sqOf(played.slice(2, 4))) return defended && PIECE_VALUE[attacker.role] >= PIECE_VALUE[target.role] ? 'Attacked more than defended' : 'Moved into an attack';
+    return defended ? 'Attacked more than defended' : 'Left a piece undefended';
+  }
+  if (b.givesCheck(move)) {
+    // a skewer: the check drives the king off a line, and the checking piece takes what stood behind it
+    const checker = to;
+    const king = b.king(me);
+    const takes = rest[2];
+    const kingMoves = rest[1] !== undefined && sqOf(rest[1].slice(0, 2)) === king;
+    if (king !== undefined && kingMoves && takes && sqOf(takes.slice(0, 2)) === checker) {
+      const target2 = sqOf(takes.slice(2, 4));
+      const dir = (x: number, z: number) => [Math.sign((z % 8) - (x % 8)), Math.sign((z >> 3) - (x >> 3))];
+      const dist = (x: number, z: number) => Math.max(Math.abs((z % 8) - (x % 8)), Math.abs((z >> 3) - (x >> 3)));
+      const inLine = (x: number, z: number) => (z % 8) === (x % 8) || (z >> 3) === (x >> 3) || Math.abs((z % 8) - (x % 8)) === Math.abs((z >> 3) - (x >> 3));
+      const [kf, kr] = dir(checker, king);
+      const [tf, tr] = dir(checker, target2);
+      if (kf === tf && kr === tr && inLine(checker, target2) && inLine(checker, king) && dist(checker, target2) > dist(checker, king)) return 'Skewer';
+    }
+    return 'Check first, then a capture';
+  }
+  return null;
+}
+
+/** "0:42 left" bucket for a move (the Clock card's buckets), or null without a reliable clock. */
+function timeLeftOf(g: Game, m: Move): string | null {
+  if (!g.clockOk || m.remaining_before === null) return null;
+  return CLOCK_BUCKETS.find(([, lo, hi]) => m.remaining_before! >= lo && m.remaining_before! < hi)?.[0] ?? null;
+}
+
 export function statMaterial(ctx: Ctx, games: Game[]) {
   let big = 0;
   let flagged = 0;
   let nInc = 0;
   const examples: Example[] = [];
+  // the breakdown: what was lost, to what, when, and with how much time
+  const byPiece = new Map<string, number>();
+  const byTactic = new Map<string, number>();
+  const phaseMoves = new Map<string, number>();
+  const phaseHung = new Map<string, number>();
+  const phaseGames = new Map<string, Set<string>>();
+  const timeMoves = new Map<string, number>();
+  const timeHung = new Map<string, number>();
+  const timeGames = new Map<string, Set<string>>();
+  const bump = (mp: Map<string, number>, k: string) => mp.set(k, (mp.get(k) ?? 0) + 1);
   for (const g of games) {
     for (const m of g.own()) {
       if (!included(m)) continue;
       nInc += 1;
+      const tl = timeLeftOf(g, m);
+      bump(phaseMoves, m.phase);
+      if (tl) bump(timeMoves, tl);
       if (m.wpl < BIG) continue;
       big += 1;
       const pb = g.positions[m.ply];
@@ -465,16 +567,45 @@ export function statMaterial(ctx: Ctx, games: Game[]) {
       if (pa.terminal) continue;
       if (materialFlag(pb.fen, pb.pv_uci ?? '', pa.fen, pa.pv_uci ?? '', g.playerWhite)) {
         flagged += 1;
-        examples.push(example(g, m));
+        const mateAgainst = pa.score_type === 'mate' && (pa.mate_white ?? 0) !== 0 && (pa.mate_white! > 0) !== g.playerWhite;
+        const d = hangingDetail(pa.fen, m.uci, pa.pv_uci ?? '', mateAgainst);
+        bump(byPiece, d.piece);
+        bump(byTactic, d.tactic);
+        bump(phaseHung, m.phase);
+        (phaseGames.get(m.phase) ?? phaseGames.set(m.phase, new Set()).get(m.phase)!).add(g.gid);
+        if (tl) {
+          bump(timeHung, tl);
+          (timeGames.get(tl) ?? timeGames.set(tl, new Set()).get(tl)!).add(g.gid);
+        }
+        examples.push(example(g, m, { lost_piece: d.piece, tactic: d.tactic, time_left: m.remaining_before === null || !g.clockOk ? null : clockWords(m.remaining_before) }));
       }
     }
   }
   examples.sort((a, b) => (b.wpl ?? 0) - (a.wpl ?? 0));
+  const share = (mp: Map<string, number>, order: readonly string[]) => [...mp.entries()]
+    .sort((a, b) => b[1] - a[1] || order.indexOf(a[0]) - order.indexOf(b[0]))
+    .map(([label, n]) => ({ label, n, pct: flagged ? r1((100 * n) / flagged) : null }));
+  const rate = (hung: Map<string, number>, moves: Map<string, number>, gamesBy: Map<string, Set<string>>, order: readonly string[]) => order
+    .filter((k) => moves.get(k))
+    .map((label) => ({ label, n: hung.get(label) ?? 0, moves: moves.get(label)!, n_games: gamesBy.get(label)?.size ?? 0,
+      per100: r1((100 * (hung.get(label) ?? 0)) / moves.get(label)!) }));
   return payload(ctx, {
     share_of_big_errors_pct: big ? r1((100 * flagged) / big) : null,
     per100: nInc ? r1((100 * flagged) / nInc) : null,
     flagged, big_errors: big,
-  }, games.length, { nMoves: nInc, extra: { label: 'engine-flagged', examples: examples.slice(0, 20) } });
+  }, games.length, { nMoves: nInc, extra: { label: 'engine-flagged', examples: examples.slice(0, 40),
+    breakdown: flagged ? {
+      by_piece: share(byPiece, ['queen', 'rook', 'bishop', 'knight', 'pawn', 'king (mate)', 'other']),
+      by_tactic: share(byTactic, TACTICS),
+      by_phase: rate(phaseHung, phaseMoves, phaseGames, ['opening', 'middlegame', 'endgame']),
+      by_time: rate(timeHung, timeMoves, timeGames, CLOCK_BUCKETS.map(([n]) => n)),
+    } : null } });
+}
+
+/** 42 → "0:42", 125 → "2:05". */
+function clockWords(s: number): string {
+  const t = Math.max(0, Math.floor(s));
+  return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
 }
 
 // ---------- 12. clock profile (v1.2 F3, F8) ----------

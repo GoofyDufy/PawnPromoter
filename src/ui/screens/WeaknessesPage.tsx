@@ -28,6 +28,10 @@ const SEG_FILTER: Record<string, (e: Example) => boolean> = {
 };
 
 type V = Record<string, number | null> | null;
+type Share = { label: string; n: number; pct: number | null };
+type Rate = { label: string; n: number; moves: number; n_games: number; per100: number };
+type HangingBreakdown = { by_piece: Share[]; by_tactic: Share[]; by_phase: Rate[]; by_time: Rate[] };
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const val = (p: { value: unknown }) => (p.value ?? null) as V;
 
 export function WeaknessesPage({ client, jobs, onReview, onPractice }: {
@@ -87,7 +91,7 @@ export function WeaknessesPage({ client, jobs, onReview, onPractice }: {
       ) : left > 0 && tc ? (
         <span className="weak-job">
           <select aria-label="Games to analyse" value={count} onChange={(e) => setCount(Number(e.target.value))}>
-            {[25, 50, 100, 200].map((n) => <option key={n} value={n}>{n} games</option>)}
+            {[25, 50, 100, 200, 500, 1000].map((n) => <option key={n} value={n}>{n} games</option>)}
           </select>
           <button type="button" className="btn small" disabled={otherBusy} title={otherBusy ? 'Wait for the other analysis to finish' : undefined}
             onClick={() => void jobs.analyzeWeak(tc, count)}>Analyse {Math.min(count, left)} more</button>
@@ -168,6 +172,10 @@ function Overview({ R, exKind, setExKind, exFilter, setExFilter, onReview }: {
   const shownOf = (k: 'material' | 'opportunism') => ((kinds[k].examples as Example[] | undefined) ?? []).filter((e) => e.verified !== false);
   let list = shownOf(exKind);
   if (exFilter && SEG_FILTER[exFilter]) list = list.filter(SEG_FILTER[exFilter]);
+  if (exFilter?.startsWith('tactic:')) list = list.filter((e) => e.tactic === exFilter.slice(7));
+  // the tactics behind your hanging pieces, most common first (chips to filter the positions)
+  const tactics = exKind === 'material' ? [...new Set(shownOf('material').map((e) => e.tactic).filter((t): t is string => !!t))]
+    .map((t) => ({ t, n: shownOf('material').filter((e) => e.tactic === t).length })).sort((a, b) => b.n - a.n).slice(0, 6) : [];
   const accuracyTrend = R.per_game.filter((g) => g.accuracy !== null).map((g) => ({ date: g.date, value: g.accuracy! }));
   return (
     <>
@@ -217,8 +225,17 @@ function Overview({ R, exKind, setExKind, exFilter, setExFilter, onReview }: {
             <button key={k} type="button" className="chip weak-chip" aria-pressed={exKind === k} onClick={() => setExKind(k)}>
               {k === 'material' ? 'Pieces left hanging' : 'Missed chances'} · {shownOf(k).length}</button>
           ))}
-          {exFilter && <button type="button" className="chip weak-chip" aria-pressed="true" onClick={() => setExFilter(null)}>{exFilter} ✕</button>}
+          {exFilter && <button type="button" className="chip weak-chip" aria-pressed="true" onClick={() => setExFilter(null)}>{exFilter.replace(/^tactic:/, '')} ✕</button>}
         </div>
+        {tactics.length > 0 && (
+          <div className="row hang-tactics" role="group" aria-label="Filter by the tactic that won the piece">
+            <span className="note">The tactic that won it:</span>
+            {tactics.map(({ t, n }) => (
+              <button key={t} type="button" className="chip weak-chip" aria-pressed={exFilter === `tactic:${t}`}
+                onClick={() => setExFilter(exFilter === `tactic:${t}` ? null : `tactic:${t}`)}>{t} · {n}</button>
+            ))}
+          </div>
+        )}
         {list.length ? (
           <div className="weak-examples">
             {list.slice(0, 12).map((e) => <ExampleCard key={`${e.game_id}-${e.ply}`} e={e} kind={exKind} onReview={onReview} />)}
@@ -239,6 +256,11 @@ function ExampleCard({ e, kind, onReview }: { e: Example; kind: 'material' | 'op
       <div className="weak-move">{e.move_number}{e.colour === 'white' ? '.' : '…'} <span className="bad">{e.played}</span>
         {e.best && <span className="best"> · best {e.best}</span>}</div>
       {kind === 'opportunism' && <div className="stat-n">Opponent's mistake: {e.opponent_move} (−{fmt(e.opponent_wpl ?? null)} pts)</div>}
+      {kind === 'material' && e.tactic && <div className="hang-tags">
+        {e.lost_piece && !['other', 'king (mate)'].includes(e.lost_piece) && <span className="tag">Lost a {e.lost_piece}</span>}
+        <span className="tag">{e.tactic}</span>
+        {e.time_left && <span className="tag">{e.time_left} left</span>}
+      </div>}
       <div className="stat-n">Engine win% {fmt(e.engine_win_pct_before, 0)} → {fmt(e.engine_win_pct_after, 0)} · {e.phase}
         {e.verified && <> · <span className="state-badge checked" title="Re-searched at the same depth">Re-checked</span></>}</div>
       <button type="button" className="btn secondary small" onClick={() => onReview(e.game_id, e.fen)}>Review this move</button>
@@ -331,6 +353,7 @@ function Splits({ R }: { R: R }) {
   const rs = val(R.rescue);
   const oppo = val(R.opportunism);
   const mat = val(R.material);
+  const bd = (R.material as { breakdown?: HangingBreakdown | null }).breakdown ?? null;
   const ck = R.clock as typeof R.clock & { has_clock?: boolean; uplift_moves?: { under_30s: number; over_60s: number } };
   const ckv = ck.value as { uplift: number | null; buckets: { bucket: string; blunder_per100: number | null; n_games: number }[];
     median_elapsed_s: Record<string, number | null>; pct_games_low_time_lost: number | null } | null;
@@ -397,6 +420,25 @@ function Splits({ R }: { R: R }) {
             moves={R.material.n_moves_included}
             hidden={`${mat?.flagged ?? 0} of ${mat?.big_errors ?? 0} big errors engine-flagged. Fewer than 10 games, so no share is shown.`}
             sub={<>{mat?.flagged} of your {mat?.big_errors} mistakes and blunders were engine-flagged material losses ({fmt(mat?.per100)} per 100 moves).</>} />
+          {bd && mat && R.material.state !== 'suppressed' && (
+            <StatCard title="Pieces left hanging: what, how and when" state={R.material.state} headline={bd.by_tactic[0]?.label ?? ''}
+              unit={`the most common way (${fmt(bd.by_tactic[0]?.pct ?? null, 0)}%)`} wide games={R.material.n_games} moves={R.material.n_moves_included}
+              sub={<>The piece you lost, the tactic that won it (read from Stockfish's punishing line), the part of the game and your clock.
+                To see the positions, pick a tactic under Overview → Positions to look at.</>}>
+              <div className="hang-grid">
+                <div><h4 className="split-head">What you lost</h4>
+                  <SplitBar rows={bd.by_piece.map((r) => ({ label: cap(r.label), value: r.pct, games: r.n, note: plural(r.n, 'time') }))} unit="%" digits={0} /></div>
+                <div><h4 className="split-head">The tactic that won it</h4>
+                  <SplitBar rows={bd.by_tactic.map((r) => ({ label: r.label, value: r.pct, games: r.n, note: plural(r.n, 'time') }))} unit="%" digits={0} /></div>
+                <div><h4 className="split-head">When, per 100 moves</h4>
+                  <SplitBar rows={bd.by_phase.map((r) => ({ label: cap(r.label), value: r.n_games >= 10 ? r.per100 : null, games: r.n_games, why: 'under 10 games',
+                    note: `${r.n} in ${r.moves.toLocaleString('en-US')} moves` }))} overall={mat.per100} unit="/100" /></div>
+                {bd.by_time.length > 0 && <div><h4 className="split-head">Your clock, per 100 moves</h4>
+                  <SplitBar rows={bd.by_time.map((r) => ({ label: `${r.label} left`, value: r.n_games >= 10 ? r.per100 : null, games: r.n_games, why: 'under 10 games',
+                    note: `${r.n} in ${r.moves.toLocaleString('en-US')} moves` }))} overall={mat.per100} unit="/100" /></div>}
+              </div>
+            </StatCard>
+          )}
           {ck.has_clock && (ck.state === 'insufficient_data' || !ckv ? (
             <StatCard title="Clock" state="insufficient_data" headline="" wide games={ck.n_games}
               hidden={`Not enough timed moves yet: the comparison needs 30+ moves both under 30 seconds (${ck.uplift_moves?.under_30s ?? 0} so far) and over 60 seconds (${ck.uplift_moves?.over_60s ?? 0}), with at least one blunder when you had time.`} />
