@@ -1,0 +1,90 @@
+{
+ "players": {
+  "up": 625,
+  "same": 1683,
+  "down": 584
+ },
+ "metrics": {
+  "accuracy": {
+   "up": 81.3,
+   "same": 81.5,
+   "down": 80.1,
+   "diff": 1.2000000000000028,
+   "sd": 0.46,
+   "real": true,
+   "risers_better": true
+  },
+  "blunders": {
+   "up": 3.7,
+   "same": 3.9,
+   "down": 4.2,
+   "diff": -0.5,
+   "sd": 0.22,
+   "real": true,
+   "risers_better": true
+  },
+  "mistakes": {
+   "up": 6.6,
+   "same": 6.7,
+   "down": 7,
+   "diff": -0.40000000000000036,
+   "sd": 0.22,
+   "real": false,
+   "risers_better": true
+  },
+  "acpl": {
+   "up": 51.9,
+   "same": 52.4,
+   "down": 54.9,
+   "diff": -3,
+   "sd": 1.15,
+   "real": true,
+   "risers_better": true
+  },
+  "worst_move": {
+   "up": 63.8,
+   "same": 67.3,
+   "down": 70.5,
+   "diff": -6.700000000000003,
+   "sd": 2.77,
+   "real": true,
+   "risers_better": true
+  },
+  "conversion": {
+   "up": 77.9,
+   "same": 76.9,
+   "down": 68.5,
+   "diff": 9.400000000000006,
+   "sd": 3.18,
+   "real": true,
+   "risers_better": true
+  },
+  "rescue": {
+   "up": 30.1,
+   "same": 25.9,
+   "down": 22.8,
+   "diff": 7.300000000000001,
+   "sd": 3.23,
+   "real": true,
+   "risers_better": true
+  },
+  "punished": {
+   "up": 58.4,
+   "same": 59.8,
+   "down": 58.3,
+   "diff": 0.10000000000000142,
+   "sd": 1.44,
+   "real": false,
+   "risers_better": true
+  },
+  "hanging": {
+   "up": 5.4,
+   "same": 5.7,
+   "down": 6,
+   "diff": -0.5999999999999996,
+   "sd": 0.22,
+   "real": true,
+   "risers_better": true
+  }
+ }
+}

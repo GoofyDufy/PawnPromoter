@@ -26,7 +26,11 @@ import 'chessground/assets/chessground.cburnett.css';
 export interface Arrow {
   from: string;          // square name, e.g. "e2"
   to: string;            // the same square as from: a circle on it
-  brush?: 'green' | 'blue' | 'grey' | 'red' | 'yellow';
+  brush?: 'green' | 'blue' | 'grey' | 'red' | 'yellow' | 'purple';
+  /** A move's place in a line ("1", "2" …), drawn on the arrow. */
+  label?: string;
+  /** Drawn thinner: a move leading up to the one in focus. */
+  faint?: boolean;
 }
 
 export interface BoardProps {
@@ -55,7 +59,7 @@ function badgeSvg(text: string, color: string): string {
 }
 
 const BRUSHES: Record<NonNullable<Arrow['brush']>, string> = {
-  green: 'green', blue: 'blue', grey: 'paleGrey', red: 'red', yellow: 'yellow',
+  green: 'green', blue: 'blue', grey: 'paleGrey', red: 'red', yellow: 'yellow', purple: 'purple',
 };
 
 const PROMOTIONS = [['q', 'queen'], ['r', 'rook'], ['b', 'bishop'], ['n', 'knight']] as const;
@@ -141,7 +145,8 @@ export function Board({ fen, orientation = 'white', movable = null, onMove, last
         },
       },
       drawable: { autoShapes: [
-        ...arrows.map((a): DrawShape => ({ orig: a.from as Key, dest: a.to === a.from ? undefined : a.to as Key, brush: BRUSHES[a.brush ?? 'green'] })),
+        ...arrows.map((a): DrawShape => ({ orig: a.from as Key, dest: a.to === a.from ? undefined : a.to as Key, brush: BRUSHES[a.brush ?? 'green'],
+          ...(a.label ? { label: { text: a.label } } : {}), ...(a.faint ? { modifiers: { lineWidth: 5 } } : {}) })),
         ...badges.map((b): DrawShape => ({ orig: b.square as Key, customSvg: { html: badgeSvg(b.text, b.color) } })),
       ] },
     });

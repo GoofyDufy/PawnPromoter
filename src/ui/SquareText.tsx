@@ -25,7 +25,8 @@ export function squaresIn(text: string): string[] {
 /** What the board shows for some Coach text: squares lit, and arrows for the moves. */
 export type OnFocus = (squares: string[] | null, arrows?: Arrow[]) => void;
 
-export interface Ref { index: number; text: string; square: string; arrow: Arrow | null }
+/** line: which line of moves it belongs to (moves read one after another); step: its place in that line (1, 2 …). */
+export interface Ref { index: number; text: string; square: string; arrow: Arrow | null; line?: number; step?: number }
 
 // a bare square right after one of these words is a place, not a move ("a knight on d5", "hits d4")
 const PLACE = /\b(?:on|at|of|to|from|onto|into|hits|hit|attacks|attack|guards|guard|covers|cover|toward|towards|behind|via|over|around|near|square|squares|in front of|is|are)\s*$/i;
@@ -63,12 +64,15 @@ export function refsIn(text: string, fen?: string | null): Ref[] {
   const other = base && fen ? flipped(fen) : null;
   let line: Board | null = null;            // the line being read, after its last move
   let lineEnd = -1;
+  let lineNo = 0;
+  let step = 0;
   const out: Ref[] = [];
   for (const m of text.matchAll(SQUARE)) {
     const tok = m[0];
     const at = m.index!;
     const before = text.slice(0, at);
     let uci: string | null = null;
+    let mover: Color | null = null;
     if (base) {
       const blackMarked = /(?:…|\.\.\.)$/.test(before);
       const numbered = /\d+\.(?:\.\.)?\s*$/.test(before) || blackMarked;
@@ -77,18 +81,22 @@ export function refsIn(text: string, fen?: string | null): Ref[] {
       if (moveLike || !PLACE.test(before)) {
         // the line being read, first: right after its last move, or any move of it named later on
         if (continues || (line !== null && moveLike)) uci = tryMove(line, tok);
-        if (!uci) {
+        if (uci) step++;
+        else {
           // from the position on the board: the side to move first, unless it's marked as Black's move
           const order = blackMarked ? [base, other].filter((b) => b?.turn === 'black') : [base, other];
           for (const b of order) {
             uci = tryMove(b, tok);
             if (uci) {
               line = b!.copy();
+              lineNo++;
+              step = 1;
               break;
             }
           }
         }
         if (uci && line) {
+          mover = line.turn;
           try {
             line.push(uci);
           } catch {
@@ -98,13 +106,17 @@ export function refsIn(text: string, fen?: string | null): Ref[] {
         }
       }
     }
-    out.push({ index: at, text: tok, square: m[1], arrow: uci ? { from: uci.slice(0, 2), to: uci.slice(2, 4), brush: 'yellow' } : null });
+    // the side to move on the board in orange, the replies in purple; numbered in the order they're played
+    out.push(uci ? { index: at, text: tok, square: m[1], line: lineNo, step,
+      arrow: { from: uci.slice(0, 2), to: uci.slice(2, 4), brush: mover === base?.turn ? 'yellow' : 'purple', label: String(step) } }
+      : { index: at, text: tok, square: m[1], arrow: null });
   }
   return out;
 }
 
-/** A screen's own arrows plus the coach's (the same array when there are none, so the board doesn't redraw). */
-export const plusCoach = (arrows: Arrow[], coach: Arrow[]): Arrow[] => (coach.length ? [...arrows, ...coach] : arrows);
+/** The screen's own arrows, or, while you point at a move in the Coach's text, only the Coach's (mixed together,
+ *  the engine's arrows and the Coach's line can't be told apart). The same array when nothing changes. */
+export const plusCoach = (arrows: Arrow[], coach: Arrow[]): Arrow[] => (coach.length ? coach : arrows);
 
 /** The board's side of SquareText: lit squares and coach arrows, for a screen's Board. */
 export function useCoachFocus() {
@@ -120,15 +132,22 @@ export function useCoachFocus() {
 export function SquareText({ text, onSquares, fen }: { text: string; onSquares: OnFocus; fen?: string | null }) {
   const refs = refsIn(text, fen);
   if (!refs.length) return <>{text}</>;
-  // a move shows as its arrow; a square as a highlight
-  const show = (rs: Ref[]) => onSquares([...new Set(rs.filter((r) => !r.arrow).map((r) => r.square))], rs.flatMap((r) => (r.arrow ? [r.arrow] : [])));
+  // a move shows as its arrow; a square as a highlight. A whole sentence: each line's first few moves, numbered.
+  const show = (rs: Ref[]) => onSquares([...new Set(rs.filter((r) => !r.arrow).map((r) => r.square))],
+    rs.flatMap((r) => (r.arrow && (r.step ?? 1) <= SENTENCE_STEPS ? [r.arrow] : [])));
+  // one move of a line: the moves leading up to it too (thinner), so it reads on the board as it is now
+  const showMove = (r: Ref) => {
+    if (!r.arrow || !r.step || r.step === 1) return show([r]);
+    const before = refs.filter((x) => x.arrow && x.line === r.line && x.step! < r.step! && x.step! >= r.step! - LEAD_UP);
+    onSquares([], [...before.map((x) => ({ ...x.arrow!, faint: true })), r.arrow]);
+  };
   const parts: ReactNode[] = [];
   let last = 0;
   for (const r of refs) {
     if (r.index > last) parts.push(text.slice(last, r.index));
     parts.push(
-      <span key={r.index} className={`sq-ref${r.arrow ? ' move-ref' : ''}`} onMouseEnter={() => show([r])} onMouseLeave={() => show(refs)}
-        onClick={(e) => { e.stopPropagation(); show([r]); }}>{r.text}</span>,
+      <span key={r.index} className={`sq-ref${r.arrow ? ' move-ref' : ''}`} onMouseEnter={() => showMove(r)}
+        onClick={(e) => { e.stopPropagation(); showMove(r); }}>{r.text}</span>,
     );
     last = r.index + r.text.length;
   }
@@ -139,6 +158,9 @@ export function SquareText({ text, onSquares, fen }: { text: string; onSquares: 
     </span>
   );
 }
+
+const SENTENCE_STEPS = 6;     // a whole sentence: each line's first three moves each (more is a tangle on one board)
+const LEAD_UP = 5;            // one move: up to this many moves before it in its line
 
 const THINK_FIRST = 'pawnpromoter.ideasThinkFirst';
 /** A remembered on/off in this browser (a convenience: blocked storage just means off). */

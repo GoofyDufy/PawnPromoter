@@ -767,3 +767,10 @@ describe('the big audit\'s fixes (6,500 positions checked against Stockfish)', (
     expect(far.advice).toBeUndefined();
   });
 });
+
+describe('Coach text arrows: a line reads in order', () => {
+  it('numbers each move of a line, the side to move in orange and the replies in purple', () => {
+    const refs = refsIn('After 1.e4 e5 2.Nf3 the knight hits e5.', 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1').filter((r) => r.arrow);
+    expect(refs.map((r) => [r.arrow!.label, r.arrow!.brush, r.line])).toEqual([['1', 'yellow', 1], ['2', 'purple', 1], ['3', 'yellow', 1]]);
+  });
+});
